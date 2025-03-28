@@ -1,0 +1,236 @@
+.users-dashboard {
+    display: flex;
+    height: 670px !important;
+  }
+  
+  .users-content {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto !important;
+    height: 670px;
+    background: #f9f9f9;
+  }
+  
+  .users-title {
+    font-size: 36px;
+    font-weight: bold;
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+  }
+  
+  .users-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  
+  .search-bar {
+    position: relative;
+    max-width: 500px;
+    margin: 0 auto;
+    flex: 1;
+  }
+  
+  .search-input {
+    width: 100%;
+    padding: 12px 40px 12px 15px;
+    border: 1px solid #ccc;
+    border-radius: 25px;
+    font-size: 16px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #D83D8D;
+    font-size: 18px;
+  }
+  
+  .users-add-btn {
+    background: #D83D8D;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+  }
+  
+  .users-add-btn:hover {
+    background: #b03275;
+  }
+  
+  .users-table {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .users-table th,
+  .users-table td {
+    padding: 12px;
+    text-align: center;
+    border: none;
+    background: #fff;
+  }
+  
+  .users-table th {
+    background: #D83D8D;
+    color: white;
+    font-weight: bold;
+  }
+  
+  .users-table tr:nth-child(even) {
+    background: #f2f2f2;
+  }
+  
+  .users-table tr:hover {
+    background: #e8e8e8;
+  }
+  
+  .users-actions {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .users-edit-btn,
+  .users-delete-btn {
+    background: #D83D8D;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+  }
+  
+  .users-edit-btn:hover,
+  .users-delete-btn:hover {
+    background: #b03275;
+  }
+  
+  .users-edit-btn:disabled,
+  .users-delete-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .users-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 20px;
+  }
+  
+  .users-save-btn {
+    background: #D83D8D;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+  }
+  
+  .users-save-btn:hover {
+    background: #b03275;
+  }
+  
+  .users-modal {
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  }
+  
+  .modal-dialog {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .users-modal-header {
+    background-color: #D83D8D;
+    border-bottom: 1px solid #dee2e6;
+    color: white;
+  }
+  
+  .modal-title {
+    font-size: 24px;
+    font-weight: bold;
+    width: 100%;
+    text-align: center;
+  }
+  
+  .modal-body {
+    padding: 20px;
+  }
+  
+  .modal-body .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .modal-body .form-label {
+    font-size: 16px;
+    color: #333;
+  }
+  
+  .modal-body .form-control {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+  }
+  
+  @media (max-width: 576px) {
+    .users-content {
+      padding: 10px;
+    }
+  
+    .users-title {
+      font-size: 36px;
+    }
+  
+    .users-controls {
+      flex-direction: row;
+      align-items: stretch;
+    }
+  
+    .search-bar {
+      max-width: 100%;
+      margin-bottom: 10px;
+    }
+  
+    .search-input {
+      width: 100%;
+    }
+  
+    .users-table th,
+    .users-table td {
+      padding: 8px;
+      font-size: 14px;
+    }
+  
+    .users-actions {
+      flex-direction: column;
+      gap: 5px;
+    }
+  
+    .users-edit-btn,
+    .users-delete-btn {
+      padding: 6px 10px;
+      font-size: 14px;
+    }
+  
+    .modal-body {
+      padding: 15px;
+    }
+  
+    .modal-title {
+      font-size: 20px;
+    }
+  
+   .users-add-btn{
+    border-radius: 25px;
+   }
+  }

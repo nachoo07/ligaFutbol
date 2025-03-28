@@ -1,0 +1,316 @@
+.dashboard-container-student {
+  display: flex;
+  height: 670px !important;
+}
+
+.content-student {
+  flex-grow: 1;
+  padding: 20px;
+  overflow-y: auto;
+  background: #f9f9f9;
+}
+
+.students-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.title {
+  font-size: 36px !important;
+  font-weight: bold;
+  text-align: center;
+  color: #333;
+  margin-bottom: 0px !important;
+}
+
+.search-bar {
+  position: relative;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+.search-bar input {
+  width: 100%;
+  padding: 12px 40px 12px 15px;
+  border: 1px solid #ccc;
+  border-radius: 25px;
+  font-size: 16px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.search-icon {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #0163a9 !important;
+  font-size: 18px;
+}
+
+.state-filter {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.state-filter label {
+  font-size: 18px;
+  color: #333;
+}
+
+.state-filter select {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 16px;
+  flex: 1;
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 15px;
+}
+
+.add-btn {
+  background: #0163a9 !important;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  font-size: 20px;
+}
+
+.add-btn:hover {
+  background: #013d61 !important;
+}
+
+.students-table {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.students-table th,
+.students-table td {
+  padding: 12px;
+  text-align: center;
+  border: none;
+  background: #fff;
+}
+
+.students-table th {
+  background: #0163a9 !important;
+  color: white;
+  font-weight: bold;
+}
+
+.students-table tr.state-activo {
+  background: #d4edda;
+}
+
+.students-table tr.state-inactivo {
+  background: #f8d7da;
+}
+
+.students-table tr:hover {
+  background: #e8e8e8;
+}
+
+.pagination {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+  margin-top: 20px;
+}
+
+.pagination-btn {
+  background: #0163a9 !important;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 5px;
+}
+
+.pagination-btn:hover {
+  background: #0163a9 !important;
+}
+
+.pagination-btn.active {
+  background-color: #0163a9 !important;
+  color: white;
+  border: none;
+}
+
+.pagination-btn:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.custom-alert {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1050;
+  max-width: 400px;
+}
+
+.action-btn {
+  background: #0163a9 !important;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 5px;
+}
+
+.action-btn:hover {
+  background: #013d61 !important;
+}
+
+.students-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.filter-actions {
+  display: flex;
+  justify-content: space-between;
+  text-align: center;
+  align-items: center;
+}
+
+.add-btn {
+  margin-left: 50px;
+  margin-right: 20px;
+}
+
+.actions {
+  margin-bottom: 0px;
+}
+
+.estado {
+  margin-bottom: 0px;
+}
+
+.import-btn {
+  margin-left: 10px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.375rem 0.75rem;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.5;
+  border-radius: 0.25rem;
+  transition: all 0.2s;
+}
+
+.import-btn:hover {
+  background-color: #218838;
+  border-color: #1e7e34;
+}
+
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  /* Fondo semi-transparente */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+  /* Asegurarse de que esté por encima de todo */
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.loading-spinner p {
+  margin-top: 10px;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+@media (max-width: 768px) {
+  .table-container {
+    width: 100%;
+    margin-left: 0;
+  }
+
+  .search-bar,
+  .state-filter {
+    max-width: 100%;
+  }
+
+  .actions {
+    justify-content: center;
+  }
+
+  .students-table th,
+  .students-table td {
+    padding: 8px;
+  }
+}
+
+@media (max-width: 576px) {
+  .sidebar {
+    display: none;
+  }
+
+  .students-table th,
+  .students-table td {
+    font-size: 14px;
+  }
+
+  .action-btn {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  .students-header {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .search-bar {
+    width: 100%;
+  }
+
+  .filter-actions {
+    display: flex;
+    justify-content: space-around;
+    gap: 10px;
+    width: 100%;
+
+  }
+
+  .state-filter {
+    flex: 1;
+  }
+
+  .add-btn {
+    margin-left: 50px;
+    margin-right: 0px;
+  }
+
+  .actions {
+    margin-bottom: 0px;
+
+  }
+
+}

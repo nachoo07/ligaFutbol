@@ -1,0 +1,428 @@
+/* Agregar al final de share.css */
+.massive-cuota-form {
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+  }
+  
+  .massive-cuota-form h3 {
+    font-size: 20px;
+    color: #333;
+    margin-bottom: 15px;
+  }
+  
+  .massive-cuota-form .form-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+  }
+  
+  .massive-cuota-form input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    flex: 1;
+    min-width: 150px;
+  }
+
+  .dashboard-container-share {
+    display: flex;
+    height: 670px !important;
+  }
+  
+  .content-share {
+    flex-grow: 1;
+    padding: 20px;
+    overflow-y: auto !important;
+    height: 670px;
+    background: #f9f9f9;
+  }
+  
+  .students-view {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .title {
+    font-size: 36px;
+    font-weight: bold;
+    text-align: center;
+    color: #333;
+    margin-bottom: 20px;
+  }
+  
+  .search-bar {
+    position: relative;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+  
+  .search-bar input {
+    width: 500px;
+    padding: 12px 40px 12px 15px;
+    border: 1px solid #ccc;
+    border-radius: 25px;
+    font-size: 16px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  }
+  
+  .search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #D83D8D;
+    font-size: 18px;
+  }
+  
+  .students-table {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .students-table th,
+  .students-table td {
+    padding: 12px;
+    text-align: center;
+    border: none;
+    background: #fff;
+  }
+  
+  .students-table th {
+    background: #D83D8D;
+    color: white;
+    font-weight: bold;
+  }
+  
+  .students-table tr:nth-child(even) {
+    background: #f2f2f2;
+  }
+  
+  .students-table tr:hover {
+    background: #e8e8e8;
+  }
+  
+  .pagination {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 20px;
+  }
+  
+  .pagination-btn {
+    background: #D83D8D;
+    color: white;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 5px;
+  }
+  
+  .pagination-btn:hover,
+  .pagination-btn.active {
+    background: #b03275;
+  }
+  
+  .pagination-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .cuotas-view {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+  }
+  
+  .back-btn {
+    background: #D83D8D;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    border-radius: 5px;
+  }
+  
+  .back-btn:hover {
+    background: #b03275;
+  }
+  
+  .year-filter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+  }
+  
+  .filter {
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .label-ano {
+    font-size: 20px !important;
+    margin: 0px !important;
+    color: #333;
+    margin-right: 15px !important;
+  }
+  
+  .year-filter label {
+    font-size: 18px;
+    color: #333;
+  }
+  
+  .year-filter select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: #fff;
+    font-size: 16px;
+  }
+  
+  .cuotas-table {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  }
+  
+  .cuotas-table th,
+  .cuotas-table td {
+    padding: 12px;
+    text-align: center;
+    border: none;
+    background: #fff;
+  }
+  
+  .cuotas-table th {
+    background: #D83D8D;
+    color: white;
+    font-weight: bold;
+  }
+  
+  .cuotas-table tr.state-pendiente {
+    background: #fff3cd;
+  }
+  
+  .cuotas-table tr.state-pagado {
+    background: #d4edda;
+  }
+  
+  .cuotas-table tr.state-vencido {
+    background: #f8d7da;
+  }
+  
+  .cuotas-table tr:hover {
+    background: #e8e8e8;
+  }
+  
+  .cuota-form {
+    background: #fff;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    margin-top: 20px;
+  }
+  
+  .form-row {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-bottom: 15px;
+  }
+  
+  .form-row select,
+  .form-row input {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    flex: 1;
+    min-width: 150px;
+  }
+  
+  .form-row select:disabled {
+    background: #f0f0f0;
+    color: #666;
+  }
+  
+  .form-actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+  }
+  
+  .action-btn,
+  .save-btn,
+  .cancel-btn {
+    background: #D83D8D;
+    color: white;
+    border: none;
+    padding: 8px 15px;
+    margin-right: 10px;
+    border-radius: 5px;
+  }
+  
+  .action-btn.delete {
+    background: #D83D8D;
+  }
+  
+  .action-btn:hover,
+  .save-btn:hover,
+  .cancel-btn:hover {
+    background: #b03275;
+  }
+  
+  .action-btn.delete:hover {
+    background: #b03275;
+  }
+  
+  .custom-alert {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1050;
+    max-width: 400px;
+  }
+  
+  .loading {
+    text-align: center;
+    color: #666;
+    font-size: 16px;
+  }
+  
+  .cuota-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+  
+  .cuota-filter label {
+    font-size: 18px;
+    color: #333;
+  }
+  
+  .cuota-filter select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    background: #fff;
+    font-size: 16px;
+    flex: 1;
+  }
+  
+  .share-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .action-btn {
+    gap: 5px;
+  }
+  
+  .btn-icon {
+    display: none;
+  }
+  
+  .botones-acciones {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  
+  .cancel-btn {
+    height: 40px;
+    margin: 10px 10px 0px 0px;
+  }
+
+  .action-btn.receipt {
+    background-color: #28a745; /* Verde para el botón de comprobante */
+    border-color: #28a745;
+    color: white;
+    margin-left: 5px;
+}
+
+.action-btn.receipt:hover {
+    background-color: #218838;
+    border-color: #1e7e34;
+}
+
+.action-btn.receipt:disabled {
+    background-color: #6c757d;
+    border-color: #6c757d;
+    cursor: not-allowed;
+}
+
+.action-btn.receipt .btn-text {
+    margin-right: 5px;
+}
+
+.action-btn.receipt .btn-icon {
+    vertical-align: middle;
+}
+  
+  @media (max-width: 576px) {
+    .sidebar {
+      display: none;
+    }
+  
+    .content-share {
+      margin-left: 0;
+    }
+  
+    .search-bar .search-input {
+      width: 100%;
+    }
+  
+    .share-header {
+      flex-direction: column;
+      gap: 10px;
+    }
+  
+    .metodo-pago {
+      display: none;
+    }
+  
+    .edit {
+      margin: 0px;
+      width: 30px;
+      padding: 4px 8px;
+    }
+  
+    .delete {
+      margin: 0px;
+      width: 30px;
+      padding: 4px 8px;
+    }
+  
+    .btn-text {
+      display: none;
+    }
+  
+    .btn-icon {
+      display: inline;
+    }
+  
+    .botones-acciones {
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+    }
+  
+    .cancel-btn {
+      height: 40px;
+      margin: 10px 10px 0px 0px;
+    }
+  
+    .cuotas-table {
+      margin: 0px;
+  
+    }
+  }

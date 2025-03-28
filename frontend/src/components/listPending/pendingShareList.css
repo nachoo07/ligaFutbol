@@ -1,0 +1,33 @@
+.students-table {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  width: 100%;
+  margin-top: 20px;
+}
+
+.students-table th,
+.students-table td {
+  padding: 12px;
+  text-align: center;
+  border: none;
+  background: #fff;
+}
+
+.students-table th {
+  background: #0163a9 !important;
+  color: white;
+  font-weight: bold;
+}
+
+.students-table tr.state-activo {
+  background: #d4edda;
+}
+
+.students-table tr.state-inactivo {
+  background: #f8d7da;
+}
+
+.students-table tr:hover {
+  background: #e8e8e8;
+}

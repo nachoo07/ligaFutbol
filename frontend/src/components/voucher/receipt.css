@@ -1,0 +1,93 @@
+/* Estilos generales */
+.receipt-container {
+    width: 600px;
+    background-color: #ffffff;
+    font-family: Arial, sans-serif;
+}
+
+/* Encabezado */
+.receipt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #013d61;
+    padding: 15px 20px;
+}
+
+.receipt-header-logo {
+    display: flex;
+    align-items: center;
+}
+
+.receipt-header-logo img {
+    width: 60px;
+    height: auto;
+    margin-right: 10px;
+}
+
+.receipt-header-title {
+    color: #ffffff;
+    font-size: 14px;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+.receipt-header-invoice {
+    color: #ffffff;
+    font-size: 36px;
+    margin: 0;
+    text-transform: uppercase;
+}
+
+/* Contenido principal */
+.receipt-content {
+    padding: 20px;
+}
+
+.receipt-section {
+    margin-bottom: 20px;
+}
+
+.receipt-section-title {
+    font-size: 16px;
+    color: #0163a9;
+    margin: 0 0 10px 0;
+    text-transform: uppercase;
+}
+
+.receipt-text {
+    margin: 5px 0;
+    color: #000;
+    font-size: 14px;
+}
+
+.receipt-text strong {
+    font-weight: bold;
+}
+
+/* Mensaje de agradecimiento */
+.receipt-thank-you {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+/* Pie de página */
+.receipt-footer {
+    background-color: #013d61;
+    padding: 10px 20px;
+    text-align: center;
+}
+
+.receipt-footer-text {
+    color: #ffffff;
+    font-size: 14px;
+    margin: 5px 0;
+}
+
+.receipt-texto {
+    margin: 5px 0;
+    color: #ffffff !important;
+    font-size: 20px;
+    font-family: Arial, Helvetica, sans-serif;
+}
+

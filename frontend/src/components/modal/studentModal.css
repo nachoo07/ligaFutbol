@@ -1,0 +1,150 @@
+.student-modal {
+    max-width: 700px;
+    border-radius: 10px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  }
+  
+  .modal-content {
+    width: 710px;
+  }
+  
+  .student-modal .modal-header {
+    background: #D83D8D;
+    color: white;
+    border-bottom: none;
+  }
+  
+  .student-modal .modal-title {
+    font-size: 24px;
+    font-weight: bold;
+    width: 100%;
+    text-align: center;
+  }
+  
+  .student-modal .modal-body {
+    background: #f9f9f9;
+    padding: 20px;
+    position: relative;
+  }
+  
+  .form-group-with-preview {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 20px;
+  }
+  
+  .form-check-label {
+    font-size: 20px;
+  
+    color: #333;
+    margin-left: 15px;
+    margin-bottom: 0px;
+  }
+  
+  .form-check-input {
+    width: 25px;
+    height: 25px;
+  
+  }
+  
+  .form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  
+  .form-row {
+    gap: 15px;
+  }
+  
+  .full-width {
+    grid-column: span 3;
+  }
+  
+  .preview-img {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 5px;
+  }
+  
+  .uploading {
+    color: #666;
+    font-size: 14px;
+    margin-top: 5px;
+  }
+  
+  .save-btn {
+    background: #D83D8D;
+    color: white;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 5px;
+    font-size: 18px;
+    width: 100%;
+    margin-top: 10px;
+  }
+  
+  .save-btn:hover {
+    background: #b03275;
+  }
+  
+  .save-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+  }
+  
+  .custom-alert {
+    position: absolute;
+    top: 10px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1050;
+    width: 90%;
+    max-width: 400px;
+  }
+  
+  
+  @media (max-width: 576px) {
+    .student-modal {
+      max-width: 100%;
+      border-radius: 0;
+    }
+  
+    .modal-content {
+      width: 100%;
+    }
+  
+    .student-modal .modal-body {
+      padding: 10px;
+    }
+  
+    .form-group-with-preview {
+      flex-direction: column;
+      gap: 10px;
+    }
+  
+    .form-grid {
+      grid-template-columns: 1fr;
+    }
+  
+    .form-row {
+      gap: 10px;
+    }
+  
+    .full-width {
+      grid-column: span 1;
+    }
+  
+    .preview-img {
+      width: 100%;
+      height: auto;
+    }
+  
+    .save-btn {
+      padding: 10px 15px;
+      font-size: 16px;
+    }
+  
+  }

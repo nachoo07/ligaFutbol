@@ -1,0 +1,139 @@
+:root {
+    --primary-color: #2c3e50;
+    --secondary-color: #0163a9 !important;
+    --background-color: #f5f6fa;
+    --text-color: #2c3e50;
+    --sidebar-width: 250px;
+    --transition-speed: 0.3s;
+  }
+  
+  body {
+    background-color: var(--background-color);
+    margin: 0;
+    padding: 0;
+  }
+  
+  .dashboard-container {
+    display: flex !important;
+    height: 500px !important;
+    min-height: 0px !important;
+  }
+  
+  .content-home {
+    flex-grow: 1;
+    padding: 20px;
+    margin-left: 50px;
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    overflow-y: auto !important;
+    height: 720px !important;
+  }
+  
+  .sidebar {
+    background-color: var(--primary-color);
+    width: var(--sidebar-width);
+    padding: 1rem;
+    color: white;
+    transition: all var(--transition-speed) ease;
+    height: 680px !important;
+  }
+  
+  .sidebar.closed {
+    width: 80px !important;
+    text-align: center;
+    height: 680px !important;
+  }
+  
+  .sidebar-toggle {
+    font-size: 1.5rem;
+    cursor: pointer;
+    margin-right: 9px;
+  }
+  
+  .sidebar-item {
+    display: flex;
+    align-items: center;
+    padding: 0.7rem 0.7rem ;
+    margin: 0.3rem 0;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: background-color var(--transition-speed);
+    text-align: center !important;
+  }
+  
+  .sidebar-item:hover {
+    background-color: var(--secondary-color);
+  }
+  
+  .sidebar-item .icon {
+    font-size: 1.2rem;
+    margin-right: 1rem;
+  }
+  
+  .sidebar.closed .text {
+    display: none;
+  }
+  
+  .main-content {
+    flex: 1;
+    padding: 2rem;
+  }
+  
+  .main-content h1 {
+    color: var(--text-color);
+    margin-bottom: 2rem;
+  }
+  
+  .cards-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 2rem;
+  }
+  
+  .card {
+    background-color: white;
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    cursor: pointer;
+    transition: transform var(--transition-speed);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+  }
+  
+  .card:hover {
+    transform: translateY(-5px);
+  }
+  
+  .card-icon {
+    font-size: 2rem;
+    color: var(--secondary-color);
+    margin-bottom: 1rem;
+  }
+  
+  .card h3 {
+    color: var(--text-color);
+    margin: 0;
+    font-size: 1.4rem !important;
+  }
+  
+  @media (min-width: 577px) and (max-width: 768px) {
+    
+    .main-content {
+      margin-left: 0;
+    }
+  }
+  
+  @media (max-width: 576px) {
+    .sidebar {
+      display: none;
+    }
+  
+    .content-home {
+  
+      height: 100vh !important;
+    }
+  }

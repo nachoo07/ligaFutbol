@@ -1,0 +1,10 @@
+.dashboard-container-report {
+    display: flex;
+    height: 100vh;
+  }
+  
+  .content-report {
+    flex-grow: 1;
+    padding: 20px;
+    background-color: #f9f9f9;
+  }
