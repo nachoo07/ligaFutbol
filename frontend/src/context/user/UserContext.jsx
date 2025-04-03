@@ -15,7 +15,7 @@ const UsersProvider = ({ children }) => {
     const obtenerUsuarios = async () => {
         if (auth === 'admin') {
             try {
-                const response = await axios.get("http://localhost:4001/api/users", {
+                const response = await axios.get("/api/users", {
                     withCredentials: true,
                 });
                 setUsuarios(response.data);
@@ -41,7 +41,7 @@ const UsersProvider = ({ children }) => {
     const addUsuarioAdmin = async (usuario) => {
         if (auth === 'admin') {
             try {
-                const response = await axios.post("http://localhost:4001/api/users/create", usuario, {
+                const response = await axios.post("/api/users/create", usuario, {
                     withCredentials: true,
                 });
                 setUsuarios((prevUsuarios) => [...prevUsuarios, response.data]);
@@ -56,7 +56,7 @@ const UsersProvider = ({ children }) => {
     const updateUsuarioAdmin = async (id, usuarioActualizado) => {
         if (auth === 'admin') {
             try {
-                const response = await axios.put(`http://localhost:4001/api/users/update/${id}`, usuarioActualizado, {
+                const response = await axios.put(`/api/users/update/${id}`, usuarioActualizado, {
                     withCredentials: true,
                 });
                 setUsuarios((prevUsuarios) =>
@@ -87,7 +87,7 @@ const UsersProvider = ({ children }) => {
                 });
 
                 if (confirmacion.isConfirmed) {
-                    await axios.delete(`http://localhost:4001/api/users/delete/${id}`, {
+                    await axios.delete(`/api/users/delete/${id}`, {
                         withCredentials: true,
                     });
                     setUsuarios((prevUsuarios) => prevUsuarios.filter((usuario) => usuario._id !== id));

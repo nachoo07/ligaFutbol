@@ -21,7 +21,7 @@ const SharesProvider = ({ children }) => {
 
         try {
             console.log('Obteniendo cuotas...');
-            const response = await axios.get("http://localhost:4001/api/shares", {
+            const response = await axios.get("/api/shares", {
                 withCredentials: true,
             });
             setCuotas(Array.isArray(response.data) ? response.data : []);
@@ -35,7 +35,7 @@ const SharesProvider = ({ children }) => {
 
     const obtenerCuotasPorEstudiante = useCallback(async (studentId) => {
         try {
-            const response = await axios.get(`http://localhost:4001/api/shares/${studentId}`, {
+            const response = await axios.get(`/api/shares/${studentId}`, {
                 withCredentials: true,
             });
             return Array.isArray(response.data) ? response.data : [];
@@ -48,7 +48,7 @@ const SharesProvider = ({ children }) => {
 
     const getAvailableShareNames = useCallback(async (year) => {
         try {
-            const response = await axios.get("http://localhost:4001/api/shares/available-names", {
+            const response = await axios.get("/api/shares/available-names", {
                 params: { year },
                 withCredentials: true,
             });
@@ -79,7 +79,7 @@ const SharesProvider = ({ children }) => {
     const addCuota = async (cuota) => {
         if (auth !== "admin") return Promise.reject("No autorizado");
         try {
-            const response = await axios.post("http://localhost:4001/api/shares/create", cuota, {
+            const response = await axios.post("/api/shares/create", cuota, {
                 withCredentials: true,
             });
             setCuotas((prevCuotas) => [...prevCuotas, response.data.share]);
@@ -96,7 +96,7 @@ const SharesProvider = ({ children }) => {
     const createMassiveShares = async (paymentName, year) => {
         if (auth !== "admin") return Promise.reject("No autorizado");
         try {
-            const response = await axios.post("http://localhost:4001/api/shares/create-massive", {
+            const response = await axios.post("/api/shares/create-massive", {
                 paymentName,
                 year,
             }, {
@@ -127,7 +127,7 @@ const SharesProvider = ({ children }) => {
                 cancelButtonText: "Cancelar",
             });
             if (confirmacion.isConfirmed) {
-                await axios.delete(`http://localhost:4001/api/shares/delete/${id}`, {
+                await axios.delete(`/api/shares/delete/${id}`, {
                     withCredentials: true,
                 });
                 setCuotas((prevCuotas) => prevCuotas.filter((cuota) => cuota._id !== id));
@@ -146,7 +146,7 @@ const SharesProvider = ({ children }) => {
     const updateCuota = async (cuota) => {
         if (auth !== "admin") return Promise.reject("No autorizado");
         try {
-            const response = await axios.put(`http://localhost:4001/api/shares/update/${cuota._id}`, cuota, {
+            const response = await axios.put(`/api/shares/update/${cuota._id}`, cuota, {
                 withCredentials: true,
             });
             setCuotas((prevCuotas) =>

@@ -20,7 +20,7 @@ const StudentsProvider = ({ children }) => {
         setLoading(true);
         try {
             console.log('Obteniendo estudiantes...');
-            const response = await axios.get("http://localhost:4001/api/students", {
+            const response = await axios.get("/api/students", {
                 withCredentials: true,
             });
             setEstudiantes(Array.isArray(response.data) ? response.data : []);
@@ -59,7 +59,7 @@ const StudentsProvider = ({ children }) => {
                         formData.append(key, estudiante[key]);
                     }
                 }
-                const response = await axios.post("http://localhost:4001/api/students/create", formData, {
+                const response = await axios.post("/api/students/create", formData, {
                     withCredentials: true,
                     headers: { "Content-Type": "multipart/form-data" },
                 });
@@ -87,7 +87,7 @@ const StudentsProvider = ({ children }) => {
                     cancelButtonText: "Cancelar",
                 });
                 if (confirmacion.isConfirmed) {
-                    const response = await axios.delete(`http://localhost:4001/api/students/delete/${id}`, {
+                    const response = await axios.delete(`/api/students/delete/${id}`, {
                         withCredentials: true,
                     });
                     setEstudiantes((prev) => prev.filter((estudiante) => estudiante._id !== id));
@@ -118,7 +118,7 @@ const StudentsProvider = ({ children }) => {
         if (auth === "admin") {
             try {
                 const response = await axios.put(
-                    `http://localhost:4001/api/students/update/${id}`,
+                    `/api/students/update/${id}`,
                     formData,
                     {
                         withCredentials: true,
@@ -148,7 +148,7 @@ const StudentsProvider = ({ children }) => {
                 const formData = new FormData();
                 formData.append("excelFile", file);
 
-                const response = await axios.post("http://localhost:4001/api/students/import", formData, {
+                const response = await axios.post("/api/students/import", formData, {
                     withCredentials: true,
                     headers: { "Content-Type": "multipart/form-data" },
                 });

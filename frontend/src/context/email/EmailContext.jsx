@@ -25,7 +25,7 @@ export const EmailProvider = ({ children }) => {
 
         try {
             const response = await axios.post(
-                'http://localhost:4001/api/email/send',
+                '/api/email/send',
                 { recipients, subject, message },
                 { withCredentials: true }
             );
@@ -93,7 +93,7 @@ export const EmailProvider = ({ children }) => {
             `;
 
             const response = await axios.post(
-                'http://localhost:4001/api/email/send',
+                '/api/email/send',
                 {
                     recipients: [student.mail],
                     subject,

@@ -15,7 +15,7 @@ export const LoginProvider = ({ children }) => {
             try {
                 console.log('Verificando autenticación...');
                 setLoading(true);
-                const response = await axios.post('http://localhost:4001/api/auth/refresh', {}, { withCredentials: true });
+                const response = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
                 console.log('Respuesta de /api/auth/refresh:', response.data);
                 setAuth(localStorage.getItem('authRole') || null);
                 setUserData(localStorage.getItem('authName') ? { name: localStorage.getItem('authName') } : null);
@@ -39,7 +39,7 @@ export const LoginProvider = ({ children }) => {
     const login = async (mail, password) => {
         try {
             console.log('Iniciando sesión con:', { mail });
-            const response = await axios.post('http://localhost:4001/api/auth/login', { mail, password }, { withCredentials: true });
+            const response = await axios.post('/api/auth/login', { mail, password }, { withCredentials: true });
             console.log('Respuesta de /api/auth/login:', response.data);
             const { role, name } = response.data.user;
             setAuth(role);
@@ -58,7 +58,7 @@ export const LoginProvider = ({ children }) => {
     const logout = async () => {
         try {
             console.log('Cerrando sesión...');
-            await axios.post('http://localhost:4001/api/auth/logout', {}, { withCredentials: true });
+            await axios.post('/api/auth/logout', {}, { withCredentials: true });
             setAuth(null);
             setUserData(null);
             localStorage.removeItem('authRole');
@@ -72,7 +72,7 @@ export const LoginProvider = ({ children }) => {
     const refreshAccessToken = async () => {
         try {
             console.log('Renovando token...');
-            await axios.post('http://localhost:4001/api/auth/refresh', {}, { withCredentials: true });
+            await axios.post('/api/auth/refresh', {}, { withCredentials: true });
         } catch (error) {
             console.error('Error al renovar token:', error.response?.data || error.message);
             logout();
