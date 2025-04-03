@@ -20,7 +20,12 @@ app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));
 app.use(cookieParser());
 app.use(cors({
-  origin: ['http://localhost:4001', 'http://localhost:5173'],
+  origin: [
+    'http://localhost:5173',
+    'http://69.62.96.81:4001',
+    'http://ligainfatilyb.com',
+    'https://ligainfatilyb.com'
+  ],
   credentials: true,
 }));
 
