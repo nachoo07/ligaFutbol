@@ -27,7 +27,7 @@
     flex-direction: column;
     flex-wrap: nowrap;
     overflow-y: auto !important;
-    height: 720px !important;
+    height: 650px !important;
   }
   
   .sidebar {

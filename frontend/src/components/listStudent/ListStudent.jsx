@@ -1,38 +1,63 @@
 import React, { useState, useEffect, useContext } from 'react';
-import { useNavigate } from 'react-router-dom'; // Agregamos useNavigate para la navegación
-import { FaBars, FaUsers, FaBell, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa'; // Íconos para el menú
+import { useNavigate } from 'react-router-dom';
+import { FaSearch, FaBars, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { LuClipboardList } from "react-icons/lu";
 import { StudentsContext } from '../../context/student/StudentContext';
 import Select from 'react-select';
-import { Table, Button } from 'react-bootstrap';
+import { Table, Button, Spinner } from 'react-bootstrap';
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import './listaStudent.css';
 
 const ListStudent = () => {
-    const { estudiantes } = useContext(StudentsContext);
-    const navigate = useNavigate(); // Hook para la navegación
+    const { estudiantes, obtenerEstudiantes } = useContext(StudentsContext);
+    const navigate = useNavigate();
     const [filteredStudents, setFilteredStudents] = useState([]);
     const [schools, setSchools] = useState([]);
     const [categories, setCategories] = useState([]);
     const [colors, setColors] = useState([]);
     const [filters, setFilters] = useState({ school: '', category: '', color: '' });
-    const [isMenuOpen, setIsMenuOpen] = useState(true); // Estado para controlar el menú
+    const [isMenuOpen, setIsMenuOpen] = useState(true);
+    const [loading, setLoading] = useState(true); // Estado de carga
 
-    // Definir los ítems del menú (igual que en los otros componentes)
+    // Categorías agrupadas predefinidas
+    const groupedCategories = [
+        { value: '2011-2012', label: '2011-2012', years: ['2011', '2012'] },
+        { value: '2013-2014', label: '2013-2014', years: ['2013', '2014'] },
+        { value: '2015-2016', label: '2015-2016', years: ['2015', '2016'] },
+        { value: '2017-2018', label: '2017-2018', years: ['2017', '2018'] },
+        { value: '2019-2020-2021', label: '2019-2020-2021', years: ['2019', '2020', '2021'] },
+        { value: '2010-2011-2012', label: '2010-2011-2012', years: ['2010', '2011', '2012'] },
+        { value: '2015-2016-2017', label: '2015-2016-2017', years: ['2015', '2016', '2017'] },
+    ];
+
     const menuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
         { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Notificaciones', route: '/notification', icon: <FaBell /> },
         { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
         { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
         { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Asistencia', route: '/attendance', icon: <FaCalendarCheck /> },
+        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
+        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
+        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Ajustes', route: '/settings', icon: <FaCog /> },
         { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
+    // Cargar estudiantes si no están en el contexto
+    useEffect(() => {
+        const fetchStudents = async () => {
+            setLoading(true);
+            if (!estudiantes || estudiantes.length === 0) {
+                await obtenerEstudiantes();
+            }
+            setLoading(false);
+        };
+        fetchStudents();
+    }, [obtenerEstudiantes, estudiantes]);
+
+    // Cargar escuelas al inicio
     useEffect(() => {
         if (estudiantes && Array.isArray(estudiantes)) {
             const uniqueSchools = [...new Set(estudiantes.map(student => student.school))]
@@ -41,26 +66,63 @@ const ListStudent = () => {
                     value: school,
                     label: school,
                 }));
-            const uniqueCategories = [...new Set(estudiantes.map(student => student.category))]
-                .filter(category => category)
-                .map(category => ({
-                    value: category,
-                    label: category,
-                }));
-            const uniqueColors = [...new Set(estudiantes.map(student => student.color))]
-                .filter(color => color)
-                .map(color => ({
-                    value: color,
-                    label: color,
-                }));
             setSchools(uniqueSchools);
-            setCategories(uniqueCategories);
-            setColors(uniqueColors);
         }
     }, [estudiantes]);
 
+    // Actualizar categorías cuando cambia la escuelita
     useEffect(() => {
-        if (!filters.school && !filters.category && !filters.color) {
+        if (filters.school && estudiantes && Array.isArray(estudiantes)) {
+            const studentsInSchool = estudiantes.filter(student => student.school === filters.school);
+            const availableYears = [...new Set(studentsInSchool.map(student => student.category))];
+            const availableCategories = groupedCategories.filter(group =>
+                group.years.some(year => availableYears.includes(year))
+            );
+            setCategories(availableCategories);
+
+            // Resetear categoría y color si la escuelita cambia
+            if (!availableCategories.some(cat => cat.value === filters.category)) {
+                setFilters(prev => ({ ...prev, category: '', color: '' }));
+                setColors([]);
+            }
+        } else {
+            setCategories([]);
+            setFilters(prev => ({ ...prev, category: '', color: '' }));
+            setColors([]);
+        }
+    }, [filters.school, estudiantes]);
+
+    // Actualizar colores cuando cambia la categoría
+    useEffect(() => {
+        if (filters.school && filters.category && estudiantes && Array.isArray(estudiantes)) {
+            const selectedGroup = groupedCategories.find(group => group.value === filters.category);
+            if (selectedGroup) {
+                const studentsInSchoolAndCategory = estudiantes.filter(student =>
+                    student.school === filters.school &&
+                    selectedGroup.years.includes(student.category)
+                );
+                const uniqueColors = [...new Set(studentsInSchoolAndCategory.map(student => student.color))]
+                    .filter(color => color)
+                    .map(color => ({
+                        value: color,
+                        label: color,
+                    }));
+                setColors(uniqueColors);
+
+                // Resetear color si la categoría cambia
+                if (!uniqueColors.some(col => col.value === filters.color)) {
+                    setFilters(prev => ({ ...prev, color: '' }));
+                }
+            }
+        } else {
+            setColors([]);
+            setFilters(prev => ({ ...prev, color: '' }));
+        }
+    }, [filters.school, filters.category, estudiantes]);
+
+    // Filtrar estudiantes
+    useEffect(() => {
+        if (!filters.school) {
             setFilteredStudents([]);
             return;
         }
@@ -70,7 +132,10 @@ const ListStudent = () => {
             filtered = filtered.filter(student => student.school === filters.school);
         }
         if (filters.category) {
-            filtered = filtered.filter(student => student.category === filters.category);
+            const selectedGroup = groupedCategories.find(group => group.value === filters.category);
+            if (selectedGroup) {
+                filtered = filtered.filter(student => selectedGroup.years.includes(student.category));
+            }
         }
         if (filters.color) {
             filtered = filtered.filter(student => student.color === filters.color);
@@ -93,6 +158,7 @@ const ListStudent = () => {
             { key: 'number', width: 5 },
             { key: 'name', width: 30 },
             { key: 'dni', width: 15 },
+            { key: 'birthDate', width: 15 },
             { key: 'vs1', width: 5 },
             { key: 'vs2', width: 5 },
             { key: 'vs3', width: 5 },
@@ -101,19 +167,19 @@ const ListStudent = () => {
             { key: 'vs6', width: 5 },
             { key: 'vs7', width: 5 },
             { key: 'vs8', width: 5 },
-            { key: 'vs9', width: 5 },
+            { key: 'semifinal', width: 15 },
+            { key: 'end', width: 15 },
         ];
 
-        worksheet.getCell('A1').value = 'LIGA INFANTIL DE FUTBOL YERBA BUENA 2022';
+        worksheet.getCell('A1').value = 'LIGA INFANTIL DE FUTBOL YERBA BUENA 2025';
         worksheet.getCell('A1').font = { bold: true, size: 14 };
         worksheet.getCell('A1').alignment = { horizontal: 'center' };
-        worksheet.mergeCells('A1:L1');
+        worksheet.mergeCells('A1:N1');
 
         worksheet.getCell('A3').value = `CLUB PARTICIPANTE: ${filters.school || '__________'}`;
         worksheet.getCell('E3').value = `CATEGORÍA: ${filters.category || '__________'}`;
-        worksheet.getCell('I3').value = 'ZONA: __________';
 
-        const tableHeader = ['N°', 'NOMBRE Y APELLIDO', 'D.N.I', 'VS', 'VS', 'VS', 'VS', 'VS', 'VS', 'VS', 'VS', 'VS'];
+        const tableHeader = ['N°', 'NOMBRE Y APELLIDO', 'D.N.I', 'FECHA NACIMIENTO', 'VS', 'VS', 'VS', 'VS', 'VS', 'VS', 'VS', 'VS', 'SEMIFINAL', 'FINAL'];
         worksheet.addRow(tableHeader);
         const headerRow = worksheet.getRow(5);
         headerRow.eachCell(cell => {
@@ -133,6 +199,7 @@ const ListStudent = () => {
                 number: (i + 1).toString(),
                 name: student ? `${student.lastName} ${student.name}` : '',
                 dni: student ? student.dni : '',
+                birthDate: student ? student.birthDate : '',
                 vs1: '',
                 vs2: '',
                 vs3: '',
@@ -141,7 +208,8 @@ const ListStudent = () => {
                 vs6: '',
                 vs7: '',
                 vs8: '',
-                vs9: '',
+                semifinal: '',
+                end: '',
             };
             worksheet.addRow(row);
             const dataRow = worksheet.getRow(i + 6);
@@ -175,12 +243,12 @@ const ListStudent = () => {
             number: i + 1,
             name: student ? `${student.lastName} ${student.name}` : '',
             dni: student ? student.dni : '',
+            birthDate: student ? student.birthDate : '',
         });
     }
 
     return (
         <div className="dashboard-container-student">
-            {/* Menú vertical */}
             <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
                 <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
                     <FaBars />
@@ -197,15 +265,18 @@ const ListStudent = () => {
                 ))}
             </div>
 
-            {/* Contenido principal */}
             <div className="content-student">
                 <div className="student-list-exporter">
-                    <h2>Exportar Lista de Alumnos</h2>
-                    {estudiantes.length === 0 ? (
-                        <div>Cargando estudiantes...</div>
+                    <h2>Exportar Lista de Buena Fe</h2>
+                    {loading ? (
+                        <div className="loading-container">
+                            <Spinner animation="border" variant="primary" />
+                            <p>Cargando estudiantes...</p>
+                        </div>
+                    ) : estudiantes.length === 0 ? (
+                        <div>No se encontraron estudiantes.</div>
                     ) : (
                         <>
-                            {/* Filtros */}
                             <div className="filters">
                                 <div className="filter-group">
                                     <label>Escuelita:</label>
@@ -223,6 +294,7 @@ const ListStudent = () => {
                                         onChange={(option) => handleFilterChange('category', option)}
                                         placeholder="Selecciona una categoría"
                                         isClearable
+                                        isDisabled={!filters.school} // Deshabilitado hasta que haya escuelita
                                     />
                                 </div>
                                 <div className="filter-group">
@@ -232,32 +304,26 @@ const ListStudent = () => {
                                         onChange={(option) => handleFilterChange('color', option)}
                                         placeholder="Selecciona un color"
                                         isClearable
+                                        isDisabled={!filters.category} // Deshabilitado hasta que haya categoría
                                     />
                                 </div>
                             </div>
 
-                            {/* Botón de Exportación */}
                             <div className="table-actions">
                                 <Button onClick={handleExportToExcel} variant="primary">
                                     Exportar a Excel
                                 </Button>
                             </div>
 
-                            {/* Vista Previa */}
                             {filteredStudents.length > 0 ? (
                                 <div className="preview-container">
                                     <div className="preview-header">
-                                        <img
-                                            src="https://res.cloudinary.com/dmjjwnvq8/image/upload/v1742408649/Captura_de_pantalla_2025-02-11_a_la_s_9.29.34_p._m._hz04j5.png"
-                                            alt="Logo"
-                                            className="preview-logo"
-                                        />
-                                        <h1>LIGA INFANTIL DE FUTBOL YERBA BUENA 2022</h1>
+                                        <h1>LIGA INFANTIL DE FUTBOL YERBA BUENA 2025</h1>
                                     </div>
                                     <div className="preview-info">
                                         <p>CLUB PARTICIPANTE: {filters.school || '__________'}</p>
                                         <p>CATEGORÍA: {filters.category || '__________'}</p>
-                                        <p>ZONA: __________</p>
+                                        <p>COLOR: {filters.color || '__________'}</p>
                                     </div>
                                     <Table bordered className="preview-table">
                                         <thead>
@@ -265,6 +331,7 @@ const ListStudent = () => {
                                                 <th>N°</th>
                                                 <th>NOMBRE Y APELLIDO</th>
                                                 <th>D.N.I</th>
+                                                <th>FECHA NACIMIENTO</th>
                                                 <th>VS</th>
                                                 <th>VS</th>
                                                 <th>VS</th>
@@ -273,7 +340,8 @@ const ListStudent = () => {
                                                 <th>VS</th>
                                                 <th>VS</th>
                                                 <th>VS</th>
-                                                <th>VS</th>
+                                                <th>SEMIFINAL</th>
+                                                <th>FINAL</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -282,6 +350,8 @@ const ListStudent = () => {
                                                     <td>{row.number}</td>
                                                     <td>{row.name}</td>
                                                     <td>{row.dni}</td>
+                                                    <td>{row.birthDate}</td>
+                                                    <td></td>
                                                     <td></td>
                                                     <td></td>
                                                     <td></td>
@@ -305,7 +375,7 @@ const ListStudent = () => {
                                 </div>
                             ) : (
                                 <div className="no-data-message">
-                                    Por favor, selecciona al menos un filtro para ver los alumnos.
+                                    Por favor, selecciona al menos una escuelita para ver los alumnos.
                                 </div>
                             )}
                         </>

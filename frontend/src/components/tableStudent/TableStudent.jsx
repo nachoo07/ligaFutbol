@@ -1,7 +1,8 @@
 import { useState, useContext, useEffect } from 'react';
 import { Table, Button, Alert, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaBars, FaUsers, FaBell, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { LuClipboardList } from "react-icons/lu";
 import { StudentsContext } from '../../context/student/StudentContext';
 import StudentFormModal from '../modal/StudentFormModal';
 import './tableStudent.css';
@@ -13,6 +14,7 @@ const TableStudent = () => {
     const [show, setShow] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
     const [filterCategory, setFilterCategory] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
     const [formData, setFormData] = useState({
         name: '',
         lastName: '',
@@ -43,13 +45,13 @@ const TableStudent = () => {
     const menuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
         { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Notificaciones', route: '/notification', icon: <FaBell /> },
         { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
         { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
         { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Asistencia', route: '/attendance', icon: <FaCalendarCheck /> },
+        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
+        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
+        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Ajustes', route: '/settings', icon: <FaCog /> },
         { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
@@ -62,7 +64,8 @@ const TableStudent = () => {
         const fullName = `${estudiante.name} ${estudiante.lastName}`.toLowerCase();
         const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || estudiante.dni?.includes(searchTerm);
         const matchesCategory = filterCategory === '' || estudiante.category === filterCategory;
-        return matchesSearch && matchesCategory;
+        const matchesStatus = filterStatus === '' || estudiante.status === filterStatus;
+        return matchesSearch && matchesCategory && matchesStatus;
     });
 
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
@@ -111,9 +114,10 @@ const TableStudent = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.dni || !formData.name || !formData.lastName || !formData.birthDate || !formData.address ||
-            !formData.motherName || !formData.fatherName || !formData.motherPhone || !formData.fatherPhone ||
-            !formData.category || !formData.school || !formData.sex || !formData.status) {
-            setAlertMessage("Todos los campos obligatorios deben estar completos (DNI, Nombre, Apellido, Fecha de Nacimiento, Dirección, Nombre y Teléfono de los Padres, Categoría, Escuela, Sexo, Estado)");
+            !formData.mail || !formData.motherName || !formData.fatherName || !formData.motherPhone ||
+            !formData.fatherPhone || !formData.category || !formData.school || !formData.color ||
+            !formData.sex || !formData.status) {
+            setAlertMessage("Todos los campos obligatorios deben estar completos (DNI, Nombre, Apellido, Fecha de Nacimiento, Dirección, Email, Nombre y Teléfono de los Padres, Categoría, Escuela, Color, Sexo, Estado).");
             setShowAlert(true);
             return;
         }
@@ -146,6 +150,14 @@ const TableStudent = () => {
             setIsImporting(false);
             e.target.value = null;
         }
+    };
+
+    const capitalizeInitials = (text) => {
+        if (!text) return '';
+        return text
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
     };
 
     return (
@@ -189,6 +201,18 @@ const TableStudent = () => {
                             />
                             <FaSearch className="search-icon" />
                         </div>
+                        <div className="state-filter">
+    <label htmlFor="filter-status">Estado:</label>
+    <select
+        id="filter-status"
+        value={filterStatus}
+        onChange={(e) => setFilterStatus(e.target.value)}
+    >
+        <option value="">Todos</option>
+        <option value="Activo">Activo</option>
+        <option value="Inactivo">Inactivo</option>
+    </select>
+</div>
                         <div className="filter-actions">
                             <div className="actions">
                                 <Button className="add-btn" onClick={handleShow}>Agregar Alumno</Button>
@@ -224,8 +248,8 @@ const TableStudent = () => {
                                 currentStudents.map((estudiante, index) => (
                                     <tr key={estudiante._id}>
                                         <td>{indexOfFirstStudent + index + 1}</td>
-                                        <td>{estudiante.name}</td>
-                                        <td>{estudiante.lastName}</td>
+                                        <td>{capitalizeInitials(estudiante.name)}</td>
+                                        <td>{capitalizeInitials(estudiante.lastName)}</td>
                                         <td>{estudiante.dni}</td>
                                         <td>{estudiante.category}</td>
                                         <td>{estudiante.school}</td>

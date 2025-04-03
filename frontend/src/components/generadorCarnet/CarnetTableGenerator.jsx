@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBars, FaUsers, FaBell, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { LuClipboardList } from "react-icons/lu";
 import { StudentsContext } from '../../context/student/StudentContext';
 import Select from 'react-select';
-import { Table, Button, Form } from 'react-bootstrap';
+import { Table, Button, Form, Spinner } from 'react-bootstrap';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
 import './carnetTableGenerator.css';
@@ -26,7 +27,7 @@ const preloadImage = (src) => {
 };
 
 const CarnetTableGenerator = () => {
-    const { estudiantes } = useContext(StudentsContext);
+    const { estudiantes, obtenerEstudiantes } = useContext(StudentsContext);
     const navigate = useNavigate();
     const [filteredStudents, setFilteredStudents] = useState([]);
     const [selectedStudents, setSelectedStudents] = useState([]);
@@ -34,22 +35,34 @@ const CarnetTableGenerator = () => {
     const [categories, setCategories] = useState([]);
     const [colors, setColors] = useState([]);
     const [filters, setFilters] = useState({ school: '', category: '', color: '', search: '' });
-    const carnetContainerRef = useRef(null);
     const [isMenuOpen, setIsMenuOpen] = useState(true);
+    const [loading, setLoading] = useState(true); // Estado de carga
+    const [downloading, setDownloading] = useState(false); // Estado de descarga
 
     const menuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
         { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Notificaciones', route: '/notification', icon: <FaBell /> },
         { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
         { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
         { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Asistencia', route: '/attendance', icon: <FaCalendarCheck /> },
+        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
+        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
+        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Ajustes', route: '/settings', icon: <FaCog /> },
         { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
+
+    useEffect(() => {
+        const loadStudents = async () => {
+            setLoading(true);
+            if (!estudiantes || estudiantes.length === 0) {
+                await obtenerEstudiantes();
+            }
+            setLoading(false);
+        };
+        loadStudents();
+    }, [estudiantes, obtenerEstudiantes]);
 
     useEffect(() => {
         if (estudiantes && Array.isArray(estudiantes)) {
@@ -78,7 +91,6 @@ const CarnetTableGenerator = () => {
     }, [estudiantes]);
 
     useEffect(() => {
-        // No mostrar alumnos hasta que se aplique al menos un filtro
         if (!filters.school && !filters.category && !filters.color && !filters.search) {
             setFilteredStudents([]);
             return;
@@ -103,7 +115,7 @@ const CarnetTableGenerator = () => {
             );
         }
         setFilteredStudents(filtered);
-        setSelectedStudents([]); // Limpiar selecciones al cambiar filtros
+        setSelectedStudents([]);
     }, [filters, estudiantes]);
 
     const handleFilterChange = (name, selectedOption) => {
@@ -137,24 +149,33 @@ const CarnetTableGenerator = () => {
         }
     };
 
+    const capitalizeInitials = (text) => {
+        if (!text) return '';
+        return text
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    };
+
     const handleDownloadCarnets = async () => {
         if (selectedStudents.length === 0) {
             alert('Por favor, selecciona al menos un alumno para generar los carnets.');
             return;
         }
 
+        setDownloading(true); // Activar el estado de descarga
         const selectedStudentsData = estudiantes.filter(student => selectedStudents.includes(student._id));
-        const carnetsPerPage = 8;
-        const carnetWidth = 250;
-        const carnetHeight = 150;
-        const margin = 10;
-        const pageWidth = 595;
-        const pageHeight = 842;
+        const carnetsPerPage = 10; // 2 columnas de 4 carnets por columna
+        const carnetWidth = 250; // Ancho del carnet
+        const carnetHeight = 150; // Alto del carnet
+        const margin = 13; // Margen entre carnets
+        const pageWidth = 595; // Ancho de la página A4 en puntos (pt)
+        const pageHeight = 842; // Alto de la página A4 en puntos (pt)
 
         const pdf = new jsPDF('p', 'pt', 'a4');
         let pageIndex = 0;
 
-        const logoUrl = 'https://res.cloudinary.com/dmjjwnvq8/image/upload/v1742408649/Captura_de_pantalla_2025-02-11_a_la_s_9.29.34_p._m._hz04j5.png';
+        const carnetBackgroundUrl = 'https://res.cloudinary.com/dmjjwnvq8/image/upload/v1743467421/2025_vn4ksb.png';
 
         for (let i = 0; i < selectedStudentsData.length; i += carnetsPerPage) {
             const carnetsForPage = selectedStudentsData.slice(i, i + carnetsPerPage);
@@ -165,90 +186,117 @@ const CarnetTableGenerator = () => {
             tempContainer.style.width = `${pageWidth}px`;
             tempContainer.style.height = `${pageHeight}px`;
             tempContainer.style.display = 'grid';
-            tempContainer.style.gridTemplateColumns = `repeat(2, ${carnetWidth}px)`;
-            tempContainer.style.gridTemplateRows = `repeat(4, ${carnetHeight}px)`;
+            tempContainer.style.gridTemplateColumns = `repeat(2, ${carnetWidth}px)`; // 2 columnas
+            tempContainer.style.gridTemplateRows = `repeat(5, ${carnetHeight}px)`; // 5 filas
             tempContainer.style.gap = `${margin}px`;
-            tempContainer.style.padding = '20px';
+            tempContainer.style.padding = '10px';
+            tempContainer.style.boxSizing = 'border-box';
+            tempContainer.style.justifyContent = 'center'; // Centrar las columnas en la página
 
             const imagePromises = [];
             carnetsForPage.forEach(student => {
                 const profileImage = student.profileImage || 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
                 imagePromises.push(preloadImage(profileImage));
             });
-            imagePromises.push(preloadImage(logoUrl));
+            imagePromises.push(preloadImage(carnetBackgroundUrl));
 
             try {
                 const loadedImages = await Promise.all(imagePromises);
-                const logoImage = loadedImages.pop();
-                const profileImages = loadedImages;
+                const carnetBackgroundImage = loadedImages.pop(); // Imagen de fondo del carnet
+                const profileImages = loadedImages; // Fotos de perfil de los estudiantes
 
                 carnetsForPage.forEach((student, index) => {
                     const name = student.name || 'Sin Nombre';
                     const lastName = student.lastName || 'Sin Apellido';
                     const dni = student.dni || 'Sin DNI';
-                    const category = student.category || 'Sin Categoría';
+                    const birthDate = student.birthDate || 'Sin Fecha'; // Fecha de nacimiento
                     const school = student.school || 'Sin Escuelita';
 
                     const carnet = document.createElement('div');
                     carnet.className = 'carnet';
                     carnet.style.width = `${carnetWidth}px`;
                     carnet.style.height = `${carnetHeight}px`;
-                    carnet.style.border = '1px solid #000';
-                    carnet.style.backgroundColor = '#fff';
-                    carnet.style.display = 'flex';
-                    carnet.style.flexDirection = 'column';
+                    carnet.style.position = 'relative';
+                    carnet.style.overflow = 'hidden';
 
-                    const header = document.createElement('div');
-                    header.className = 'carnet-header';
-                    header.style.backgroundColor = '#003087';
-                    header.style.color = '#fff';
-                    header.style.textAlign = 'center';
-                    header.style.padding = '5px';
-                    header.style.fontSize = '10px';
-                    header.style.fontWeight = 'bold';
-                    header.style.display = 'flex';
-                    header.style.alignItems = 'center';
-                    header.style.justifyContent = 'center';
-                    header.style.gap = '5px';
+                    // Imagen de fondo del carnet
+                    const background = document.createElement('img');
+                    background.src = carnetBackgroundImage.src;
+                    background.style.width = '100%';
+                    background.style.height = '100%';
+                    background.style.position = 'absolute';
+                    background.style.top = '0';
+                    background.style.left = '0';
+                    background.style.zIndex = '1';
+                    carnet.appendChild(background);
 
-                    const logo = document.createElement('img');
-                    logo.src = logoImage.src;
-                    logo.style.width = '20px';
-                    logo.style.height = '20px';
+                    // Contenedor para los datos
+                    const dataContainer = document.createElement('div');
+                    dataContainer.style.position = 'absolute';
+                    dataContainer.style.top = '0';
+                    dataContainer.style.left = '0';
+                    dataContainer.style.width = '100%';
+                    dataContainer.style.height = '100%';
+                    dataContainer.style.zIndex = '2';
 
-                    const headerText = document.createElement('span');
-                    headerText.textContent = 'LIGA INFANTIL DE FUTBOL YERBA BUENA';
-                    header.appendChild(logo);
-                    header.appendChild(headerText);
+                    // Foto de perfil
+                    const profileImg = document.createElement('img');
+                    profileImg.src = profileImages[index].src;
+                    profileImg.style.position = 'absolute';
+                    profileImg.style.left = '8px'; // Ajustado según la imagen
+                    profileImg.style.top = '27px'; // Ajustado según la imagen
+                    profileImg.style.width = '98px'; // Ajustado según la imagen
+                    profileImg.style.height = '98px'; // Ajustado según la imagen
+                    profileImg.style.objectFit = 'cover';
+                    dataContainer.appendChild(profileImg);
 
-                    const content = document.createElement('div');
-                    content.className = 'carnet-content';
-                    content.style.display = 'flex';
-                    content.style.padding = '10px';
-                    content.style.gap = '10px';
-                    content.style.alignItems = 'center';
+                    // Nombre y Apellido
+                    const nameText = document.createElement('div');
+                    nameText.textContent = `${name} ${lastName}`;
+                    nameText.style.position = 'absolute';
+                    nameText.style.left = '120px'; // Ajustado según la imagen
+                    nameText.style.top = '35px'; // Ajustado según la imagen
+                    nameText.style.fontSize = '12px';
+                    nameText.style.color = '#000';
+                    nameText.style.maxWidth = '120px'; // Ajustado para evitar desbordamiento
+                    nameText.style.overflow = 'hidden';
+                    nameText.style.textOverflow = 'ellipsis';
+                    dataContainer.appendChild(nameText);
 
-                    const img = document.createElement('img');
-                    img.src = profileImages[index].src;
-                    img.style.width = '80px';
-                    img.style.height = '100px';
-                    img.style.objectFit = 'cover';
+                    // DNI
+                    const dniText = document.createElement('div');
+                    dniText.textContent = dni;
+                    dniText.style.position = 'absolute';
+                    dniText.style.left = '120px'; // Ajustado según la imagen
+                    dniText.style.top = '58px'; // Ajustado según la imagen
+                    dniText.style.fontSize = '12px';
+                    dniText.style.color = '#000';
+                    dataContainer.appendChild(dniText);
 
-                    const info = document.createElement('div');
-                    info.style.fontSize = '12px';
-                    info.style.flex = '1';
-                    info.innerHTML = `
-                        <strong>Apellido y Nombre:</strong> ${lastName} ${name}<br>
-                        <strong>DNI:</strong> ${dni}<br>
-                        <strong>Categoría:</strong> ${category}<br>
-                        <strong>Club:</strong> ${school}
-                    `;
+                    // Fecha de Nacimiento
+                    const birthDateText = document.createElement('div');
+                    birthDateText.textContent = birthDate;
+                    birthDateText.style.position = 'absolute';
+                    birthDateText.style.left = '120px'; // Ajustado según la imagen
+                    birthDateText.style.top = '80px'; // Ajustado según la imagen
+                    birthDateText.style.fontSize = '12px';
+                    birthDateText.style.color = '#000';
+                    dataContainer.appendChild(birthDateText);
 
-                    content.appendChild(img);
-                    content.appendChild(info);
+                    // Club
+                    const clubText = document.createElement('div');
+                    clubText.textContent = school;
+                    clubText.style.position = 'absolute';
+                    clubText.style.left = '120px'; // Ajustado según la imagen
+                    clubText.style.top = '103px'; // Ajustado según la imagen
+                    clubText.style.fontSize = '12px';
+                    clubText.style.color = '#000';
+                    clubText.style.maxWidth = '120px'; // Ajustado para evitar desbordamiento
+                    clubText.style.overflow = 'hidden';
+                    clubText.style.textOverflow = 'ellipsis';
+                    dataContainer.appendChild(clubText);
 
-                    carnet.appendChild(header);
-                    carnet.appendChild(content);
+                    carnet.appendChild(dataContainer);
                     tempContainer.appendChild(carnet);
                 });
 
@@ -260,9 +308,9 @@ const CarnetTableGenerator = () => {
                 if (pageIndex > 0) {
                     pdf.addPage();
                 }
-                const imgWidth = pageWidth - 40;
+                const imgWidth = pageWidth - 20;
                 const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                pdf.addImage(imgData, 'PNG', 20, 20, imgWidth, imgHeight);
+                pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
 
                 document.body.removeChild(tempContainer);
             } catch (error) {
@@ -276,6 +324,7 @@ const CarnetTableGenerator = () => {
         const categoryFilter = filters.category || 'Todas';
         const colorFilter = filters.color || 'Todos';
         pdf.save(`carnets_${schoolFilter}_${categoryFilter}_${colorFilter}.pdf`);
+        setDownloading(false); // Desactivar el estado de descarga
     };
 
     return (
@@ -299,8 +348,13 @@ const CarnetTableGenerator = () => {
             <div className="content-student">
                 <div className="carnet-table-generator">
                     <h2>Generar Carnets de Alumnos</h2>
-                    {estudiantes.length === 0 ? (
-                        <div>Cargando estudiantes...</div>
+                    {loading ? (
+                        <div className="text-center">
+                            <Spinner animation="border" role="status" />
+                            <p>Cargando estudiantes...</p>
+                        </div>
+                    ) : estudiantes.length === 0 ? (
+                        <div>No se encontraron estudiantes.</div>
                     ) : (
                         <>
                             <div className="filters">
@@ -343,13 +397,26 @@ const CarnetTableGenerator = () => {
                                 </div>
                             </div>
                             <div className="table-actions">
-                                <Button onClick={handleSelectAll} variant="secondary">
+                                <Button onClick={handleSelectAll} variant="secondary" disabled={downloading}>
                                     {selectedStudents.length === filteredStudents.length && filteredStudents.length > 0
                                         ? 'Desmarcar Todos'
                                         : 'Seleccionar Todos'}
                                 </Button>
-                                <Button onClick={handleDownloadCarnets} variant="primary">
-                                    Descargar Carnet
+                                <Button onClick={handleDownloadCarnets} variant="primary" disabled={downloading}>
+                                    {downloading ? (
+                                        <>
+                                            <Spinner
+                                                as="span"
+                                                animation="border"
+                                                size="sm"
+                                                role="status"
+                                                aria-hidden="true"
+                                            />
+                                            {' Generando...'}
+                                        </>
+                                    ) : (
+                                        'Descargar Carnet'
+                                    )}
                                 </Button>
                             </div>
                             {filteredStudents.length === 0 ? (
@@ -377,6 +444,7 @@ const CarnetTableGenerator = () => {
                                                         type="checkbox"
                                                         checked={selectedStudents.includes(student._id)}
                                                         onChange={() => handleSelectStudent(student._id)}
+                                                        disabled={downloading}
                                                     />
                                                 </td>
                                                 <td>{student.name}</td>

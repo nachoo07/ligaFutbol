@@ -11,7 +11,12 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        handleChange({ target: { name, value: name === 'name' || name === 'lastName' ? capitalize(value) : value } });
+        if (name === 'name' || name === 'lastName' || name === 'color') {
+            // Aplicar capitalización a name, lastName y color
+            handleChange({ target: { name, value: capitalize(value) } });
+        } else {
+            handleChange({ target: { name, value } });
+        }
     };
 
     const handleNumberInput = (e) => {
@@ -46,10 +51,12 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
 
     const onSubmit = (e) => {
         e.preventDefault();
+        // Validar todos los campos obligatorios
         if (!formData.dni || !formData.name || !formData.lastName || !formData.birthDate || !formData.address ||
-            !formData.motherName || !formData.fatherName || !formData.motherPhone || !formData.fatherPhone ||
-            !formData.category || !formData.school || !formData.sex || !formData.status) {
-            setAlertMessage('Todos los campos obligatorios deben estar completos.');
+            !formData.mail || !formData.motherName || !formData.fatherName || !formData.motherPhone ||
+            !formData.fatherPhone || !formData.category || !formData.school || !formData.color ||
+            !formData.sex || !formData.status) {
+            setAlertMessage('Todos los campos obligatorios deben estar completos (DNI, Nombre, Apellido, Fecha de Nacimiento, Dirección, Email, Nombre y Teléfono de los Padres, Categoría, Escuela, Color, Sexo, Estado).');
             setShowAlert(true);
             setTimeout(() => setShowAlert(false), 3000);
             return;
@@ -139,13 +146,14 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                         />
                     </Form.Group>
                     <Form.Group controlId="formMail">
-                        <Form.Label>Email</Form.Label>
+                        <Form.Label>Email *</Form.Label>
                         <Form.Control
                             type="email"
                             placeholder="Email"
                             name="mail"
                             value={formData.mail || ''}
                             onChange={handleChange}
+                            required
                         />
                     </Form.Group>
                     <Form.Group controlId="formCategoria">
@@ -173,13 +181,14 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                         />
                     </Form.Group>
                     <Form.Group controlId="formColor">
-                        <Form.Label>Color</Form.Label>
+                        <Form.Label>Color *</Form.Label>
                         <Form.Control
                             type="text"
                             placeholder="Color"
                             name="color"
                             value={formData.color || ''}
-                            onChange={handleChange}
+                            onChange={handleInputChange} // Usar handleInputChange para capitalizar
+                            required
                             maxLength={50}
                         />
                     </Form.Group>

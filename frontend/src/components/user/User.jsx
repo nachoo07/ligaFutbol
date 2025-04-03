@@ -23,15 +23,15 @@ const User = () => {
     const menuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
         { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Notificaciones', route: '/notification', icon: <FaBell /> },
         { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
         { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
         { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Asistencia', route: '/attendance', icon: <FaCalendarCheck /> },
+        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
+        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
+        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Ajustes', route: '/settings', icon: <FaCog /> },
         { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
-        { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> }
+        { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
     const handleClose = () => setShow(false);

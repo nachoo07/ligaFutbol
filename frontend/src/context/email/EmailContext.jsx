@@ -6,6 +6,17 @@ import html2canvas from 'html2canvas';
 export const EmailContext = createContext();
 
 export const EmailProvider = ({ children }) => {
+    // Función para formatear la fecha sin problemas de zona horaria
+    const formatDate = (dateString) => {
+        if (!dateString) return '-';
+        const date = new Date(dateString);
+        // Extraer año, mes y día directamente en UTC para evitar problemas de zona horaria
+        const year = date.getUTCFullYear();
+        const month = String(date.getUTCMonth() + 1).padStart(2, '0'); // +1 porque los meses son 0-based
+        const day = String(date.getUTCDate()).padStart(2, '0');
+        return `${day}/${month}/${year}`; // Formato DD/MM/YYYY
+    };
+
     const sendEmail = async (recipients, subject, message, onSuccess) => {
         if (!recipients.length || !subject || !message) {
             Swal.fire('Error', 'Selecciona al menos un estudiante, un asunto y un mensaje.', 'error');
@@ -46,7 +57,7 @@ export const EmailProvider = ({ children }) => {
             document.body.appendChild(div);
 
             // Pre-cargar la imagen del logo
-            const logoUrl = 'https://res.cloudinary.com/dmjjwnvq8/image/upload/v1742739966/logo_nuc99w.png'; // Actualiza la URL del logo
+            const logoUrl = 'https://res.cloudinary.com/dmjjwnvq8/image/upload/v1742739966/logo_nuc99w.png';
             await new Promise((resolve, reject) => {
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
@@ -62,13 +73,12 @@ export const EmailProvider = ({ children }) => {
             const { renderToString } = await import('react-dom/server');
             div.innerHTML = renderToString(<Receipt student={student} share={share} contactEmail="ligafutbolinfantil01@gmail.com" />);
 
-
             // Aumentar la resolución y calidad de la imagen
             const canvas = await html2canvas(div, {
-                scale: 3, // Aumentar la escala a 3 para mayor resolución
-                useCORS: true, // Habilitar CORS para imágenes externas
+                scale: 3,
+                useCORS: true,
             });
-            const imageData = canvas.toDataURL('image/png', 1.0); // Calidad máxima (1.0)
+            const imageData = canvas.toDataURL('image/png', 1.0);
             const base64Data = imageData.split(',')[1];
 
             document.body.removeChild(div);
@@ -76,7 +86,7 @@ export const EmailProvider = ({ children }) => {
             const subject = `Comprobante de Pago - ${student.name} ${student.lastName}`;
             const message = `
                 <p>Hola ${student.name},</p>
-                <p>Adjuntamos el comprobante de tu pago por la cuota de ${new Date(share.paymentDate).toLocaleDateString('es-ES')}.</p>
+                <p>Adjuntamos el comprobante de tu pago por la cuota de ${formatDate(share.paymentDate)}.</p>
                 <p>Monto pagado: $${share.amount.toLocaleString('es-ES')}</p>
                 <p>Gracias por tu pago.</p>
                 <p>Saludos cordiales,<br>Liga de Fútbol Infantil</p>

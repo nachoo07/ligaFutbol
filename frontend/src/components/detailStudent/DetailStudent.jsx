@@ -1,6 +1,7 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaBars, FaUsers, FaBell, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaDownload } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { LuClipboardList } from "react-icons/lu";
 import { StudentsContext } from "../../context/student/StudentContext";
 import StudentFormModal from '../modal/StudentFormModal';
 import Swal from 'sweetalert2';
@@ -8,7 +9,7 @@ import axios from 'axios';
 import "./detailStudent.css";
 
 const StudentDetail = () => {
-    const { estudiantes, updateEstudiante, deleteEstudiante } = useContext(StudentsContext);
+    const { updateEstudiante, deleteEstudiante } = useContext(StudentsContext);
     const { id } = useParams();
     const navigate = useNavigate();
     const [student, setStudent] = useState(null);
@@ -21,48 +22,44 @@ const StudentDetail = () => {
         school: '', color: '', sex: '', status: 'Activo', archived: [], archivedNames: []
     });
     const [loading, setLoading] = useState(true);
+    const hasFetched = useRef(false);
 
     const menuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
         { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Notificaciones', route: '/notification', icon: <FaBell /> },
         { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
         { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
         { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Asistencia', route: '/attendance', icon: <FaCalendarCheck /> },
+        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
+        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
+        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Ajustes', route: '/settings', icon: <FaCog /> },
         { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
-        { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> }
+        { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
-    useEffect(() => {
-        const fetchStudent = async () => {
-            setLoading(true);
-            let selectedStudent = estudiantes.find((est) => est._id === id);
-    
-            if (!selectedStudent) {
-                try {
-                    const response = await axios.get(`http://localhost:4001/api/students/${id}`, {
-                        withCredentials: true,
-                    });
-                    selectedStudent = response.data;
-                    setStudent(selectedStudent);
-                } catch (error) {
-                    console.error("Error al obtener el estudiante:", error);
-                    Swal.fire("¡Error!", "No se pudo cargar el estudiante.", "error");
-                    navigate('/student');
-                    return;
-                }
-            } else {
-                setStudent(selectedStudent);
-            }
-    
+    const fetchStudent = async () => {
+        setLoading(true);
+        try {
+            const response = await axios.get(`http://localhost:4001/api/students/${id}`, {
+                withCredentials: true,
+            });
+            const selectedStudent = response.data;
+            console.log("Estudiante cargado directamente del backend:", selectedStudent);
+            setStudent(selectedStudent);
+
             if (selectedStudent) {
                 let formattedBirthDate = selectedStudent.birthDate || '';
-                if (formattedBirthDate && !formattedBirthDate.includes('/')) {
-                    const [year, month, day] = formattedBirthDate.split('-');
-                    formattedBirthDate = `${day}/${month}/${year}`;
+                if (formattedBirthDate) {
+                    if (!formattedBirthDate.includes('/')) {
+                        const date = new Date(formattedBirthDate + 'T00:00:00Z');
+                        if (!isNaN(date.getTime())) {
+                            const day = String(date.getUTCDate()).padStart(2, '0');
+                            const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+                            const year = date.getUTCFullYear();
+                            formattedBirthDate = `${day}/${month}/${year}`;
+                        }
+                    }
                 }
 
                 setFormData({
@@ -75,11 +72,42 @@ const StudentDetail = () => {
                     status: selectedStudent.status || 'Activo'
                 });
             }
+        } catch (error) {
+            console.error("Error al obtener el estudiante:", error);
+            Swal.fire("¡Error!", "No se pudo cargar el estudiante.", "error");
+            navigate('/student');
+        } finally {
             setLoading(false);
-        };
-    
+        }
+    };
+
+    useEffect(() => {
+        if (hasFetched.current) return;
+        hasFetched.current = true;
+        console.log("Carga inicial de estudiante");
         fetchStudent();
-    }, [id, estudiantes, navigate]);
+    }, [id, navigate]);
+
+    // Escuchar evento personalizado para recargar el estudiante
+    useEffect(() => {
+        const handleShareUpdate = () => {
+            console.log("Evento shareUpdated recibido, recargando estudiante");
+            fetchStudent();
+        };
+
+        window.addEventListener('shareUpdated', handleShareUpdate);
+
+        // Verificar si hay un evento pendiente al montar el componente
+        if (window.shareUpdatedPending) {
+            console.log("Evento shareUpdated pendiente detectado al montar, recargando estudiante");
+            fetchStudent();
+            window.shareUpdatedPending = false;
+        }
+
+        return () => {
+            window.removeEventListener('shareUpdated', handleShareUpdate);
+        };
+    }, []);
 
     if (loading) {
         return <div>Cargando...</div>;
@@ -101,16 +129,22 @@ const StudentDetail = () => {
                 setFormData({ ...formData, [name]: Array.from(files), archivedNames: Array.from(files).map(f => f.name) });
             }
         } else {
-            setFormData({ ...formData, [name]: value });
+            if (name === 'color') {
+                const capitalizedValue = value.charAt(0).toUpperCase() + value.slice(1).toLowerCase();
+                setFormData({ ...formData, [name]: capitalizedValue });
+            } else {
+                setFormData({ ...formData, [name]: value });
+            }
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         if (!formData.dni || !formData.name || !formData.lastName || !formData.birthDate || !formData.address ||
-            !formData.motherName || !formData.fatherName || !formData.motherPhone || !formData.fatherPhone ||
-            !formData.category || !formData.school || !formData.sex || !formData.status) {
-            Swal.fire("¡Error!", "Todos los campos obligatorios deben estar completos.", "error");
+            !formData.mail || !formData.motherName || !formData.fatherName || !formData.motherPhone ||
+            !formData.fatherPhone || !formData.category || !formData.school || !formData.color ||
+            !formData.sex || !formData.status) {
+            Swal.fire("¡Error!", "Todos los campos obligatorios deben estar completos (DNI, Nombre, Apellido, Fecha de Nacimiento, Dirección, Email, Nombre y Teléfono de los Padres, Categoría, Escuela, Color, Sexo, Estado).", "error");
             return;
         }
 
@@ -131,6 +165,8 @@ const StudentDetail = () => {
                 await Swal.fire("¡Éxito!", "El perfil ha sido actualizado.", "success");
                 handleClose();
                 setStudent(response.data.student || response.data);
+                // Disparar evento personalizado
+                window.dispatchEvent(new Event('shareUpdated'));
             } else {
                 await Swal.fire("¡Error!", response?.data?.message || "No se pudo actualizar el perfil.", "error");
             }
@@ -151,9 +187,19 @@ const StudentDetail = () => {
         }
     };
 
-    const formatDate = (isoDate) => {
-        if (!isoDate) return '';
-        return isoDate;
+    const formatDate = (dateString) => {
+        if (!dateString) return '';
+        if (dateString.includes('/')) {
+            return dateString;
+        }
+        const date = new Date(dateString);
+        if (!isNaN(date.getTime())) {
+            const day = String(date.getDate()).padStart(2, '0');
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const year = date.getFullYear();
+            return `${day}/${month}/${year}`;
+        }
+        return dateString;
     };
 
     const handleViewShares = () => {
@@ -234,11 +280,11 @@ const StudentDetail = () => {
                             <div><label>Escuela</label><input type="text" value={student.school} readOnly /></div>
                         </div>
                         <div className="perfil-row">
-                            <div><label>Nombre Mamá</label><input type="text" value={student.motherName} readOnly /></div>
+                            <div><label>Nombre Mamá</label><input type="text" value={capitalizeInitials(student.motherName)} readOnly /></div>
                             <div><label>Celular Mamá</label><input type="text" value={student.motherPhone} readOnly /></div>
                         </div>
                         <div className="perfil-row">
-                            <div><label>Nombre Papá</label><input type="text" value={student.fatherName} readOnly /></div>
+                            <div><label>Nombre Papá</label><input type="text" value={capitalizeInitials(student.fatherName)} readOnly /></div>
                             <div><label>Celular Papá</label><input type="text" value={student.fatherPhone} readOnly /></div>
                         </div>
                         <div className="perfil-row">
@@ -263,7 +309,7 @@ const StudentDetail = () => {
                                 {student.archived.map((url, index) => (
                                     <div key={index} className="archived-item">
                                         <a href={url} target="_blank" rel="noopener noreferrer">
-                                            {`archivo${index + 1}`} {/* Mostrar archivo1, archivo2 en la interfaz */}
+                                            {`archivo${index + 1}`}
                                         </a>
                                         <button
                                             type="button"

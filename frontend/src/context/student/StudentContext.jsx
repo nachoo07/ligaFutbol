@@ -1,4 +1,4 @@
-import { useEffect, useState, createContext, useContext, useRef } from "react";
+import { useEffect, useState, createContext, useContext } from "react";
 import { useLocation } from 'react-router-dom';
 import axios from "axios";
 import Swal from "sweetalert2";
@@ -9,26 +9,27 @@ export const StudentsContext = createContext();
 const StudentsProvider = ({ children }) => {
     const [estudiantes, setEstudiantes] = useState([]);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
+    const [loading, setLoading] = useState(false); // Nuevo estado para controlar solicitudes
     const { auth, loading: authLoading } = useContext(LoginContext);
     const location = useLocation();
-    const hasFetched = useRef(false); // Bandera para evitar múltiples ejecuciones
 
     const obtenerEstudiantes = async () => {
-        if (hasFetched.current) return; // Evitar múltiples ejecuciones
-        hasFetched.current = true;
+        if (loading) return; // Evitar solicitudes simultáneas
+        if (auth !== "admin" && auth !== "user") return;
 
-        if (auth === "admin" || auth === "user") {
-            try {
-                console.log('Obteniendo estudiantes...');
-                const response = await axios.get("http://localhost:4001/api/students", {
-                    withCredentials: true,
-                });
-                setEstudiantes(Array.isArray(response.data) ? response.data : []);
-                setIsDataLoaded(true);
-            } catch (error) {
-                console.error("Error obteniendo estudiantes:", error);
-                Swal.fire("¡Error!", "No se pudieron obtener los estudiantes. Verifica la URL y el servidor.", "error");
-            }
+        setLoading(true);
+        try {
+            console.log('Obteniendo estudiantes...');
+            const response = await axios.get("http://localhost:4001/api/students", {
+                withCredentials: true,
+            });
+            setEstudiantes(Array.isArray(response.data) ? response.data : []);
+            setIsDataLoaded(true);
+        } catch (error) {
+            console.error("Error obteniendo estudiantes:", error);
+            Swal.fire("¡Error!", "No se pudieron obtener los estudiantes. Verifica la URL y el servidor.", "error");
+        } finally {
+            setLoading(false);
         }
     };
 
@@ -64,8 +65,7 @@ const StudentsProvider = ({ children }) => {
                 });
                 setEstudiantes((prev) => [...prev, response.data.student]);
                 Swal.fire("¡Éxito!", "El estudiante ha sido creado correctamente", "success");
-                hasFetched.current = false; // Permitir recargar datos después de agregar un estudiante
-                obtenerEstudiantes();
+                await obtenerEstudiantes(); // Recargar datos después de agregar
             } catch (error) {
                 console.error("Error al crear el estudiante:", error);
                 Swal.fire("¡Error!", "Ha ocurrido un error al crear el estudiante", "error");
@@ -101,7 +101,7 @@ const StudentsProvider = ({ children }) => {
                     } else {
                         await Swal.fire("¡Eliminado!", "El estudiante ha sido eliminado correctamente", "success");
                     }
-                    hasFetched.current = false; // Permitir recargar datos después de eliminar
+                    await obtenerEstudiantes(); // Recargar datos después de eliminar
                     return true;
                 } else {
                     return false;
@@ -130,8 +130,7 @@ const StudentsProvider = ({ children }) => {
                 setEstudiantes((prev) =>
                     prev.map((est) => (est._id === id ? response.data.student : est))
                 );
-                hasFetched.current = false; // Permitir recargar datos después de actualizar
-                obtenerEstudiantes();
+                await obtenerEstudiantes(); // Recargar datos después de actualizar
                 return response;
             } catch (error) {
                 console.error("Error en axios.put:", error.response ? error.response.data : error.message);
@@ -157,14 +156,14 @@ const StudentsProvider = ({ children }) => {
                 setEstudiantes((prev) => [...prev, ...response.data.students]);
 
                 if (response.data.success) {
+                    let message = `Se importaron ${response.data.imported} estudiantes.`;
+                    if (response.data.errors.length > 0) {
+                        message += `<br />Errores: <ul>${response.data.errors.map((err, idx) => `<li>${err}</li>`).join("")}</ul>`;
+                    }
                     Swal.fire({
                         icon: "success",
                         title: "¡Éxito!",
-                        html: `Se importaron ${response.data.imported} estudiantes.<br />${
-                            response.data.errors.length > 0
-                                ? `Errores: <ul>${response.data.errors.map((err, idx) => `<li>${err}</li>`).join("")}</ul>`
-                                : ""
-                        }`,
+                        html: message,
                     });
                 } else {
                     Swal.fire({
@@ -176,8 +175,7 @@ const StudentsProvider = ({ children }) => {
                     });
                 }
 
-                hasFetched.current = false; // Permitir recargar datos después de importar
-                await obtenerEstudiantes();
+                await obtenerEstudiantes(); // Recargar datos después de importar
             } catch (error) {
                 console.error("Error al importar estudiantes:", error);
                 Swal.fire(

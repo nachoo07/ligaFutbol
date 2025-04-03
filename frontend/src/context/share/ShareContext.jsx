@@ -1,3 +1,4 @@
+// context/share/ShareContext.js
 import { useEffect, useState, createContext, useContext, useCallback, useRef } from "react";
 import { useLocation } from 'react-router-dom';
 import axios from "axios";
@@ -12,10 +13,10 @@ const SharesProvider = ({ children }) => {
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     const { auth, loading: authLoading } = useContext(LoginContext);
     const location = useLocation();
-    const hasFetched = useRef(false); // Bandera para evitar múltiples ejecuciones
+    const hasFetched = useRef(false);
 
-    const obtenerCuotas = useCallback(async () => {
-        if (hasFetched.current) return; // Evitar múltiples ejecuciones
+    const obtenerCuotas = useCallback(async (force = false) => {
+        if (hasFetched.current && !force) return;
         hasFetched.current = true;
 
         try {
@@ -45,6 +46,20 @@ const SharesProvider = ({ children }) => {
         }
     }, []);
 
+    const getAvailableShareNames = useCallback(async (year) => {
+        try {
+            const response = await axios.get("http://localhost:4001/api/shares/available-names", {
+                params: { year },
+                withCredentials: true,
+            });
+            return Array.isArray(response.data) ? response.data : [];
+        } catch (error) {
+            console.error("Error obteniendo nombres disponibles:", error);
+            Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener los nombres disponibles.", "error");
+            return [];
+        }
+    }, []);
+
     useEffect(() => {
         if (
             authLoading ||
@@ -69,7 +84,7 @@ const SharesProvider = ({ children }) => {
             });
             setCuotas((prevCuotas) => [...prevCuotas, response.data.share]);
             Swal.fire("¡Éxito!", "La cuota ha sido creada correctamente", "success");
-            hasFetched.current = false; // Permitir recargar datos después de agregar
+            hasFetched.current = false;
             return Promise.resolve();
         } catch (error) {
             console.error("Error al crear la cuota:", error);
@@ -78,17 +93,18 @@ const SharesProvider = ({ children }) => {
         }
     };
 
-    const createMassiveShares = async (paymentName, amount) => {
+    const createMassiveShares = async (paymentName, year) => {
         if (auth !== "admin") return Promise.reject("No autorizado");
         try {
             const response = await axios.post("http://localhost:4001/api/shares/create-massive", {
                 paymentName,
-                amount,
+                year,
             }, {
                 withCredentials: true,
             });
             Swal.fire("¡Éxito!", `Se crearon ${response.data.shares.length} cuotas masivas correctamente`, "success");
-            hasFetched.current = false; // Permitir recargar datos después de crear masivamente
+            hasFetched.current = false;
+            await obtenerCuotas(true); // Forzamos la recarga de cuotas
             return Promise.resolve();
         } catch (error) {
             console.error("Error al crear cuotas masivas:", error);
@@ -116,7 +132,7 @@ const SharesProvider = ({ children }) => {
                 });
                 setCuotas((prevCuotas) => prevCuotas.filter((cuota) => cuota._id !== id));
                 Swal.fire("¡Eliminada!", "La cuota ha sido eliminada correctamente", "success");
-                hasFetched.current = false; // Permitir recargar datos después de eliminar
+                hasFetched.current = false;
                 return Promise.resolve();
             }
             return Promise.resolve();
@@ -134,10 +150,10 @@ const SharesProvider = ({ children }) => {
                 withCredentials: true,
             });
             setCuotas((prevCuotas) =>
-                prevCuotas.map((c) => (c._id === cuota._id ? response.data : c))
+                prevCuotas.map((c) => (c._id === cuota._id ? response.data.share : c))
             );
             Swal.fire("¡Éxito!", "La cuota ha sido actualizada correctamente", "success");
-            hasFetched.current = false; // Permitir recargar datos después de actualizar
+            hasFetched.current = false;
             return Promise.resolve();
         } catch (error) {
             console.error("Error al actualizar cuota:", error);
@@ -157,6 +173,7 @@ const SharesProvider = ({ children }) => {
                 deleteCuota,
                 updateCuota,
                 createMassiveShares,
+                getAvailableShareNames,
             }}
         >
             {children}

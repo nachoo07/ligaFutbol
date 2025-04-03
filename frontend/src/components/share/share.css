@@ -40,73 +40,7 @@
     height: 670px;
     background: #f9f9f9;
   }
-  
-  .students-view {
-    display: flex;
-    flex-direction: column;
-    gap: 20px;
-  }
-  
-  .title {
-    font-size: 36px;
-    font-weight: bold;
-    text-align: center;
-    color: #333;
-    margin-bottom: 20px;
-  }
-  
-  .search-bar {
-    position: relative;
-    max-width: 500px;
-    margin: 0 auto;
-  }
-  
-  .search-bar input {
-    width: 500px;
-    padding: 12px 40px 12px 15px;
-    border: 1px solid #ccc;
-    border-radius: 25px;
-    font-size: 16px;
-    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-  
-  .search-icon {
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #D83D8D;
-    font-size: 18px;
-  }
-  
-  .students-table {
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  }
-  
-  .students-table th,
-  .students-table td {
-    padding: 12px;
-    text-align: center;
-    border: none;
-    background: #fff;
-  }
-  
-  .students-table th {
-    background: #D83D8D;
-    color: white;
-    font-weight: bold;
-  }
-  
-  .students-table tr:nth-child(even) {
-    background: #f2f2f2;
-  }
-  
-  .students-table tr:hover {
-    background: #e8e8e8;
-  }
-  
+
   .pagination {
     display: flex;
     justify-content: center;
@@ -115,23 +49,13 @@
   }
   
   .pagination-btn {
-    background: #D83D8D;
+    background: #0163a9 !important;
     color: white;
     border: none;
     padding: 8px 12px;
     border-radius: 5px;
   }
-  
-  .pagination-btn:hover,
-  .pagination-btn.active {
-    background: #b03275;
-  }
-  
-  .pagination-btn:disabled {
-    background: #ccc;
-    cursor: not-allowed;
-  }
-  
+
   .cuotas-view {
     display: flex;
     flex-direction: column;
@@ -139,22 +63,17 @@
   }
   
   .back-btn {
-    background: #D83D8D;
+    background: #0163a9;
     color: white;
     border: none;
     padding: 8px 15px;
     border-radius: 5px;
+    width: 100px;
+    font-size: 18px;
   }
   
   .back-btn:hover {
-    background: #b03275;
-  }
-  
-  .year-filter {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
+    background: #013d61;
   }
   
   .filter {
@@ -164,25 +83,11 @@
     align-items: center;
   }
   
-  .label-ano {
-    font-size: 20px !important;
-    margin: 0px !important;
-    color: #333;
-    margin-right: 15px !important;
-  }
-  
-  .year-filter label {
-    font-size: 18px;
-    color: #333;
-  }
-  
-  .year-filter select {
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background: #fff;
-    font-size: 16px;
-  }
+  .custom-alert.alert-warning {
+    background-color: #ffeb3b; /* Amarillo más brillante */
+    border-color: #fbc02d;
+    color: #212529; /* Texto oscuro para contraste */
+}
   
   .cuotas-table {
     border-radius: 10px;
@@ -199,25 +104,9 @@
   }
   
   .cuotas-table th {
-    background: #D83D8D;
+    background: #0163a9;
     color: white;
     font-weight: bold;
-  }
-  
-  .cuotas-table tr.state-pendiente {
-    background: #fff3cd;
-  }
-  
-  .cuotas-table tr.state-pagado {
-    background: #d4edda;
-  }
-  
-  .cuotas-table tr.state-vencido {
-    background: #f8d7da;
-  }
-  
-  .cuotas-table tr:hover {
-    background: #e8e8e8;
   }
   
   .cuota-form {
@@ -259,26 +148,13 @@
   .action-btn,
   .save-btn,
   .cancel-btn {
-    background: #D83D8D;
+    background: #013d61;
     color: white;
     border: none;
     padding: 8px 15px;
     margin-right: 10px;
     border-radius: 5px;
-  }
-  
-  .action-btn.delete {
-    background: #D83D8D;
-  }
-  
-  .action-btn:hover,
-  .save-btn:hover,
-  .cancel-btn:hover {
-    background: #b03275;
-  }
-  
-  .action-btn.delete:hover {
-    background: #b03275;
+    font-size: 18px !important;
   }
   
   .custom-alert {
@@ -331,28 +207,28 @@
     display: none;
   }
   
-  .botones-acciones {
-    display: flex;
-    justify-content: center;
+  .botones-acciones .action-btn {
+    padding: 6px; /* Ajusta el padding para que los botones no sean demasiado pequeños */
+    margin: 0 4px; /* Espacio entre botones */
+    font-size: 18px; /* Tamaño del icono */
+    display: inline-flex;
     align-items: center;
-  }
+    justify-content: center;
+    width: 36px; /* Ancho fijo opcional para uniformidad */
+    height: 36px; /* Alto fijo opcional para uniformidad */
+}
   
   .cancel-btn {
-    height: 40px;
-    margin: 10px 10px 0px 0px;
+    background: #013d61;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    padding: 8px 15px !important;
+    margin: 10px 10px 0px 0px !important;
+    width: 300px;
+    font-size: 18px !important;
   }
 
-  .action-btn.receipt {
-    background-color: #28a745; /* Verde para el botón de comprobante */
-    border-color: #28a745;
-    color: white;
-    margin-left: 5px;
-}
-
-.action-btn.receipt:hover {
-    background-color: #218838;
-    border-color: #1e7e34;
-}
 
 .action-btn.receipt:disabled {
     background-color: #6c757d;
@@ -360,14 +236,11 @@
     cursor: not-allowed;
 }
 
-.action-btn.receipt .btn-text {
-    margin-right: 5px;
+select option[disabled] {
+  color: gray;
+  font-style: italic;
 }
 
-.action-btn.receipt .btn-icon {
-    vertical-align: middle;
-}
-  
   @media (max-width: 576px) {
     .sidebar {
       display: none;

@@ -1,4 +1,5 @@
 import Student from '../../models/student/student.model.js';
+import Share from '../../models/share/share.model.js';
 import cloudinaryV2 from 'cloudinary';
 import dotenv from 'dotenv';
 import xlsx from 'xlsx';
@@ -76,6 +77,61 @@ const normalizeDate = (dateInput) => {
   return isValid(parsedDate) ? format(parsedDate, 'dd/MM/yyyy') : dateStr; // Si no es válido, devolver original
 };
 
+// Función para subir a Cloudinary
+const uploadToCloudinary = async (url, folder, options = {}) => {
+  if (!url) return null;
+
+  try {
+    let directLink = url;
+
+    // Detectar si la URL es de Google Drive
+    if (url.includes('drive.google.com')) {
+      const driveId = url.match(/[-\w]{25,}/)?.[0];
+      if (!driveId) {
+        console.error(`No se pudo extraer el ID de Google Drive de la URL: ${url}`);
+        return null;
+      }
+      // Usar export=download para forzar la descarga del archivo
+      directLink = `https://drive.google.com/uc?export=download&id=${driveId}`;
+      console.log(`URL de Google Drive convertida: ${directLink}`);
+    } else {
+      console.log(`URL directa (no Google Drive): ${directLink}`);
+    }
+
+    // Descargar la imagen
+    const response = await axios.get(directLink, {
+      responseType: 'arraybuffer',
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, como Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      },
+    });
+
+    // Verificar que la respuesta sea una imagen
+    const contentType = response.headers['content-type'];
+    if (!contentType || !contentType.startsWith('image/')) {
+      console.error(`La URL ${directLink} no devolvió una imagen. Content-Type: ${contentType}`);
+      console.error(`Datos de respuesta: ${response.data.toString().substring(0, 200)}`); // Mostrar los primeros 200 caracteres
+      return null;
+    }
+
+    // Subir a Cloudinary
+    const result = await cloudinaryV2.uploader.upload(
+      `data:${contentType || 'image/jpeg'};base64,${Buffer.from(response.data).toString('base64')}`,
+      { folder, quality: 'auto', ...options }
+    );
+
+    console.log(`Imagen subida a Cloudinary: ${result.secure_url}`);
+    return result.secure_url;
+  } catch (error) {
+    console.error(`Error al procesar la URL ${url}:`, error.message);
+    if (error.response) {
+      console.error(`Código de estado: ${error.response.status}`);
+      console.error(`Datos de respuesta: ${error.response.data ? error.response.data.toString().substring(0, 200) : 'Sin datos'}`);
+    }
+    return null;
+  }
+};
 // Obtener todos los estudiantes
 export const getAllStudents = async (req, res) => {
   try {
@@ -161,6 +217,14 @@ export const deleteStudent = async (req, res) => {
     }
     const deletionErrors = [];
 
+    // Eliminar las cuotas asociadas al estudiante
+    try {
+      const deletedShares = await Share.deleteMany({ student: student._id });
+      console.log(`Se eliminaron ${deletedShares.deletedCount} cuotas asociadas al estudiante ${student._id}`);
+    } catch (shareDeleteError) {
+      deletionErrors.push(`Error al eliminar las cuotas asociadas: ${shareDeleteError.message}`);
+    } 
+
     if (student.profileImage && student.profileImage !== 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg') {
       const profileImagePublicId = getPublicIdFromUrl(student.profileImage);
       if (profileImagePublicId) {
@@ -194,16 +258,17 @@ export const deleteStudent = async (req, res) => {
         }
       }
     }
+    // Eliminar el estudiante
     await Student.findByIdAndDelete(req.params.id);
 
     if (deletionErrors.length > 0) {
       res.status(200).json({
-        message: 'Estudiante eliminado, pero hubo errores al eliminar archivos de Cloudinary',
+        message: 'Estudiante y cuotas eliminados, pero hubo errores al eliminar archivos de Cloudinary',
         success: true,
         errors: deletionErrors,
       });
     } else {
-      res.status(200).json({ message: 'Estudiante y archivos asociados eliminados correctamente', success: true });
+      res.status(200).json({ message: 'Estudiante, cuotas y archivos asociados eliminados correctamente', success: true });
     }
   } catch (error) {
     console.error('Error en deleteStudent:', error);
