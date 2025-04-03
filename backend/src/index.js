@@ -22,7 +22,7 @@ app.use(cookieParser());
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'http://69.62.96.81:4001',
+    'http://69.62.96.81:4002',  
     'http://ligainfatilyb.com',
     'https://ligainfatilyb.com'
   ],
