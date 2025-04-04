@@ -41,7 +41,7 @@ const StudentDetail = () => {
     const fetchStudent = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`http://localhost:4002/api/students/${id}`, {
+            const response = await axios.get(`/api/students/${id}`, {
                 withCredentials: true,
             });
             const selectedStudent = response.data;

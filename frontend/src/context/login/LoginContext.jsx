@@ -28,7 +28,7 @@ export const LoginProvider = ({ children }) => {
 
             try {
                 setLoading(true);
-                const response = await axios.post('http://localhost:4002/api/auth/refresh', {}, { withCredentials: true });
+                const response = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
                 setAuth(localStorage.getItem('authRole') || null);
                 setUserData(localStorage.getItem('authName') ? { name: localStorage.getItem('authName') } : null);
             } catch (error) {
@@ -49,7 +49,7 @@ export const LoginProvider = ({ children }) => {
 
     const login = async (mail, password) => {
         try {
-            const response = await axios.post('http://localhost:4002/api/auth/login', { mail, password }, { withCredentials: true });
+            const response = await axios.post('/api/auth/login', { mail, password }, { withCredentials: true });
             const { role, name } = response.data.user;
             setAuth(role);
             setUserData({ name });
@@ -70,7 +70,7 @@ export const LoginProvider = ({ children }) => {
             setUserData(null);
             localStorage.removeItem('authRole');
             localStorage.removeItem('authName');
-            await axios.post('http://localhost:4002/api/auth/logout', {}, { withCredentials: true });
+            await axios.post('/api/auth/logout', {}, { withCredentials: true });
             navigate('/login', { replace: true });
         } catch (error) {
             console.error('Error en logout:', error);
@@ -81,7 +81,7 @@ export const LoginProvider = ({ children }) => {
 
     const refreshAccessToken = async () => {
         try {
-            await axios.post('http://localhost:4002/api/auth/refresh', {}, { withCredentials: true });
+            await axios.post('/api/auth/refresh', {}, { withCredentials: true });
         } catch (error) {
             console.error('Error al renovar token:', error.response?.data || error.message);
             logout();
@@ -98,7 +98,7 @@ export const LoginProvider = ({ children }) => {
                 if (isLoggingOut || !auth || error.response?.status !== 401 || originalRequest._retry) {
                     return Promise.reject(error);
                 }
-                if (originalRequest.url.includes('http://localhost:4002/api/auth/refresh')) {
+                if (originalRequest.url.includes('/api/auth/refresh')) {
                     logout();
                     return Promise.reject(error);
                 }

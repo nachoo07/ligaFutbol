@@ -93,9 +93,7 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
       }
       // Usar export=download para forzar la descarga del archivo
       directLink = `https://drive.google.com/uc?export=download&id=${driveId}`;
-      console.log(`URL de Google Drive convertida: ${directLink}`);
     } else {
-      console.log(`URL directa (no Google Drive): ${directLink}`);
     }
 
     // Descargar la imagen
@@ -121,7 +119,7 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
       { folder, quality: 'auto', ...options }
     );
 
-    console.log(`Imagen subida a Cloudinary: ${result.secure_url}`);
+    
     return result.secure_url;
   } catch (error) {
     console.error(`Error al procesar la URL ${url}:`, error.message);
@@ -220,7 +218,6 @@ export const deleteStudent = async (req, res) => {
     // Eliminar las cuotas asociadas al estudiante
     try {
       const deletedShares = await Share.deleteMany({ student: student._id });
-      console.log(`Se eliminaron ${deletedShares.deletedCount} cuotas asociadas al estudiante ${student._id}`);
     } catch (shareDeleteError) {
       deletionErrors.push(`Error al eliminar las cuotas asociadas: ${shareDeleteError.message}`);
     } 
@@ -454,7 +451,7 @@ export const importStudents = async (req, res) => {
         sex: row['Sexo'] || row['sex'],
       };
 
-      console.log(`studentData en fila ${rowIndex}:`, studentData);
+
 
       // Validar campos obligatorios
       const requiredFields = ['name', 'lastName', 'dni', 'birthDate', 'address', 'motherName', 'fatherName', 'motherPhone', 'fatherPhone', 'category', 'school', 'sex'];
