@@ -24,7 +24,8 @@ app.use(cors({
     'http://localhost:5173',
     'http://69.62.96.81:4002',  
     'http://ligainfatilyb.com',
-    'https://ligainfatilyb.com'
+    'https://ligainfatilyb.com',
+    'http://ligainfantilyb.com'
   ],
   credentials: true,
 }));
