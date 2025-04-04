@@ -20,7 +20,6 @@ const SharesProvider = ({ children }) => {
         hasFetched.current = true;
 
         try {
-            console.log('Obteniendo cuotas...');
             const response = await axios.get("/api/shares", {
                 withCredentials: true,
             });

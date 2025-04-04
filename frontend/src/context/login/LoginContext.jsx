@@ -7,16 +7,28 @@ export const LoginProvider = ({ children }) => {
     const [auth, setAuth] = useState(localStorage.getItem('authRole') || null);
     const [userData, setUserData] = useState(localStorage.getItem('authName') ? { name: localStorage.getItem('authName') } : null);
     const [loading, setLoading] = useState(true);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
     const navigate = useNavigate();
 
     // Verificar autenticación solo una vez al montar el componente
     useEffect(() => {
         const checkAuth = async () => {
+            const authRole = localStorage.getItem('authRole');
+            const authName = localStorage.getItem('authName');
+
+            if (!authRole || !authName) {
+                setAuth(null);
+                setUserData(null);
+                setLoading(false);
+                if (window.location.pathname !== '/login') {
+                    navigate('/login', { replace: true });
+                }
+                return;
+            }
+
             try {
-                console.log('Verificando autenticación...');
                 setLoading(true);
-                const response = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
-                console.log('Respuesta de /api/auth/refresh:', response.data);
+                const response = await axios.post('http://localhost:4002/api/auth/refresh', {}, { withCredentials: true });
                 setAuth(localStorage.getItem('authRole') || null);
                 setUserData(localStorage.getItem('authName') ? { name: localStorage.getItem('authName') } : null);
             } catch (error) {
@@ -26,7 +38,6 @@ export const LoginProvider = ({ children }) => {
                 localStorage.removeItem('authRole');
                 localStorage.removeItem('authName');
                 if (window.location.pathname !== '/login') {
-                    console.log('Redirigiendo a /login desde checkAuth...');
                     navigate('/login', { replace: true });
                 }
             } finally {
@@ -34,19 +45,16 @@ export const LoginProvider = ({ children }) => {
             }
         };
         checkAuth();
-    }, []); // Eliminamos la dependencia de `navigate`
+    }, [navigate]);
 
     const login = async (mail, password) => {
         try {
-            console.log('Iniciando sesión con:', { mail });
-            const response = await axios.post('/api/auth/login', { mail, password }, { withCredentials: true });
-            console.log('Respuesta de /api/auth/login:', response.data);
+            const response = await axios.post('http://localhost:4002/api/auth/login', { mail, password }, { withCredentials: true });
             const { role, name } = response.data.user;
             setAuth(role);
             setUserData({ name });
             localStorage.setItem('authRole', role);
             localStorage.setItem('authName', name);
-            console.log(`Redirigiendo después del login a: ${role === 'admin' ? '/' : '/homeuser'}`);
             navigate(role === 'admin' ? '/' : '/homeuser', { replace: true });
             return role;
         } catch (error) {
@@ -57,22 +65,23 @@ export const LoginProvider = ({ children }) => {
 
     const logout = async () => {
         try {
-            console.log('Cerrando sesión...');
-            await axios.post('/api/auth/logout', {}, { withCredentials: true });
-            setAuth(null);
+            setIsLoggingOut(true); // Indicamos que estamos cerrando sesión
+            setAuth(null); // Limpiamos auth inmediatamente
             setUserData(null);
             localStorage.removeItem('authRole');
             localStorage.removeItem('authName');
+            await axios.post('http://localhost:4002/api/auth/logout', {}, { withCredentials: true });
             navigate('/login', { replace: true });
         } catch (error) {
             console.error('Error en logout:', error);
+        } finally {
+            setIsLoggingOut(false); // Reseteamos la bandera
         }
     };
 
     const refreshAccessToken = async () => {
         try {
-            console.log('Renovando token...');
-            await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+            await axios.post('http://localhost:4002/api/auth/refresh', {}, { withCredentials: true });
         } catch (error) {
             console.error('Error al renovar token:', error.response?.data || error.message);
             logout();
@@ -85,38 +94,36 @@ export const LoginProvider = ({ children }) => {
             (response) => response,
             async (error) => {
                 const originalRequest = error.config;
-                if (error.response?.status === 401 && !originalRequest._retry) {
-                    if (originalRequest.url.includes('/api/auth/refresh')) {
-                        console.log('Fallo en /refresh, deteniendo reintentos');
-                        logout();
-                        return Promise.reject(error);
-                    }
-                    originalRequest._retry = true;
-                    try {
-                        console.log('Intentando renovar token...');
-                        await refreshAccessToken();
-                        console.log('Token renovado, reintentando petición');
-                        return axios(originalRequest);
-                    } catch (refreshError) {
-                        console.error('Error al renovar token:', refreshError.response?.data || refreshError.message);
-                        logout();
-                        return Promise.reject(refreshError);
-                    }
+                // No intentamos refrescar si estamos cerrando sesión o si ya no hay sesión activa
+                if (isLoggingOut || !auth || error.response?.status !== 401 || originalRequest._retry) {
+                    return Promise.reject(error);
                 }
-                return Promise.reject(error);
+                if (originalRequest.url.includes('http://localhost:4002/api/auth/refresh')) {
+                    logout();
+                    return Promise.reject(error);
+                }
+                originalRequest._retry = true;
+                try {
+                    await refreshAccessToken();
+                    return axios(originalRequest);
+                } catch (refreshError) {
+                    console.error('Error al renovar token:', refreshError.response?.data || refreshError.message);
+                    logout();
+                    return Promise.reject(refreshError);
+                }
             }
         );
         return () => axios.interceptors.response.eject(interceptor);
-    }, [logout]);
+    }, [logout, auth, isLoggingOut]);
 
     useEffect(() => {
         const interval = setInterval(() => {
-            if (auth) {
+            if (auth && !isLoggingOut) {
                 refreshAccessToken();
             }
         }, 90 * 60 * 1000); // 90 minutos
         return () => clearInterval(interval);
-    }, [auth]);
+    }, [auth, isLoggingOut]);
 
     return (
         <LoginContext.Provider value={{ auth, userData, login, logout, loading }}>

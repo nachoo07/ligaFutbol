@@ -19,8 +19,7 @@ const StudentsProvider = ({ children }) => {
 
         setLoading(true);
         try {
-            console.log('Obteniendo estudiantes...');
-            const response = await axios.get("/api/students", {
+            const response = await axios.get("http://localhost:4002/api/students", {
                 withCredentials: true,
             });
             setEstudiantes(Array.isArray(response.data) ? response.data : []);
@@ -59,7 +58,7 @@ const StudentsProvider = ({ children }) => {
                         formData.append(key, estudiante[key]);
                     }
                 }
-                const response = await axios.post("/api/students/create", formData, {
+                const response = await axios.post("http://localhost:4002/api/students/create", formData, {
                     withCredentials: true,
                     headers: { "Content-Type": "multipart/form-data" },
                 });

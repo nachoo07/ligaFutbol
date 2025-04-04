@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext } from 'react';
 import { StudentsContext } from '../../context/student/StudentContext';
 import { useEmail } from '../../context/email/EmailContext'; // Nuevo contexto
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaBars, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { FaSearch, FaBars,FaTrash, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import './email.css';
 

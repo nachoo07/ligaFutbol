@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaSearch, FaBars, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { FaSearch, FaDownload  ,FaBars, FaUsers, FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import { StudentsContext } from "../../context/student/StudentContext";
 import StudentFormModal from '../modal/StudentFormModal';
@@ -41,11 +41,10 @@ const StudentDetail = () => {
     const fetchStudent = async () => {
         setLoading(true);
         try {
-            const response = await axios.get(`/api/students/${id}`, {
+            const response = await axios.get(`http://localhost:4002/api/students/${id}`, {
                 withCredentials: true,
             });
             const selectedStudent = response.data;
-            console.log("Estudiante cargado directamente del backend:", selectedStudent);
             setStudent(selectedStudent);
 
             if (selectedStudent) {
@@ -84,14 +83,12 @@ const StudentDetail = () => {
     useEffect(() => {
         if (hasFetched.current) return;
         hasFetched.current = true;
-        console.log("Carga inicial de estudiante");
         fetchStudent();
     }, [id, navigate]);
 
     // Escuchar evento personalizado para recargar el estudiante
     useEffect(() => {
         const handleShareUpdate = () => {
-            console.log("Evento shareUpdated recibido, recargando estudiante");
             fetchStudent();
         };
 
@@ -99,7 +96,6 @@ const StudentDetail = () => {
 
         // Verificar si hay un evento pendiente al montar el componente
         if (window.shareUpdatedPending) {
-            console.log("Evento shareUpdated pendiente detectado al montar, recargando estudiante");
             fetchStudent();
             window.shareUpdatedPending = false;
         }

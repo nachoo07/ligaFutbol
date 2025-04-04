@@ -212,7 +212,6 @@ const Share = () => {
                     obtenerCuotas(true),
                     obtenerEstudiantes(), // Actualizar el contexto de estudiantes
                 ]).then(([studentCuotas]) => {
-                    console.log("Después de actualizar cuota y obtener estudiantes:", studentCuotas);
                     setAllStudentCuotas(studentCuotas);
                     setFilteredStudentCuotas(studentCuotas);
                     setAlertMessage("Cuota actualizada exitosamente.");
@@ -233,7 +232,6 @@ const Share = () => {
                     obtenerCuotas(true),
                     obtenerEstudiantes(), // Actualizar el contexto de estudiantes
                 ]).then(([studentCuotas]) => {
-                    console.log("Después de agregar cuota y obtener estudiantes:", studentCuotas);
                     setAllStudentCuotas(studentCuotas);
                     setFilteredStudentCuotas(studentCuotas);
                     setAlertMessage("Cuota agregada exitosamente.");
@@ -297,8 +295,6 @@ const Share = () => {
     };
 
     const handleSendReceipt = async (cuota) => {
-        console.log("Objeto cuota al enviar comprobante:", cuota);
-    console.log("Estudiante dentro de cuota:", cuota.student);
         if (!cuota.student?.mail) {
             setAlertMessage("Advertencia: El estudiante no tiene un correo registrado.");
             setShowAlert(true);

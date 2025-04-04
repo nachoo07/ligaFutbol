@@ -23,12 +23,13 @@ app.use(cors({
   origin: [
     'http://localhost:5173',
     'http://69.62.96.81:4002',  
-    'http://ligainfatilyb.com',
-    'https://ligainfatilyb.com',
-    'http://ligainfantilyb.com'
+    'https://ligainfantilyb.com',
+    'http://localhost:4002'
   ],
   credentials: true,
 }));
+
+
 
 // Rutas
 app.use('/api/students', studentRouter);

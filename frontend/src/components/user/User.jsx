@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { Table, Button, FormControl, Modal, Form } from 'react-bootstrap';
 import './user.css';
 import { UsersContext } from '../../context/user/UserContext';
-import { FaBars, FaUsers, FaBell, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaSearch, FaTrash, FaEdit } from 'react-icons/fa';
-
+import { FaBars, FaUsers, FaBell,FaAddressCard,FaRegListAlt, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaSearch, FaTrash, FaEdit } from 'react-icons/fa';
+import { LuClipboardList } from 'react-icons/lu';
 const User = () => {
     const { usuarios, obtenerUsuarios, addUsuarioAdmin, updateUsuarioAdmin, deleteUsuarioAdmin } = useContext(UsersContext);
     const navigate = useNavigate();

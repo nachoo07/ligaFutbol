@@ -1,0 +1,10 @@
+{"level":"info","mail":"juan.perez@example.com","message":"Usuario autenticado exitosamente","role":"admin","timestamp":"2025-04-04T20:11:11.923Z"}
+{"level":"info","mail":"juan.perez@example.com","message":"Access token refrescado exitosamente","timestamp":"2025-04-04T20:11:11.953Z"}
+{"level":"info","message":"Refresh token eliminado durante logout","timestamp":"2025-04-04T20:11:18.183Z"}
+{"level":"info","message":"Usuario cerró sesión exitosamente","timestamp":"2025-04-04T20:11:18.189Z"}
+{"level":"info","mail":"juan.perez@example.com","message":"Usuario autenticado exitosamente","role":"admin","timestamp":"2025-04-04T20:12:01.133Z"}
+{"level":"info","mail":"juan.perez@example.com","message":"Access token refrescado exitosamente","timestamp":"2025-04-04T20:12:01.184Z"}
+{"level":"info","mail":"juan.perez@example.com","message":"Access token refrescado exitosamente","timestamp":"2025-04-04T20:12:04.425Z"}
+{"level":"info","mail":"juan.perez@example.com","message":"Access token refrescado exitosamente","timestamp":"2025-04-04T20:12:14.108Z"}
+{"level":"info","mail":"juan.perez@example.com","message":"Access token refrescado exitosamente","timestamp":"2025-04-04T20:12:16.129Z"}
+{"level":"info","mail":"juan.perez@example.com","message":"Access token refrescado exitosamente","timestamp":"2025-04-04T20:12:19.157Z"}
