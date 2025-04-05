@@ -78,10 +78,14 @@ const normalizeDate = (dateInput) => {
 };
 
 // Función para subir a Cloudinary
+const imageCache = new Map();
+
 const uploadToCloudinary = async (url, folder, options = {}) => {
   if (!url) return null;
+  if (imageCache.has(url)) return imageCache.get(url);
 
   try {
+    console.log(`[START] Subiendo ${url} a ${folder}`);
     let directLink = url;
 
     // Detectar si la URL es de Google Drive
@@ -91,15 +95,13 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
         console.error(`No se pudo extraer el ID de Google Drive de la URL: ${url}`);
         return null;
       }
-      // Usar export=download para forzar la descarga del archivo
       directLink = `https://drive.google.com/uc?export=download&id=${driveId}`;
-    } else {
     }
 
     // Descargar la imagen
     const response = await axios.get(directLink, {
       responseType: 'arraybuffer',
-      timeout: 15000,
+      timeout: 30000,
       headers: {
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, como Gecko) Chrome/91.0.4472.124 Safari/537.36',
       },
@@ -109,7 +111,7 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
     const contentType = response.headers['content-type'];
     if (!contentType || !contentType.startsWith('image/')) {
       console.error(`La URL ${directLink} no devolvió una imagen. Content-Type: ${contentType}`);
-      console.error(`Datos de respuesta: ${response.data.toString().substring(0, 200)}`); // Mostrar los primeros 200 caracteres
+      console.error(`Datos de respuesta: ${response.data.toString().substring(0, 200)}`);
       return null;
     }
 
@@ -119,10 +121,11 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
       { folder, quality: 'auto', ...options }
     );
 
-    
+    console.log(`[SUCCESS] Subida: ${result.secure_url}`);
+    imageCache.set(url, result.secure_url);
     return result.secure_url;
   } catch (error) {
-    console.error(`Error al procesar la URL ${url}:`, error.message);
+    console.error(`[ERROR] Fallo en ${url}: ${error.message}`);
     if (error.response) {
       console.error(`Código de estado: ${error.response.status}`);
       console.error(`Datos de respuesta: ${error.response.data ? error.response.data.toString().substring(0, 200) : 'Sin datos'}`);
@@ -130,6 +133,7 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
     return null;
   }
 };
+
 // Obtener todos los estudiantes
 export const getAllStudents = async (req, res) => {
   try {
@@ -408,170 +412,155 @@ export const importStudents = async (req, res) => {
     const errors = [];
     const importedStudents = [];
     const limit = pLimit(5);
-    const imageCache = new Map();
-
-    const uploadToCloudinary = async (url, folder, options = {}) => {
-      if (imageCache.has(url)) return imageCache.get(url);
-
-      try {
-        const driveId = url.match(/[-\w]{25,}/)?.[0];
-        if (!driveId) throw new Error('ID de Google Drive no válido');
-        const directLink = `https://drive.google.com/uc?export=view&id=${driveId}`;
-        const response = await axios.get(directLink, { responseType: 'arraybuffer', timeout: 15000 });
-        const result = await cloudinaryV2.uploader.upload(
-          `data:${response.headers['content-type'] || 'image/jpeg'};base64,${Buffer.from(response.data).toString('base64')}`,
-          { folder, quality: 'auto', ...options }
-        );
-        imageCache.set(url, result.secure_url);
-        return result.secure_url;
-      } catch (error) {
-        return null;
-      }
-    };
 
     const processRow = async (row, rowIndex) => {
-      console.log(`Fila ${rowIndex}:`, row);
+      try {
+        console.log(`Fila ${rowIndex}:`, row);
 
-      const studentData = {
-        name: row['Nombre'] || row['name'],
-        lastName: row['Apellido'] || row['lastName'],
-        dni: String(row['DNI'] || row['dni'] || ''),
-        birthDate: row['Fecha de Nacimiento'] || row['birthDate'],
-        address: row['Dirección'] || row['address'],
-        motherName: row['Nombre de la Madre'] || row['motherName'],
-        fatherName: row['Nombre del Padre'] || row['fatherName'],
-        motherPhone: row['Teléfono de la Madre'] || row['motherPhone'],
-        fatherPhone: row['Teléfono del Padre'] || row['fatherPhone'],
-        category: row['Categoría'] || row['category'],
-        mail: row['Email'] || row['mail'],
-        school: row['Escuela'] || row['school'],
-        color: row['Color'] || row['color'],
-        profileImage: row['Imagen de Perfil'] || row['profileImage'],
-        archived: row['Documento'] || row['archived'],
-        sex: row['Sexo'] || row['sex'],
-      };
+        const studentData = {
+          name: row['Nombre'] || row['name'],
+          lastName: row['Apellido'] || row['lastName'],
+          dni: String(row['DNI'] || row['dni'] || ''),
+          birthDate: row['Fecha de Nacimiento'] || row['birthDate'],
+          address: row['Dirección'] || row['address'],
+          motherName: row['Nombre de la Madre'] || row['motherName'],
+          fatherName: row['Nombre del Padre'] || row['fatherName'],
+          motherPhone: row['Teléfono de la Madre'] || row['motherPhone'],
+          fatherPhone: row['Teléfono del Padre'] || row['fatherPhone'],
+          category: row['Categoría'] || row['category'],
+          mail: row['Email'] || row['mail'],
+          school: row['Escuela'] || row['school'],
+          color: row['Color'] || row['color'],
+          profileImage: row['Imagen de Perfil'] || row['profileImage'],
+          archived: row['Documento'] || row['archived'],
+          sex: row['Sexo'] || row['sex'],
+        };
 
-
-
-      // Validar campos obligatorios
-      const requiredFields = ['name', 'lastName', 'dni', 'birthDate', 'address', 'motherName', 'fatherName', 'motherPhone', 'fatherPhone', 'category', 'school', 'sex'];
-      const missingFields = requiredFields.filter(field => !studentData[field] || String(studentData[field]).trim() === '');
-      if (missingFields.length > 0) {
-        errors.push(`Fila ${rowIndex}: Faltan campos obligatorios: ${missingFields.join(', ')}`);
-        return null;
-      }
-
-      // Validar formato de DNI
-      if (!/^\d{8,10}$/.test(studentData.dni)) {
-        errors.push(`Fila ${rowIndex}: DNI ${studentData.dni} debe contener 8 a 10 dígitos`);
-        return null;
-      }
-
-      // Validar unicidad de DNI
-      if (existingDnis.has(studentData.dni)) {
-        errors.push(`Fila ${rowIndex}: El alumno con DNI ${studentData.dni} ya existe`);
-        return null;
-      }
-
-      // Validar formato de teléfonos
-      if (!/^\d{10,15}$/.test(studentData.motherPhone)) {
-        errors.push(`Fila ${rowIndex}: El teléfono de la madre (${studentData.motherPhone}) debe tener entre 10 y 15 dígitos`);
-        return null;
-      }
-      if (!/^\d{10,15}$/.test(studentData.fatherPhone)) {
-        errors.push(`Fila ${rowIndex}: El teléfono del padre (${studentData.fatherPhone}) debe tener entre 10 y 15 dígitos`);
-        return null;
-      }
-
-      // Validar formato de email (si existe)
-      if (studentData.mail && !/\S+@\S+\.\S+/.test(studentData.mail)) {
-        errors.push(`Fila ${rowIndex}: Formato inválido de email (${studentData.mail})`);
-        return null;
-      }
-
-      // Normalizar birthDate
-      if (studentData.birthDate) {
-        studentData.birthDate = normalizeDate(studentData.birthDate);
-        if (!isValid(parse(studentData.birthDate, 'dd/MM/yyyy', new Date()))) {
-          errors.push(`Fila ${rowIndex}: Formato de fecha inválido (${studentData.birthDate})`);
-          return null;
-        }
-      } else {
-        errors.push(`Fila ${rowIndex}: La fecha de nacimiento es obligatoria`);
-        return null;
-      }
-
-      // Validar sex
-      if (!['Femenino', 'Masculino'].includes(studentData.sex)) {
-        errors.push(`Fila ${rowIndex}: Sexo debe ser 'Femenino' o 'Masculino' (valor recibido: ${studentData.sex})`);
-        return null;
-      }
-
-      // Procesar profileImage (máximo 1)
-      let profileImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
-      if (studentData.profileImage) {
-        const profileImageLinks = typeof studentData.profileImage === 'string'
-          ? studentData.profileImage.split(',').map(link => link.trim())
-          : Array.isArray(studentData.profileImage)
-            ? studentData.profileImage
-            : [studentData.profileImage];
-
-        if (profileImageLinks.length > 1) {
-          errors.push(`Fila ${rowIndex}: Solo se permite 1 imagen en 'profileImage', se encontraron ${profileImageLinks.length}`);
+        // Validar campos obligatorios
+        const requiredFields = ['name', 'lastName', 'dni', 'birthDate', 'address', 'motherName', 'fatherName', 'motherPhone', 'fatherPhone', 'category', 'school', 'sex'];
+        const missingFields = requiredFields.filter(field => !studentData[field] || String(studentData[field]).trim() === '');
+        if (missingFields.length > 0) {
+          errors.push(`Fila ${rowIndex}: Faltan campos obligatorios: ${missingFields.join(', ')}`);
           return null;
         }
 
-        const result = await uploadToCloudinary(profileImageLinks[0], 'students/profile', {
-          width: 100,
-          height: 100,
-          crop: 'fill',
-        });
-        if (result) profileImage = result;
-        else errors.push(`Fila ${rowIndex}: Error al procesar profileImage`);
-      }
-
-      // Procesar archived (máximo 2)
-      const archivedUrls = [];
-      const archivedNames = [];
-      if (studentData.archived) {
-        const archivedLinks = typeof studentData.archived === 'string'
-          ? studentData.archived.split(',').map(link => link.trim())
-          : Array.isArray(studentData.archived)
-            ? studentData.archived
-            : [studentData.archived];
-
-        if (archivedLinks.length > 2) {
-          errors.push(`Fila ${rowIndex}: Solo se permiten hasta 2 imágenes en 'archived', se encontraron ${archivedLinks.length}`);
+        // Validar formato de DNI
+        if (!/^\d{8,10}$/.test(studentData.dni)) {
+          errors.push(`Fila ${rowIndex}: DNI ${studentData.dni} debe contener 8 a 10 dígitos`);
           return null;
         }
 
-        const uploadTasks = archivedLinks.map(link =>
-          limit(async () => {
+        // Validar unicidad de DNI
+        if (existingDnis.has(studentData.dni)) {
+          errors.push(`Fila ${rowIndex}: El alumno con DNI ${studentData.dni} ya existe`);
+          return null;
+        }
+
+        // Validar formato de teléfonos
+        if (!/^\d{10,15}$/.test(studentData.motherPhone)) {
+          errors.push(`Fila ${rowIndex}: El teléfono de la madre (${studentData.motherPhone}) debe tener entre 10 y 15 dígitos`);
+          return null;
+        }
+        if (!/^\d{10,15}$/.test(studentData.fatherPhone)) {
+          errors.push(`Fila ${rowIndex}: El teléfono del padre (${studentData.fatherPhone}) debe tener entre 10 y 15 dígitos`);
+          return null;
+        }
+
+        // Validar formato de email (si existe)
+        if (studentData.mail && !/\S+@\S+\.\S+/.test(studentData.mail)) {
+          errors.push(`Fila ${rowIndex}: Formato inválido de email (${studentData.mail})`);
+          return null;
+        }
+
+        // Normalizar birthDate
+        if (studentData.birthDate) {
+          studentData.birthDate = normalizeDate(studentData.birthDate);
+          if (!isValid(parse(studentData.birthDate, 'dd/MM/yyyy', new Date()))) {
+            errors.push(`Fila ${rowIndex}: Formato de fecha inválido (${studentData.birthDate})`);
+            return null;
+          }
+        } else {
+          errors.push(`Fila ${rowIndex}: La fecha de nacimiento es obligatoria`);
+          return null;
+        }
+
+        // Validar sex
+        if (!['Femenino', 'Masculino'].includes(studentData.sex)) {
+          errors.push(`Fila ${rowIndex}: Sexo debe ser 'Femenino' o 'Masculino' (valor recibido: ${studentData.sex})`);
+          return null;
+        }
+
+        // Procesar profileImage (máximo 1)
+        let profileImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
+        if (studentData.profileImage) {
+          const profileImageLinks = typeof studentData.profileImage === 'string'
+            ? studentData.profileImage.split(',').map(link => link.trim())
+            : Array.isArray(studentData.profileImage)
+              ? studentData.profileImage
+              : [studentData.profileImage];
+
+          if (profileImageLinks.length > 1) {
+            errors.push(`Fila ${rowIndex}: Solo se permite 1 imagen en 'profileImage', se encontraron ${profileImageLinks.length}`);
+            return null;
+          }
+
+          console.log(`[START] Subiendo profileImage para fila ${rowIndex}: ${profileImageLinks[0]}`);
+          const result = await uploadToCloudinary(profileImageLinks[0], 'students/profile', {
+            width: 100,
+            height: 100,
+            crop: 'fill',
+          });
+          if (result) {
+            profileImage = result;
+            console.log(`[SUCCESS] ProfileImage subido: ${result}`);
+          } else {
+            errors.push(`Fila ${rowIndex}: Error al procesar profileImage`);
+            console.log(`[ERROR] Fallo al subir profileImage: ${profileImageLinks[0]}`);
+          }
+        }
+
+        // Procesar archived (máximo 2)
+        const archivedUrls = [];
+        const archivedNames = [];
+        if (studentData.archived) {
+          const archivedLinks = typeof studentData.archived === 'string'
+            ? studentData.archived.split(',').map(link => link.trim())
+            : Array.isArray(studentData.archived)
+              ? studentData.archived
+              : [studentData.archived];
+
+          if (archivedLinks.length > 2) {
+            errors.push(`Fila ${rowIndex}: Solo se permiten hasta 2 imágenes en 'archived', se encontraron ${archivedLinks.length}`);
+            return null;
+          }
+
+          for (const link of archivedLinks) {
+            console.log(`[START] Subiendo archived para fila ${rowIndex}: ${link}`);
             const result = await uploadToCloudinary(link, 'students/archived');
             if (result) {
               const driveId = link.match(/[-\w]{25,}/)?.[0] || 'unknown';
-              return { url: result, name: driveId };
+              archivedUrls.push(result);
+              archivedNames.push(driveId);
+              console.log(`[SUCCESS] Archived subido: ${result}`);
+            } else {
+              errors.push(`Fila ${rowIndex}: Error al procesar archived (${link})`);
+              console.log(`[ERROR] Fallo al subir archived: ${link}`);
             }
-            errors.push(`Fila ${rowIndex}: Error al procesar archived (${link})`);
-            return null;
-          })
-        );
-
-        const results = await Promise.all(uploadTasks);
-        results.forEach(result => {
-          if (result) {
-            archivedUrls.push(result.url);
-            archivedNames.push(result.name);
           }
-        });
+        }
+
+        // Asignar valores procesados
+        studentData.profileImage = profileImage;
+        studentData.archived = archivedUrls;
+        studentData.archivedNames = archivedNames;
+
+        console.log(`[END] Fila ${rowIndex} procesada`);
+        return studentData;
+      } catch (error) {
+        console.error(`[ERROR] Fila ${rowIndex} falló: ${error.message}`);
+        errors.push(`Fila ${rowIndex}: Error inesperado (${error.message})`);
+        return null;
       }
-
-      // Asignar valores procesados
-      studentData.profileImage = profileImage;
-      studentData.archived = archivedUrls;
-      studentData.archivedNames = archivedNames;
-
-      return studentData;
     };
 
     const studentPromises = worksheet.map((row, i) => limit(() => processRow(row, i + 2)));
