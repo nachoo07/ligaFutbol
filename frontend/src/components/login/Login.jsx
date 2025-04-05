@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Form, Button } from 'react-bootstrap';
 import { LoginContext } from '../../context/login/LoginContext';
 import 'bootstrap/dist/css/bootstrap.min.css';
-import './Login.css';
+import './login.css';
 import logo from '../../assets/logo.png';
 
 const Login = () => {
