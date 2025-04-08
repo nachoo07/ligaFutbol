@@ -49,12 +49,12 @@
     right: 15px;
     top: 50%;
     transform: translateY(-50%);
-    color: #D83D8D;
+    color: #0163a9;
     font-size: 18px;
   }
   
   .users-add-btn {
-    background: #D83D8D;
+    background: #0163a9;
     color: white;
     border: none;
     padding: 8px 15px;
@@ -62,7 +62,7 @@
   }
   
   .users-add-btn:hover {
-    background: #b03275;
+    background: #013d61;
   }
   
   .users-table {
@@ -80,7 +80,7 @@
   }
   
   .users-table th {
-    background: #D83D8D;
+    background: #0163a9;
     color: white;
     font-weight: bold;
   }
@@ -102,7 +102,7 @@
   
   .users-edit-btn,
   .users-delete-btn {
-    background: #D83D8D;
+    background: #0163a9;
     color: white;
     border: none;
     padding: 8px 15px;
@@ -111,7 +111,7 @@
   
   .users-edit-btn:hover,
   .users-delete-btn:hover {
-    background: #b03275;
+    background: #013d61;
   }
   
   .users-edit-btn:disabled,
@@ -127,7 +127,7 @@
   }
   
   .users-save-btn {
-    background: #D83D8D;
+    background: #0163a9;
     color: white;
     border: none;
     padding: 8px 15px;
@@ -135,7 +135,7 @@
   }
   
   .users-save-btn:hover {
-    background: #b03275;
+    background: #013d61;
   }
   
   .users-modal {
@@ -150,7 +150,7 @@
   }
   
   .users-modal-header {
-    background-color: #D83D8D;
+    background-color: #0163a9;
     border-bottom: 1px solid #dee2e6;
     color: white;
   }

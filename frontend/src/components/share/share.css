@@ -13,6 +13,12 @@
     margin-bottom: 15px;
   }
   
+  .btn-share-masive{
+    background-color: #0163a9;
+    margin-left: 20px;
+    margin-right: 10px;
+  }
+
   .massive-cuota-form .form-row {
     display: flex;
     gap: 15px;
@@ -48,6 +54,26 @@
     margin-top: 20px;
   }
   
+  .massive-cuota-modal .modal-header {
+    background-color: #0163a9;
+    color: white;
+    font-weight: bold;
+    border-bottom: none;
+  }
+  
+  /* Estilo para los botones del modal */
+  .massive-cuota-modal .modal-footer .btn {
+    background-color: #0163a9;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 16px;
+  }
+  
+  .massive-cuota-modal .modal-footer .btn:hover {
+    background-color: #013d61;
+  }
   .pagination-btn {
     background: #0163a9 !important;
     color: white;
@@ -229,6 +255,9 @@
     font-size: 18px !important;
   }
 
+  .ver-cuotas-icon {
+    display: none;
+  }
 
 .action-btn.receipt:disabled {
     background-color: #6c757d;
@@ -285,8 +314,9 @@ select option[disabled] {
   
     .botones-acciones {
       display: flex;
-      justify-content: space-around;
-      align-items: center;
+      flex-direction: column;
+      margin-left: 20px;
+      gap: 5px;
     }
   
     .cancel-btn {
@@ -297,5 +327,28 @@ select option[disabled] {
     .cuotas-table {
       margin: 0px;
   
+    }
+
+    .students-table th.estado-alumno,
+    .students-table td.estado-alumno {
+      display: none; /* Oculta la columna */
+    }
+  
+    /* Cambiar el botón "Ver Cuotas" a un ícono */
+    .ver-cuotas-icon {
+      display: inline; /* Muestra el ícono en pantallas pequeñas */
+      font-size: 20px;
+    }
+  
+    .ver-cuotas-text {
+      display: none; /* Oculta el texto en pantallas pequeñas */
+    }
+  
+    .ver-cuotas-btn {
+      padding: 6px !important;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
     }
   }

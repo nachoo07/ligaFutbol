@@ -1,14 +1,15 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { StudentsContext } from '../../context/student/StudentContext';
-import { useEmail } from '../../context/email/EmailContext'; // Nuevo contexto
+import { useEmail } from '../../context/email/EmailContext';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaBars,FaTrash, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { FaSearch, FaCheck, FaTimes, FaBars, FaTrash, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import './email.css';
+import Swal from 'sweetalert2';
 
 const Email = () => {
     const { estudiantes, obtenerEstudiantes } = useContext(StudentsContext);
-    const { sendEmail } = useEmail(); // Usar el nuevo contexto
+    const { sendEmail } = useEmail();
     const [selectedStudents, setSelectedStudents] = useState([]);
     const [subject, setSubject] = useState('');
     const [message, setMessage] = useState('');
@@ -28,7 +29,7 @@ const Email = () => {
         { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
+        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
@@ -45,7 +46,7 @@ const Email = () => {
     }, [searchTerm, estudiantes, selectedStudents]);
 
     const handleSelectStudent = (student) => {
-        if (student.state === 'Inactivo') {
+        if (student.status === 'Inactivo') { // Cambiado de state a status
             Swal.fire('Error', 'No se puede seleccionar un estudiante inactivo.', 'error');
             return;
         }
@@ -58,7 +59,11 @@ const Email = () => {
     };
 
     const handleSelectAll = () => {
-        const activeStudents = estudiantes.filter(s => s.state === 'Activo' && s.mail);
+        const activeStudents = estudiantes.filter(s => s.status === 'Activo' && s.mail); // Cambiado de state a status
+        if (activeStudents.length === 0) {
+            Swal.fire('Advertencia', 'No hay estudiantes activos con correo registrado.', 'warning');
+            return;
+        }
         setSelectedStudents(activeStudents);
         setSearchTerm('');
     };
@@ -84,21 +89,53 @@ const Email = () => {
         const success = await sendEmail(
             [selectedStudents[0].mail],
             subject,
-            message,
-            handleCancel // Limpiar el formulario si el envío es exitoso
+            message.replace('{name}', `${selectedStudents[0].name} ${selectedStudents[0].lastName}`),
+            handleCancel
         );
         setLoading(false);
     };
+
     const handleSendToAll = async () => {
         const recipients = selectedStudents.map(s => s.mail).filter(email => email);
-        if (recipients.length !== selectedStudents.length) {
-            Swal.fire('Error', 'Algunos estudiantes seleccionados no tienen correo registrado.', 'error');
+        if (recipients.length === 0) {
+            Swal.fire('Error', 'No hay estudiantes seleccionados con correo registrado.', 'error');
             return;
         }
+        if (recipients.length !== selectedStudents.length) {
+            Swal.fire('Advertencia', 'Algunos estudiantes seleccionados no tienen correo registrado.', 'warning');
+        }
         setLoading(true);
-        const success = await sendEmail(recipients, subject, message, handleCancel);
+        const success = await sendEmail(
+            recipients,
+            subject,
+            message,
+            handleCancel
+        );
         setLoading(false);
     };
+
+    const handlePresetEvent = () => {
+        setSubject('Invitación a Evento Especial');
+        setMessage(
+            'Estimado/a Padres,\n\n' +
+            'Te invitamos cordialmente a nuestro evento especial que se llevará a cabo el [FECHA] a las [HORA] en [LUGAR]. ' +
+            '¡Esperamos contar con tu presencia!\n\n' +
+            'Saludos,\nLiga Infantil de futbol YB'
+        );
+    };
+
+    const handlePresetPendingShare = () => {
+        setSubject('Recordatorio de Cuota Pendiente');
+        setMessage(
+            'Estimado/a {name},\n\n' +
+            'Te recordamos que tienes una cuota pendiente por un monto de [MONTO]. ' +
+            'Por favor, regulariza tu situación lo antes posible.\n\n' +
+            'Saludos,\nLiga Infantil de futbol YB'
+        );
+    };
+
+    const displayedStudents = selectedStudents.slice(0, 10);
+    const remainingCount = selectedStudents.length - displayedStudents.length;
 
     return (
         <div className="email-notification-container">
@@ -132,7 +169,7 @@ const Email = () => {
                                 {filteredStudents.length ? (
                                     filteredStudents.map(student => (
                                         <li key={student._id} onClick={() => handleSelectStudent(student)}>
-                                            <FaCheck className="check-icon" /> {student.name} {student.lastName} ({student.mail || 'Sin correo'}) {student.state === 'Inactivo' && '[Inactivo]'}
+                                            <FaCheck className="check-icon" /> {student.name} {student.lastName} ({student.mail || 'Sin correo'}) {student.status === 'Inactivo' && '[Inactivo]'}
                                         </li>
                                     ))
                                 ) : (
@@ -143,12 +180,17 @@ const Email = () => {
                     </div>
 
                     <div className="selected-students">
-                        {selectedStudents.map(student => (
+                        {displayedStudents.map(student => (
                             <div key={student._id} className="selected-student-chip">
                                 {student.name} {student.lastName}
                                 <FaTimes className="remove-icon" onClick={() => handleRemoveStudent(student._id)} />
                             </div>
                         ))}
+                        {remainingCount > 0 && (
+                            <div className="more-students-chip">
+                                Más {remainingCount}
+                            </div>
+                        )}
                     </div>
 
                     <div className="selection-actions">
@@ -173,6 +215,16 @@ const Email = () => {
                         className="email-message"
                     />
                     <div className="email-actions">
+                        {selectedStudents.length > 0 && (
+                            <>
+                                <button onClick={handlePresetEvent} disabled={loading} className="preset-btn">
+                                    Evento
+                                </button>
+                                <button onClick={handlePresetPendingShare} disabled={loading} className="preset-btn">
+                                    Cuota Pendiente
+                                </button>
+                            </>
+                        )}
                         <button onClick={handleClearEmail} disabled={loading} className="clear-btn">
                             <FaTrash /> Borrar
                         </button>

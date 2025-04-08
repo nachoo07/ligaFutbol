@@ -77,6 +77,15 @@ const normalizeDate = (dateInput) => {
   return isValid(parsedDate) ? format(parsedDate, 'dd/MM/yyyy') : dateStr; // Si no es válido, devolver original
 };
 
+const capitalizeWords = (str) => {
+  if (!str) return '';
+  return str
+      .trim()
+      .split(/\s+/)
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ');
+};
+
 // Función para subir a Cloudinary
 const imageCache = new Map();
 
@@ -109,15 +118,49 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
 
     // Verificar que la respuesta sea una imagen
     const contentType = response.headers['content-type'];
-    if (!contentType || !contentType.startsWith('image/')) {
-      console.error(`La URL ${directLink} no devolvió una imagen. Content-Type: ${contentType}`);
-      console.error(`Datos de respuesta: ${response.data.toString().substring(0, 200)}`);
+    const buffer = Buffer.from(response.data);
+
+    // Detección de formato por magic numbers
+    const magicNumbers = buffer.toString('hex', 0, 4).toUpperCase();
+    const firstBytesUtf8 = buffer.toString('utf8', 0, 12);
+
+    let detectedMimeType;
+    if (magicNumbers === 'FFD8FF') {
+      detectedMimeType = 'image/jpeg'; // JPEG
+    } else if (magicNumbers === '89504E47') {
+      detectedMimeType = 'image/png'; // PNG
+    } else if (firstBytesUtf8.includes('ftypheic') || firstBytesUtf8.includes('ftypmif1')) {
+      detectedMimeType = 'image/heic'; // HEIC/HEIF
+    } else if (magicNumbers === '47494638') {
+      detectedMimeType = 'image/gif'; // GIF
+    } else if (magicNumbers === '424D') {
+      detectedMimeType = 'image/bmp'; // BMP
+    } else if (magicNumbers === '49492A00' || magicNumbers === '4D4D002A') {
+      detectedMimeType = 'image/tiff'; // TIFF
+    } else if (firstBytesUtf8.includes('RIFF') && buffer.toString('utf8', 8, 12) === 'WEBP') {
+      detectedMimeType = 'image/webp'; // WEBP
+    }
+
+    // Validar si es imagen
+    const validImageTypes = [
+      'image/jpeg', 'image/png', 'image/heic', 'image/gif',
+      'image/bmp', 'image/tiff', 'image/webp'
+    ];
+
+    const isValidImage = detectedMimeType || (contentType && validImageTypes.includes(contentType));
+    if (!isValidImage) {
+      console.error(`La URL ${directLink} no devolvió una imagen válida. Content-Type: ${contentType}, Magic Numbers: ${magicNumbers}`);
+      console.error(`Datos de respuesta: ${buffer.toString('utf8', 0, 200)}`);
       return null;
     }
 
+    // Usar el tipo detectado o el Content-Type si es válido, fallback a image/jpeg
+    const mimeType = detectedMimeType || (validImageTypes.includes(contentType) ? contentType : 'image/jpeg');
+    console.log(`Tipo de imagen detectado: ${mimeType}`);
+
     // Subir a Cloudinary
     const result = await cloudinaryV2.uploader.upload(
-      `data:${contentType || 'image/jpeg'};base64,${Buffer.from(response.data).toString('base64')}`,
+      `data:${mimeType};base64,${buffer.toString('base64')}`,
       { folder, quality: 'auto', ...options }
     );
 
@@ -155,10 +198,30 @@ export const createStudent = async (req, res) => {
       motherPhone, fatherPhone, category, mail, school, color, sex, status
     } = req.body;
 
-    if (!name || !lastName || !dni || !birthDate || !address || !motherName || 
-        !fatherName || !motherPhone || !fatherPhone || !category || !school || !sex || !status) {
-      return res.status(400).json({ message: 'Faltan campos obligatorios' });
-    }
+    const normalizedData = {
+      name: capitalizeWords(name),
+      lastName: capitalizeWords(lastName),
+      dni,
+      birthDate: normalizeDate(birthDate),
+      address: capitalizeWords(address),
+      motherName: capitalizeWords(motherName),
+      fatherName: capitalizeWords(fatherName),
+      motherPhone,
+      fatherPhone,
+      category: capitalizeWords(category),
+      mail,
+      school: capitalizeWords(school),
+      color: capitalizeWords(color),
+      sex: capitalizeWords(sex),
+      status: capitalizeWords(status),
+  };
+
+  if (!normalizedData.name || !normalizedData.lastName || !normalizedData.dni || !normalizedData.birthDate || !normalizedData.address || 
+    !normalizedData.motherName || !normalizedData.fatherName || !normalizedData.motherPhone || 
+    !normalizedData.fatherPhone || !normalizedData.category || !normalizedData.school || 
+    !normalizedData.sex || !normalizedData.status) {
+    return res.status(400).json({ message: 'Faltan campos obligatorios' });
+}
 
     let profileImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
     let archivedUrls = [];
@@ -188,13 +251,14 @@ export const createStudent = async (req, res) => {
       }
     }
 
-    const normalizedBirthDate = normalizeDate(birthDate); // Normalizar a dd/mm/yyyy
+    //const normalizedBirthDate = normalizeDate(birthDate); // Normalizar a dd/mm/yyyy
 
     const newStudent = await Student.create({
-      name, lastName, dni, birthDate: normalizedBirthDate, address, motherName, fatherName,
-      motherPhone, fatherPhone, category, mail, school, color, sex, status,
-      profileImage, archived: archivedUrls, archivedNames,
-    });
+      ...normalizedData,
+      profileImage,
+      archived: archivedUrls,
+      archivedNames,
+  });
 
     const isEnabled = await calculateStudentEnabledStatus(newStudent._id);
     newStudent.isEnabled = isEnabled;
@@ -418,23 +482,23 @@ export const importStudents = async (req, res) => {
         console.log(`Fila ${rowIndex}:`, row);
 
         const studentData = {
-          name: row['Nombre'] || row['name'],
-          lastName: row['Apellido'] || row['lastName'],
+          name: capitalizeWords(row['Nombre'] || row['name']),
+          lastName: capitalizeWords(row['Apellido'] || row['lastName']),
           dni: String(row['DNI'] || row['dni'] || ''),
           birthDate: row['Fecha de Nacimiento'] || row['birthDate'],
-          address: row['Dirección'] || row['address'],
-          motherName: row['Nombre de la Madre'] || row['motherName'],
-          fatherName: row['Nombre del Padre'] || row['fatherName'],
+          address: capitalizeWords(row['Dirección'] || row['address']),
+          motherName: capitalizeWords(row['Nombre de la Madre'] || row['motherName']),
+          fatherName: capitalizeWords(row['Nombre del Padre'] || row['fatherName']),
           motherPhone: row['Teléfono de la Madre'] || row['motherPhone'],
           fatherPhone: row['Teléfono del Padre'] || row['fatherPhone'],
-          category: row['Categoría'] || row['category'],
+          category: capitalizeWords(row['Categoría'] || row['category']),
           mail: row['Email'] || row['mail'],
-          school: row['Escuela'] || row['school'],
-          color: row['Color'] || row['color'],
+          school: capitalizeWords(row['Escuela'] || row['school']),
+          color: capitalizeWords(row['Color'] || row['color']),
           profileImage: row['Imagen de Perfil'] || row['profileImage'],
           archived: row['Documento'] || row['archived'],
-          sex: row['Sexo'] || row['sex'],
-        };
+          sex: capitalizeWords(row['Sexo'] || row['sex']),
+      };
 
         // Validar campos obligatorios
         const requiredFields = ['name', 'lastName', 'dni', 'birthDate', 'address', 'motherName', 'fatherName', 'motherPhone', 'fatherPhone', 'category', 'school', 'sex'];

@@ -17,12 +17,14 @@ export const createUser = async (req, res, next) => {
         return res.status(400).json({ message: 'Todos los campos son requeridos.' });
     }
     try {
+        const userCount = await User.countDocuments();
         const hashedPassword = await bcrypt.hash(password, 10);
         const newUser = new User({
             name,
             mail,
             password: hashedPassword,
             role,
+            fixed: userCount === 0 && role === 'admin'
         });
         await newUser.save();
         res.status(201).json(newUser);
@@ -40,6 +42,9 @@ export const updateUser = async (req, res, next) => {
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
         }
+        if (user.fixed && role !== 'admin') {
+            return res.status(403).json({ message: 'No se puede cambiar el rol de un administrador fijo.' });
+        }
         // Actualiza los campos recibidos
         if (name) user.name = name;
         if (mail) user.mail = mail;
@@ -56,14 +61,24 @@ export const updateUser = async (req, res, next) => {
 export const deleteUser = async (req, res, next) => {
     const { id } = req.params;
     try {
-        // Elimina al usuario por ID
-        const user = await User.findByIdAndDelete(id);
+        const user = await User.findById(id);
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
         }
+
+        if (user.fixed) {
+            return res.status(403).json({ message: 'No se puede eliminar un usuario fijo.' });
+        }
+
+        const adminCount = await User.countDocuments({ role: 'admin' });
+        if (user.role === 'admin' && adminCount <= 1) {
+            return res.status(403).json({ message: 'No se puede eliminar el último administrador.' });
+        }
+        await User.findByIdAndDelete(id);
         res.status(200).json({ message: 'User deleted successfully.' });
     } catch (error) {
-        next(error); // Pasar el error al middleware global
+        console.error(`[ERROR] Error al eliminar usuario ${id}:`, error);
+        next(error);
     }
 };
 
@@ -79,6 +94,9 @@ export const updateUserState = async (req, res) => {
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({ message: 'User not found.' });
+        }
+        if (user.fixed && !state) {
+            return res.status(403).json({ message: 'No se puede desactivar un usuario fijo.' });
         }
         user.state = state;
         await user.save();

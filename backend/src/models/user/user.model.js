@@ -30,6 +30,10 @@ const userSchema = new mongoose.Schema({
     state: {
         type: Boolean,
         default: true // Controlar si el usuario está activo o inactivo
+    },
+    fixed: {
+        type: Boolean,
+        default: false // Indica si el usuario está protegido (no eliminable)
     }
 }, {
     timestamps: true // Agrega createdAt y updatedAt automáticamente

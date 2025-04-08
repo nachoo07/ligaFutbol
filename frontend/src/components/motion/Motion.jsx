@@ -18,7 +18,7 @@ const Motion = () => {
         { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
+        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 

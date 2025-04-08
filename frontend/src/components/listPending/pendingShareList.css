@@ -31,3 +31,15 @@
 .students-table tr:hover {
   background: #e8e8e8;
 }
+
+/* Ocultar columnas específicas en dispositivos móviles */
+@media (max-width: 576px) {
+  .students-table th:nth-child(4), /* DNI */
+  .students-table td:nth-child(4), /* DNI */
+  .students-table th:nth-child(6), /* Concepto */
+  .students-table td:nth-child(6), /* Concepto */
+  .students-table th:nth-child(7), /* Monto */
+  .students-table td:nth-child(7) { /* Monto */
+    display: none; /* Ocultar columnas */
+  }
+}

@@ -1,8 +1,9 @@
 import { useState, useContext, useEffect } from 'react';
 import { Table, Button, Alert, Spinner } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaBars, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
+import { MdOutlineReadMore } from "react-icons/md";
 import { StudentsContext } from '../../context/student/StudentContext';
 import StudentFormModal from '../modal/StudentFormModal';
 import './tableStudent.css';
@@ -32,7 +33,7 @@ const TableStudent = () => {
         school: '',
         color: '',
         sex: '',
-        status: 'Activo' // Por defecto "Activo"
+        status: 'Activo'
     });
 
     const [currentPage, setCurrentPage] = useState(1);
@@ -52,7 +53,7 @@ const TableStudent = () => {
         { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
+        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
@@ -60,9 +61,19 @@ const TableStudent = () => {
         obtenerEstudiantes();
     }, []);
 
+    // Función para eliminar acentos y normalizar texto
+    const removeAccents = (str) => {
+        return str
+            .normalize('NFD') // Descompone caracteres con acentos
+            .replace(/[\u0300-\u036f]/g, '') // Elimina los combinadores de acentos
+            .toLowerCase();
+    };
+
     const filteredStudents = estudiantes.filter((estudiante) => {
-        const fullName = `${estudiante.name} ${estudiante.lastName}`.toLowerCase();
-        const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || estudiante.dni?.includes(searchTerm);
+        const fullName = removeAccents(`${estudiante.name} ${estudiante.lastName}`);
+        const dni = removeAccents(estudiante.dni || '');
+        const search = removeAccents(searchTerm);
+        const matchesSearch = fullName.includes(search) || dni.includes(search);
         const matchesCategory = filterCategory === '' || estudiante.category === filterCategory;
         const matchesStatus = filterStatus === '' || estudiante.status === filterStatus;
         return matchesSearch && matchesCategory && matchesStatus;
@@ -202,17 +213,17 @@ const TableStudent = () => {
                             <FaSearch className="search-icon" />
                         </div>
                         <div className="state-filter">
-    <label htmlFor="filter-status">Estado:</label>
-    <select
-        id="filter-status"
-        value={filterStatus}
-        onChange={(e) => setFilterStatus(e.target.value)}
-    >
-        <option value="">Todos</option>
-        <option value="Activo">Activo</option>
-        <option value="Inactivo">Inactivo</option>
-    </select>
-</div>
+                            <label htmlFor="filter-status">Estado:</label>
+                            <select
+                                id="filter-status"
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                            >
+                                <option value="">Todos</option>
+                                <option value="Activo">Activo</option>
+                                <option value="Inactivo">Inactivo</option>
+                            </select>
+                        </div>
                         <div className="filter-actions">
                             <div className="actions">
                                 <Button className="add-btn" onClick={handleShow}>Agregar Alumno</Button>
@@ -231,48 +242,51 @@ const TableStudent = () => {
                         </div>
                     </div>
                     <Table className="students-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Nombre</th>
-                                <th>Apellido</th>
-                                <th>DNI</th>
-                                <th>Categoría</th>
-                                <th>Escuela</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {currentStudents.length > 0 ? (
-                                currentStudents.map((estudiante, index) => (
-                                    <tr key={estudiante._id}>
-                                        <td>{indexOfFirstStudent + index + 1}</td>
-                                        <td>{capitalizeInitials(estudiante.name)}</td>
-                                        <td>{capitalizeInitials(estudiante.lastName)}</td>
-                                        <td>{estudiante.dni}</td>
-                                        <td>{estudiante.category}</td>
-                                        <td>{estudiante.school}</td>
-                                        <td>{estudiante.status}</td>
-                                        <td>
-                                            <Button
-                                                className="action-btn"
-                                                onClick={() => navigate(`/detailstudent/${estudiante._id}`)}
-                                            >
-                                                Ver Más
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="9" className="text-center">
-                                        No hay alumnos registrados.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </Table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Nombre</th>
+          <th>Apellido</th>
+          <th>DNI</th>
+          <th className="categoria">Categoría</th>
+          <th className="categoria">Escuela</th>
+          <th>Estado</th>
+          <th>Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+        {currentStudents.length > 0 ? (
+          currentStudents.map((estudiante, index) => (
+            <tr key={estudiante._id}>
+              <td>{indexOfFirstStudent + index + 1}</td>
+              <td>{capitalizeInitials(estudiante.name)}</td>
+              <td>{capitalizeInitials(estudiante.lastName)}</td>
+              <td>{estudiante.dni}</td>
+              <td className="categoria">{estudiante.category}</td>
+              <td className="categoria">{estudiante.school}</td>
+              <td>{estudiante.status}</td>
+              <td>
+                <Button
+                  className="action-btn ver-mas-btn"
+                  onClick={() => navigate(`/detailstudent/${estudiante._id}`)}
+                >
+                  <span className="ver-mas-text">Ver Más</span>
+                  <span className="ver-mas-icon">
+                    <MdOutlineReadMore />
+                  </span>
+                </Button>
+              </td>
+            </tr>
+          ))
+        ) : (
+          <tr>
+            <td colSpan="9" className="text-center">
+              No hay alumnos registrados.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </Table>
                     <div className="pagination">
                         <Button
                             disabled={currentPage === 1}

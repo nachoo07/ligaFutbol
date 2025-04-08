@@ -1,207 +1,198 @@
+/* income.css */
 .income-dashboard {
-    display: flex;
-    height: 670px !important;
-  }
-  
+  display: flex;
+  height: 670px !important;
+}
+
+.income-content {
+  flex-grow: 1;
+  overflow-y: auto !important;
+  height: 670px;
+  background: #f9f9f9;
+}
+
+.income-title {
+  font-size: 36px;
+  font-weight: bold;
+  text-align: center;
+  color: #333;
+  margin-bottom: 20px;
+}
+
+.motion-form {
+  background: #fff;
+  padding: 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  margin-top: 20px;
+}
+
+.motion-form-row {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+  margin-bottom: 15px;
+}
+
+.motion-form-row input,
+.motion-form-row select {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 16px;
+  flex: 1;
+  min-width: 120px; /* Reducido para que quepa la nueva columna */
+}
+
+.motion-form-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.motion-save-btn,
+.motion-cancel-btn {
+  background: #0163a9;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 5px;
+  width: 100%;
+}
+
+.motion-save-btn:hover,
+.motion-cancel-btn:hover {
+  background: #013d61;
+}
+
+.motion-date-filter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin: 20px 0;
+}
+
+.motion-filter-item {
+  display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+}
+
+.motion-filter-item label {
+  font-size: 18px;
+  color: #333;
+  margin-right: 10px;
+}
+
+.motion-filter-item input,
+.motion-filter-item select {
+  padding: 8px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background: #fff;
+  font-size: 16px;
+}
+
+.motion-table {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.motion-table th,
+.motion-table td {
+  padding: 12px;
+  text-align: center;
+  border: none;
+  background: #fff;
+}
+
+.motion-table th {
+  background: #0163a9;
+  color: white;
+  font-weight: bold;
+}
+
+.motion-table tr:nth-child(even) {
+  background: #f2f2f2;
+}
+
+.motion-table tr:hover {
+  background: #e8e8e8;
+}
+
+.motion-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+}
+
+.motion-edit-btn,
+.motion-delete-btn {
+  background: #0163a9;
+  color: white;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 5px;
+}
+
+.motion-edit-btn:hover,
+.motion-delete-btn:hover {
+  background: #013d61;
+}
+
+.icon-btn {
+  display: none;
+}
+
+@media (max-width: 576px) {
   .income-content {
-    flex-grow: 1;
-    overflow-y: auto !important;
-    height: 670px;
-    background: #f9f9f9;
-  }
-  
-  .income-title {
-    font-size: 36px;
-    font-weight: bold;
-    text-align: center;
-    color: #333;
-    margin-bottom: 20px;
-  }
-  
-  .motion-form {
-    background: #fff;
-    padding: 20px;
-    border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    margin-top: 20px;
-  }
-  
-  .motion-form-row {
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-    margin-bottom: 15px;
-  }
-  
-  .motion-form-row input,
-  .motion-form-row select {
     padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 16px;
-    flex: 1;
-    min-width: 150px;
   }
-  
-  .motion-form-actions {
-    display: flex;
-    gap: 10px;
+
+  .income-title {
+    font-size: 34px;
   }
-  
-  .motion-save-btn,
-  .motion-cancel-btn {
-    background: #D83D8D;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 5px;
-    width: 100%;
-  }
-  
-  .motion-save-btn:hover,
-  .motion-cancel-btn:hover {
-    background: #b03275;
-  }
-  
-  .motion-date-filter {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 10px;
-    margin: 20px 0;
-  }
-  
-  .motion-filter-item {
-    display: flex;
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .motion-filter-item label {
-    font-size: 18px;
-    color: #333;
-    margin-right: 10px;
-  }
-  
-  .motion-filter-item input,
-  .motion-filter-item select {
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background: #fff;
-    font-size: 16px;
-  }
-  
-  .motion-table {
-    border-radius: 10px;
-    overflow: hidden;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-  }
-  
-  .motion-table th,
-  .motion-table td {
-    padding: 12px;
-    text-align: center;
-    border: none;
-    background: #fff;
-  }
-  
-  .motion-table th {
-    background: #D83D8D;
-    color: white;
-    font-weight: bold;
-  }
-  
-  .motion-table tr:nth-child(even) {
-    background: #f2f2f2;
-  }
-  
-  .motion-table tr:hover {
-    background: #e8e8e8;
-  }
-  
-  .motion-actions {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    gap: 10px;
-  }
-  
-  .motion-edit-btn,
-  .motion-delete-btn {
-    background: #D83D8D;
-    color: white;
-    border: none;
-    padding: 8px 15px;
-    border-radius: 5px;
-  }
-  
-  .motion-edit-btn:hover,
-  .motion-delete-btn:hover {
-    background: #b03275;
-  }
-  
-  .icon-btn {
+
+  .text-btn {
     display: none;
   }
-  
-  @media (max-width: 576px) {
-    .income-content {
-      padding: 10px;
-    }
-  
-    .content-motion {
-      padding: 0px;
-    }
-  
-    .income-title {
-      font-size: 34px;
-    }
-  
-    .text-btn {
-      display: none;
-    }
-  
-    .motion-form-row {
-      flex-direction: column;
-    }
-  
-    .motion-form-row input,
-    .motion-form-row select {
-      min-width: 100%;
-    }
-  
-    .motion-date-filter {
-      flex-direction: column;
-      align-items: flex-start;
-    }
-  
-    .motion-filter-item {
-      width: 100%;
-    }
-  
-    .motion-actions {
-      flex-direction: row;
-      gap: 5px;
-    }
-  
-  
-    .motion-edit-btn {
-      padding: 5px 8px;
-  
-    }
-  
-    .motion-delete-btn {
-      padding: 5px 8px;
-    }
-  
-    .metodo-pago-motion {
-      display: none;
-    }
-  
-    .motion-row {
-      font-size: 15px;
-  
-    }
+
+  .motion-form-row {
+    flex-direction: column;
   }
+
+  .motion-form-row input,
+  .motion-form-row select {
+    min-width: 100%;
+  }
+
+  .motion-date-filter {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .motion-filter-item {
+    width: 100%;
+  }
+
+  .motion-actions {
+    flex-direction: row;
+    gap: 5px;
+  }
+
+  .motion-edit-btn,
+  .motion-delete-btn {
+    padding: 5px 8px;
+  }
+
+  .metodo-pago-motion {
+    display: none;
+  }
+
+  .motion-row {
+    font-size: 15px;
+  }
+}

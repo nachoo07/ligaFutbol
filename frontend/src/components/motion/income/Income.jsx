@@ -6,6 +6,8 @@ import 'dayjs/locale/es';
 import { MotionContext } from '../../../context/motion/MotionContext';
 import { Table, Button } from 'react-bootstrap';
 import { FaTrash, FaEdit } from 'react-icons/fa';
+import Swal from 'sweetalert2';
+
 dayjs.locale('es');
 dayjs.extend(utc);
 
@@ -17,54 +19,57 @@ const Income = () => {
     amount: '',
     paymentMethod: '',
     selectedDate: '',
-    incomeType: ''
+    incomeType: '',
+    location: 'Sede Cañada', // Valor por defecto
   });
 
   const [filters, setFilters] = useState({
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
     endDate: dayjs().format('YYYY-MM-DD'),
-    incomeType: ''
+    incomeType: '',
+    location: '', // Nuevo filtro por sede, vacío significa "Todos"
   });
 
   const [editIndex, setEditIndex] = useState(null);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    // Validar que selectedDate no esté vacío
     if (!formData.selectedDate) {
-        Swal.fire("¡Error!", "Por favor, selecciona una fecha válida.", "error");
-        return;
+      Swal.fire("¡Error!", "Por favor, selecciona una fecha válida.", "error");
+      return;
     }
 
     const motionData = {
-        concept: formData.concept,
-        date: formData.selectedDate, // Renombramos selectedDate a date
-        amount: formData.amount,
-        paymentMethod: formData.paymentMethod,
-        incomeType: formData.incomeType
+      concept: formData.concept,
+      date: formData.selectedDate,
+      amount: Number(formData.amount),
+      paymentMethod: formData.paymentMethod,
+      incomeType: formData.incomeType,
+      location: formData.location,
     };
 
     if (editIndex !== null) {
-        updateMotion(motions[editIndex]._id, motionData);
-        setEditIndex(null);
+      updateMotion(motions[editIndex]._id, motionData);
+      setEditIndex(null);
     } else {
-        createMotion(motionData);
+      createMotion(motionData);
     }
 
     setFormData({
-        concept: '',
-        amount: '',
-        paymentMethod: '',
-        selectedDate: '',
-        incomeType: ''
+      concept: '',
+      amount: '',
+      paymentMethod: '',
+      selectedDate: '',
+      incomeType: '',
+      location: 'Sede Cañada',
     });
-};
+  };
 
   const handleEdit = (index) => {
     const item = motions[index];
@@ -73,7 +78,8 @@ const Income = () => {
       selectedDate: dayjs.utc(item.date).format('YYYY-MM-DD'),
       amount: item.amount,
       paymentMethod: item.paymentMethod,
-      incomeType: item.incomeType
+      incomeType: item.incomeType,
+      location: item.location,
     });
     setEditIndex(index);
   };
@@ -86,18 +92,20 @@ const Income = () => {
       amount: '',
       paymentMethod: '',
       selectedDate: '',
-      incomeType: ''
+      incomeType: '',
+      location: 'Sede Cañada',
     });
     setEditIndex(null);
   };
 
-  const filteredData = motions.filter(item => {
+  const filteredData = motions.filter((item) => {
     if (!item?.date) return false;
     const itemDate = dayjs(item.date);
     return (
       itemDate.isAfter(dayjs(filters.startDate)) &&
       itemDate.isBefore(dayjs(filters.endDate)) &&
-      (!filters.incomeType || item.incomeType === filters.incomeType)
+      (!filters.incomeType || item.incomeType === filters.incomeType) &&
+      (!filters.location || item.location === filters.location) // Nuevo filtro por sede
     );
   });
 
@@ -132,6 +140,7 @@ const Income = () => {
                 value={formData.amount}
                 onChange={handleInputChange}
                 required
+                min="0"
               />
               <select
                 name="paymentMethod"
@@ -152,6 +161,16 @@ const Income = () => {
                 <option value="">Tipo</option>
                 <option value="ingreso">Ingreso</option>
                 <option value="egreso">Egreso</option>
+              </select>
+              <select
+                name="location"
+                value={formData.location}
+                onChange={handleInputChange}
+                required
+              >
+                <option value="Sede Cañada">Sede Cañada</option>
+                <option value="Sede Valladares">Sede Valladares</option>
+                <option value="Sede Sirga">Sede Sirga</option>
               </select>
             </div>
             <div className="motion-form-actions">
@@ -174,7 +193,7 @@ const Income = () => {
               type="date"
               value={filters.startDate}
               max={dayjs().format('YYYY-MM-DD')}
-              onChange={(e) => setFilters(prev => ({ ...prev, startDate: e.target.value }))}
+              onChange={(e) => setFilters((prev) => ({ ...prev, startDate: e.target.value }))}
             />
           </div>
           <div className="motion-filter-item">
@@ -183,18 +202,30 @@ const Income = () => {
               type="date"
               value={filters.endDate}
               max={dayjs().format('YYYY-MM-DD')}
-              onChange={(e) => setFilters(prev => ({ ...prev, endDate: e.target.value }))}
+              onChange={(e) => setFilters((prev) => ({ ...prev, endDate: e.target.value }))}
             />
           </div>
           <div className="motion-filter-item">
             <label>Tipo:</label>
             <select
               value={filters.incomeType}
-              onChange={(e) => setFilters(prev => ({ ...prev, incomeType: e.target.value }))}
+              onChange={(e) => setFilters((prev) => ({ ...prev, incomeType: e.target.value }))}
             >
               <option value="">Todos</option>
               <option value="ingreso">Ingreso</option>
               <option value="egreso">Egreso</option>
+            </select>
+          </div>
+          <div className="motion-filter-item">
+            <label>Sede:</label>
+            <select
+              value={filters.location}
+              onChange={(e) => setFilters((prev) => ({ ...prev, location: e.target.value }))}
+            >
+              <option value="">Todas</option>
+              <option value="Sede Cañada">Sede Cañada</option>
+              <option value="Sede Valladares">Sede Valladares</option>
+              <option value="Sede Sirga">Sede Sirga</option>
             </select>
           </div>
         </div>
@@ -205,27 +236,33 @@ const Income = () => {
               <th>Concepto</th>
               <th>Fecha</th>
               <th>Monto</th>
-              <th className='metodo-pago-motion'>Método</th>
+              <th className="metodo-pago-motion">Método</th>
               <th>Tipo</th>
+              <th>Sede</th>
               <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
             {filteredData.map((item, index) => (
-              <tr key={item._id || index} className='motion-row'>
+              <tr key={item._id || index} className="motion-row">
                 <td>{item.concept}</td>
                 <td>{dayjs.utc(item.date).format('DD-MM-YYYY')}</td>
                 <td>{`$ ${item.amount.toLocaleString('es')}`}</td>
-                <td className='metodo-pago-motion'>{item.paymentMethod}</td>
+                <td className="metodo-pago-motion">{item.paymentMethod}</td>
                 <td>{item.incomeType}</td>
+                <td>{item.location}</td>
                 <td className="motion-actions">
                   <Button className="motion-edit-btn" onClick={() => handleEdit(index)}>
                     <span className="text-btn">Editar</span>
-                    <span className="icon-btn"><FaEdit /></span>
+                    <span className="icon-btn">
+                      <FaEdit />
+                    </span>
                   </Button>
                   <Button className="motion-delete-btn" onClick={() => handleDelete(index)}>
                     <span className="text-btn">Eliminar</span>
-                    <span className="icon-btn"><FaTrash /></span>
+                    <span className="icon-btn">
+                      <FaTrash />
+                    </span>
                   </Button>
                 </td>
               </tr>
@@ -234,7 +271,7 @@ const Income = () => {
         </Table>
       </div>
     </div>
-  )
-}
+  );
+};
 
-export default Income
+export default Income;

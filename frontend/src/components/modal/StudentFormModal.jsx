@@ -7,16 +7,19 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
 
-    const capitalize = (str) => str.charAt(0).toUpperCase() + str.slice(1).toLowerCase();
+    const capitalizeWords = (str) => {
+        if (!str) return '';
+        return str
+            .trim()
+            .split(/\s+/)
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+    };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        if (name === 'name' || name === 'lastName' || name === 'color') {
-            // Aplicar capitalización a name, lastName y color
-            handleChange({ target: { name, value: capitalize(value) } });
-        } else {
-            handleChange({ target: { name, value } });
-        }
+        const normalizedValue = capitalizeWords(value);
+        handleChange({ target: { name, value: normalizedValue } });
     };
 
     const handleNumberInput = (e) => {
@@ -26,18 +29,44 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
 
     const handleFileChange = (e) => {
         const { name, files } = e.target;
+        const validImageTypes = [
+            'image/jpeg', 'image/png', 'image/gif', 'image/heic', 'image/webp',
+            'image/bmp', 'image/tiff'
+        ];
+
         if (name === 'profileImage') {
-            handleChange({ target: { name, value: files[0] } });
+            const file = files[0];
+            if (file && !validImageTypes.includes(file.type)) {
+                setAlertMessage(`Formato no soportado para Imagen de Perfil: ${file.type}. Usa JPEG, PNG, GIF, HEIC, WEBP, BMP o TIFF.`);
+                setShowAlert(true);
+                setTimeout(() => setShowAlert(false), 3000);
+                return;
+            }
+            handleChange({ target: { name, value: file } });
         } else if (name === 'archived') {
-            handleChange({ target: { name, value: Array.from(files), archivedNames: Array.from(files).map(f => f.name) } });
+            const selectedFiles = Array.from(files);
+            if (selectedFiles.length > 2) {
+                setAlertMessage('Solo se permiten hasta 2 archivos adjuntos.');
+                setShowAlert(true);
+                setTimeout(() => setShowAlert(false), 3000);
+                return;
+            }
+            const invalidFiles = selectedFiles.filter(file => !validImageTypes.includes(file.type));
+            if (invalidFiles.length > 0) {
+                setAlertMessage(`Formatos no soportados: ${invalidFiles.map(f => f.type).join(', ')}. Usa JPEG, PNG, GIF, HEIC, WEBP, BMP o TIFF.`);
+                setShowAlert(true);
+                setTimeout(() => setShowAlert(false), 3000);
+                return;
+            }
+            handleChange({ target: { name, value: selectedFiles, archivedNames: selectedFiles.map(f => f.name) } });
         }
     };
 
     const handleDateChange = (e) => {
         const { value } = e.target;
         if (value) {
-            const [year, month, day] = value.split('-'); // yyyy-mm-dd desde el input
-            const formattedDate = `${day}/${month}/${year}`; // Convierte a dd/mm/yyyy
+            const [year, month, day] = value.split('-');
+            const formattedDate = `${day}/${month}/${year}`;
             handleChange({ target: { name: 'birthDate', value: formattedDate } });
         }
     };
@@ -45,13 +74,12 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
     const dateForInput = formData.birthDate && typeof formData.birthDate === 'string'
         ? (() => {
             const [day, month, year] = formData.birthDate.split('/');
-            return `${year}-${month}-${day}`; // Convierte dd/mm/yyyy a yyyy-mm-dd para el input
+            return `${year}-${month}-${day}`;
           })()
         : '';
 
     const onSubmit = (e) => {
         e.preventDefault();
-        // Validar todos los campos obligatorios
         if (!formData.dni || !formData.name || !formData.lastName || !formData.birthDate || !formData.address ||
             !formData.mail || !formData.motherName || !formData.fatherName || !formData.motherPhone ||
             !formData.fatherPhone || !formData.category || !formData.school || !formData.color ||
@@ -62,24 +90,28 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
             return;
         }
         setUploading(true);
-        handleSubmit(e).finally(() => setUploading(false));
+        handleSubmit(e).finally(() => {
+            setUploading(false);
+            handleClose(); // Cerrar el modal solo después de guardar exitosamente
+        });
     };
 
     const today = new Date().toISOString().split('T')[0];
 
     return (
-        <Modal show={show} onHide={handleClose} dialogClassName="student-modal">
+        <Modal 
+            show={show} 
+            onHide={handleClose} 
+            dialogClassName="student-modal" 
+            backdrop="static" // No cerrar al hacer clic fuera
+            keyboard={false}  // No cerrar con Escape
+        >
             <Modal.Header closeButton>
                 <Modal.Title>{formData._id ? "Editar Alumno" : "Agregar Alumno"}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
                 {showAlert && (
-                    <Alert
-                        variant="warning"
-                        onClose={() => setShowAlert(false)}
-                        dismissible
-                        className="custom-alert"
-                    >
+                    <Alert variant="warning" onClose={() => setShowAlert(false)} dismissible className="custom-alert">
                         <Alert.Heading>¡Atención!</Alert.Heading>
                         <p>{alertMessage}</p>
                     </Alert>
@@ -140,7 +172,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                             placeholder="Dirección"
                             name="address"
                             value={formData.address || ''}
-                            onChange={handleChange}
+                            onChange={handleInputChange}
                             required
                             maxLength={100}
                         />
@@ -163,7 +195,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                             placeholder="Categoría"
                             name="category"
                             value={formData.category || ''}
-                            onChange={handleChange}
+                            onChange={handleInputChange}
                             required
                             maxLength={50}
                         />
@@ -175,7 +207,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                             placeholder="Escuela"
                             name="school"
                             value={formData.school || ''}
-                            onChange={handleChange}
+                            onChange={handleInputChange}
                             required
                             maxLength={50}
                         />
@@ -187,7 +219,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                             placeholder="Color"
                             name="color"
                             value={formData.color || ''}
-                            onChange={handleInputChange} // Usar handleInputChange para capitalizar
+                            onChange={handleInputChange}
                             required
                             maxLength={50}
                         />
@@ -199,7 +231,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                             placeholder="Nombre Mamá"
                             name="motherName"
                             value={formData.motherName || ''}
-                            onChange={handleChange}
+                            onChange={handleInputChange}
                             required
                             maxLength={50}
                         />
@@ -224,7 +256,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                             placeholder="Nombre Papá"
                             name="fatherName"
                             value={formData.fatherName || ''}
-                            onChange={handleChange}
+                            onChange={handleInputChange}
                             required
                             maxLength={50}
                         />
@@ -276,7 +308,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                                 name="profileImage"
                                 onChange={handleFileChange}
                                 disabled={uploading}
-                                accept="image/jpeg,image/png,image/gif"
+                                accept="image/jpeg,image/png,image/gif,image/heic,image/webp,image/bmp,image/tiff"
                             />
                             {uploading && <p className="uploading">Subiendo imagen...</p>}
                         </div>
@@ -298,7 +330,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                                 onChange={handleFileChange}
                                 disabled={uploading}
                                 multiple
-                                accept="image/jpeg,image/png,image/gif"
+                                accept="image/jpeg,image/png,image/gif,image/heic,image/webp,image/bmp,image/tiff"
                             />
                             {uploading && <p className="uploading">Subiendo archivos...</p>}
                         </div>
@@ -322,7 +354,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                         {uploading ? "Guardando..." : (formData._id ? "Actualizar" : "Guardar")}
                     </Button>
                 </Form>
-            </Modal.Body> 
+            </Modal.Body>
         </Modal>
     );
 };

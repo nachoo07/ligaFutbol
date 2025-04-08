@@ -3,15 +3,16 @@ import { useNavigate } from 'react-router-dom';
 import { Table, Button, FormControl, Modal, Form } from 'react-bootstrap';
 import './user.css';
 import { UsersContext } from '../../context/user/UserContext';
-import { FaBars, FaUsers, FaBell,FaAddressCard,FaRegListAlt, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaSearch, FaTrash, FaEdit } from 'react-icons/fa';
+import { FaBars, FaUsers, FaBell, FaAddressCard, FaRegListAlt, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaSearch, FaTrash, FaEdit } from 'react-icons/fa';
 import { LuClipboardList } from 'react-icons/lu';
+
 const User = () => {
     const { usuarios, obtenerUsuarios, addUsuarioAdmin, updateUsuarioAdmin, deleteUsuarioAdmin } = useContext(UsersContext);
     const navigate = useNavigate();
     const [show, setShow] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [isLoading, setIsLoading] = useState(false); // Nuevo estado para controlar la carga
+    const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         mail: '',
@@ -30,7 +31,7 @@ const User = () => {
         { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
+        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
@@ -52,14 +53,14 @@ const User = () => {
                 ...formData,
                 state: formData.state === 'Activo'
             }).then(() => {
-                obtenerUsuarios(); // Volver a cargar los usuarios después de actualizar
+                obtenerUsuarios();
             });
         } else {
             addUsuarioAdmin({
                 ...formData,
                 state: formData.state === 'Activo'
             }).then(() => {
-                obtenerUsuarios(); // Volver a cargar los usuarios después de agregar
+                obtenerUsuarios();
             });
         }
         handleClose();
@@ -99,11 +100,11 @@ const User = () => {
     const handleDelete = (id) => {
         const usuario = usuarios.find((usuario) => usuario._id === id);
         if (usuario.fixed) {
-            alert("Este usuario no puede ser eliminado.");
+            alert("Este usuario no puede ser eliminado porque es un administrador protegido.");
             return;
         }
         deleteUsuarioAdmin(id).then(() => {
-            obtenerUsuarios(); // Volver a cargar los usuarios después de eliminar
+            obtenerUsuarios();
         });
     };
 
@@ -114,15 +115,14 @@ const User = () => {
         usuario.mail.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
-    // Cargar usuarios al montar el componente
     useEffect(() => {
-        if (!isLoading && usuarios.length === 0) { // Solo cargar si no se está cargando y no hay usuarios
+        if (!isLoading && usuarios.length === 0) {
             setIsLoading(true);
             obtenerUsuarios().finally(() => {
                 setIsLoading(false);
             });
         }
-    }, []); // Sin dependencias, se ejecuta solo al montar
+    }, []);
 
     const getRoleName = (role) => {
         switch (role) {
@@ -197,6 +197,7 @@ const User = () => {
                                             className="users-edit-btn"
                                             onClick={() => handleEdit(usuario._id)}
                                             disabled={usuario.fixed}
+                                            title={usuario.fixed ? "Usuario protegido" : "Editar usuario"}
                                         >
                                             <span className="btn-text">Editar</span>
                                             <span className="btn-icon"><FaEdit /></span>
@@ -205,6 +206,7 @@ const User = () => {
                                             className="users-delete-btn"
                                             onClick={() => handleDelete(usuario._id)}
                                             disabled={usuario.fixed}
+                                            title={usuario.fixed ? "Usuario protegido" : "Eliminar usuario"}
                                         >
                                             <span className="btn-text">Eliminar</span>
                                             <span className="btn-icon"><FaTrash /></span>

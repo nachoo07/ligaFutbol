@@ -1,7 +1,7 @@
 import { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { FaBars,FaAddressCard ,FaRegListAlt , FaUsers, FaMoneyBill, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice } from 'react-icons/fa';
-
+import { MdOutlineReadMore } from "react-icons/md";
 import { LuClipboardList } from "react-icons/lu";
 import { SharesContext } from "../../context/share/ShareContext";
 import { StudentsContext } from "../../context/student/StudentContext";
@@ -145,7 +145,7 @@ const Share = () => {
         { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
+        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
@@ -361,53 +361,56 @@ const Share = () => {
                                         <option value="Sin cuotas">Sin cuotas</option>
                                     </select>
                                 </div>
-                                <Button onClick={() => setShowMassiveModal(true)}>Crear Cuota Masiva</Button>
+                                <Button className="btn-share-masive" onClick={() => setShowMassiveModal(true)}>Crear Cuota Masiva</Button>
                             </div>
                         </div>
                         {loadingCuotas ? (
                             <p className="loading">Cargando datos...</p>
                         ) : (
                             <Table className="students-table">
-                                <thead>
-                                    <tr>
-                                        <th>#</th>
-                                        <th>Nombre</th>
-                                        <th>Apellido</th>
-                                        <th>DNI</th>
-                                        <th>Estado del Estudiante</th>
-                                        <th>Estado de Cuotas</th>
-                                        <th>Acciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {filteredStudents.length === 0 ? (
-                                        <tr>
-                                            <td colSpan="7" className="text-center">
-                                                No hay estudiantes que coincidan con los filtros.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        currentStudents.map((student, index) => (
-                                            <tr key={student._id}>
-                                                <td>{indexOfFirstStudent + index + 1}</td>
-                                                <td>{student.name}</td>
-                                                <td>{student.lastName}</td>
-                                                <td>{student.dni || "-"}</td>
-                                                <td>{student.status}</td>
-                                                <td>{getStudentShareStatus(student._id)}</td>
-                                                <td>
-                                                    <Button
-                                                        className="action-btn"
-                                                        onClick={() => handleSelectStudent(student)}
-                                                    >
-                                                        Ver Cuotas
-                                                    </Button>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </Table>
+                            <thead>
+                              <tr>
+                                <th>#</th>
+                                <th>Nombre</th>
+                                <th>Apellido</th>
+                                <th>DNI</th>
+                                <th className="estado-alumno">Estado del Alumno</th>
+                                <th>Estado de Cuotas</th>
+                                <th>Acciones</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {filteredStudents.length === 0 ? (
+                                <tr>
+                                  <td colSpan="7" className="text-center">
+                                    No hay estudiantes que coincidan con los filtros.
+                                  </td>
+                                </tr>
+                              ) : (
+                                currentStudents.map((student, index) => (
+                                  <tr key={student._id}>
+                                    <td>{indexOfFirstStudent + index + 1}</td>
+                                    <td>{student.name}</td>
+                                    <td>{student.lastName}</td>
+                                    <td>{student.dni || "-"}</td>
+                                    <td className="estado-alumno">{student.status}</td>
+                                    <td>{getStudentShareStatus(student._id)}</td>
+                                    <td>
+                                      <Button
+                                        className="action-btn ver-cuotas-btn"
+                                        onClick={() => handleSelectStudent(student)}
+                                      >
+                                        <span className="ver-cuotas-text">Ver Cuotas</span>
+                                        <span className="ver-cuotas-icon">
+                                          <MdOutlineReadMore />
+                                        </span>
+                                      </Button>
+                                    </td>
+                                  </tr>
+                                ))
+                              )}
+                            </tbody>
+                          </Table>
                         )}
                         {filteredStudents.length > 0 && (
                             <div className="pagination">

@@ -103,9 +103,42 @@ export const MotionProvider = ({ children }) => {
         }
     };
 
+    const getMotionsByLocation = async (location) => {
+        try {
+          const response = await axios.get(`/api/motions/location/${location}`, { withCredentials: true });
+          return response.data;
+        } catch (error) {
+          console.error('Error obteniendo movimientos por sede:', error);
+          Swal.fire("¡Error!", `No se pudieron obtener los movimientos para la sede ${location}.`, "error");
+          return [];
+        }
+      };
+    
+      const getMotionsByLocationAndDateRange = async (location, startDate, endDate) => {
+        try {
+          const response = await axios.get(
+            `/api/motions/location-date-range?location=${location}&startDate=${startDate}&endDate=${endDate}`,
+            { withCredentials: true }
+          );
+          return response.data;
+        } catch (error) {
+          console.error('Error obteniendo movimientos por sede y rango de fechas:', error);
+          Swal.fire("¡Error!", `No se pudieron obtener los movimientos para la sede ${location} en ese rango de fechas.`, "error");
+          return [];
+        }
+      };
+
     return (
-        <MotionContext.Provider value={{ motions, createMotion, updateMotion, deleteMotion, getMotionsByDate, getMotionsByDateRange, fetchMotions }}>
-            {children}
+        <MotionContext.Provider value={{ motions,
+         createMotion,
+         updateMotion,
+         deleteMotion,
+         getMotionsByDate,
+         getMotionsByDateRange,
+         fetchMotions,
+         getMotionsByLocation,
+         getMotionsByLocationAndDateRange }}>
+         {children}
         </MotionContext.Provider>
     );
 };

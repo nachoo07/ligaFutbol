@@ -18,6 +18,9 @@ import PageMotion from '../../pages/motion/PageMotion';
 import PageListPending from '../../pages/listPending/PageListPending';
 import PageUser from '../../pages/user/PageUser';
 import PageReport from '../../pages/report/PageReport';
+import SedeUno from '../../components/individualReports/SedeUno';
+import SedeDos from '../../components/individualReports/SedeDos';
+import SedeTres from '../../components/individualReports/SedeTres';
 
 const Routing = () => {
   const { auth } = useContext(LoginContext);
@@ -67,6 +70,15 @@ const Routing = () => {
         />
         <Route path="/report"
           element={<ProtectedRoute element={<PageReport />} role="admin" />}
+        />
+         <Route path="/report/canada"
+          element={<ProtectedRoute element={<SedeUno/>} role="admin" />}
+        />
+         <Route path="/report/valladares"
+          element={<ProtectedRoute element={<SedeDos/>} role="admin" />}
+        />
+         <Route path="/report/sirga"
+          element={<ProtectedRoute element={<SedeTres />} role="admin" />}
         />
         <Route path="/massive"
           element={<ProtectedRoute element={<PageMassive />} role="admin" />}

@@ -93,3 +93,10 @@
     color: #666;
     margin-top: 20px;
   }
+
+  @media (max-width: 576px) {
+    .preview-table th:nth-child(n+5),
+    .preview-table td:nth-child(n+5) {
+      display: none; /* Oculta las columnas desde la quinta en adelante */
+    }
+  }

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaBars, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import { StudentsContext } from '../../context/student/StudentContext';
 import Select from 'react-select';
@@ -26,6 +26,13 @@ const preloadImage = (src) => {
     });
 };
 
+// Función para tomar la primera palabra de un texto
+const getFirstWord = (text) => {
+    if (!text) return '';
+    const words = text.trim().split(/\s+/);
+    return words[0].charAt(0).toUpperCase() + words[0].slice(1).toLowerCase();
+};
+
 const CarnetTableGenerator = () => {
     const { estudiantes, obtenerEstudiantes } = useContext(StudentsContext);
     const navigate = useNavigate();
@@ -49,7 +56,7 @@ const CarnetTableGenerator = () => {
         { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email-notifications', icon: <FaEnvelope /> },
+        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
@@ -206,8 +213,8 @@ const CarnetTableGenerator = () => {
                 const profileImages = loadedImages; // Fotos de perfil de los estudiantes
 
                 carnetsForPage.forEach((student, index) => {
-                    const name = student.name || 'Sin Nombre';
-                    const lastName = student.lastName || 'Sin Apellido';
+                    const name = getFirstWord(student.name) || 'Sin Nombre'; // Solo primera palabra del nombre
+                    const lastName = getFirstWord(student.lastName) || 'Sin Apellido'; // Solo primera palabra del apellido
                     const dni = student.dni || 'Sin DNI';
                     const birthDate = student.birthDate || 'Sin Fecha'; // Fecha de nacimiento
                     const school = student.school || 'Sin Escuelita';
@@ -250,13 +257,13 @@ const CarnetTableGenerator = () => {
                     profileImg.style.objectFit = 'cover';
                     dataContainer.appendChild(profileImg);
 
-                    // Nombre y Apellido
+                    // Nombre y Apellido (solo primera palabra)
                     const nameText = document.createElement('div');
                     nameText.textContent = `${name} ${lastName}`;
                     nameText.style.position = 'absolute';
                     nameText.style.left = '120px'; // Ajustado según la imagen
                     nameText.style.top = '35px'; // Ajustado según la imagen
-                    nameText.style.fontSize = '12px';
+                    nameText.style.fontSize = '10px';
                     nameText.style.color = '#000';
                     nameText.style.maxWidth = '120px'; // Ajustado para evitar desbordamiento
                     nameText.style.overflow = 'hidden';
@@ -269,7 +276,7 @@ const CarnetTableGenerator = () => {
                     dniText.style.position = 'absolute';
                     dniText.style.left = '120px'; // Ajustado según la imagen
                     dniText.style.top = '58px'; // Ajustado según la imagen
-                    dniText.style.fontSize = '12px';
+                    dniText.style.fontSize = '10px';
                     dniText.style.color = '#000';
                     dataContainer.appendChild(dniText);
 
@@ -279,7 +286,7 @@ const CarnetTableGenerator = () => {
                     birthDateText.style.position = 'absolute';
                     birthDateText.style.left = '120px'; // Ajustado según la imagen
                     birthDateText.style.top = '80px'; // Ajustado según la imagen
-                    birthDateText.style.fontSize = '12px';
+                    birthDateText.style.fontSize = '10px';
                     birthDateText.style.color = '#000';
                     dataContainer.appendChild(birthDateText);
 
@@ -289,7 +296,7 @@ const CarnetTableGenerator = () => {
                     clubText.style.position = 'absolute';
                     clubText.style.left = '120px'; // Ajustado según la imagen
                     clubText.style.top = '103px'; // Ajustado según la imagen
-                    clubText.style.fontSize = '12px';
+                    clubText.style.fontSize = '10px';
                     clubText.style.color = '#000';
                     clubText.style.maxWidth = '120px'; // Ajustado para evitar desbordamiento
                     clubText.style.overflow = 'hidden';

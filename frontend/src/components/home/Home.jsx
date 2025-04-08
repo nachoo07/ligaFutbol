@@ -15,7 +15,7 @@ const Home = () => {
       { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
       { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
       { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
-      //{ name: 'Reportes', route: '/report', icon: <FaChartBar /> },
+      { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
       { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
       { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
       { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },

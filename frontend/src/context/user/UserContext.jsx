@@ -48,7 +48,7 @@ const UsersProvider = ({ children }) => {
                 Swal.fire("¡Éxito!", "Usuario admin creado correctamente", "success");
             } catch (error) {
                 console.error("Error al crear usuario admin:", error);
-                Swal.fire("¡Error!", "No se pudo crear el usuario admin", "error");
+                Swal.fire("¡Error!", error.response?.data?.message || "No se pudo crear el usuario admin", "error");
             }
         }
     };
@@ -67,7 +67,7 @@ const UsersProvider = ({ children }) => {
                 Swal.fire("¡Éxito!", "Usuario actualizado correctamente", "success");
             } catch (error) {
                 console.error("Error al actualizar usuario:", error);
-                Swal.fire("¡Error!", "No se pudo actualizar el usuario", "error");
+                Swal.fire("¡Error!", error.response?.data?.message || "No se pudo actualizar el usuario", "error");
             }
         }
     };
@@ -92,10 +92,11 @@ const UsersProvider = ({ children }) => {
                     });
                     setUsuarios((prevUsuarios) => prevUsuarios.filter((usuario) => usuario._id !== id));
                     Swal.fire("¡Eliminado!", "Usuario eliminado correctamente", "success");
+                    await obtenerUsuarios(); // Actualizar lista solo tras éxito
                 }
             } catch (error) {
                 console.error("Error al eliminar usuario:", error);
-                Swal.fire("¡Error!", "No se pudo eliminar el usuario", "error");
+                Swal.fire("¡Error!", error.response?.data?.message || "No se pudo eliminar el usuario", "error");
             }
         }
     };
