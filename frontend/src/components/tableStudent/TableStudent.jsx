@@ -1,23 +1,26 @@
 import { useState, useContext, useEffect } from 'react';
 import { Table, Button, Alert, Spinner } from 'react-bootstrap';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { FaSearch, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import { MdOutlineReadMore } from "react-icons/md";
 import { StudentsContext } from '../../context/student/StudentContext';
-import { LoginContext } from '../../context/login/LoginContext'; // Importar LoginContext
+import { LoginContext } from '../../context/login/LoginContext';
 import StudentFormModal from '../modal/StudentFormModal';
 import './tableStudent.css';
 
 const TableStudent = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const { estudiantes, obtenerEstudiantes, addEstudiante, importStudents } = useContext(StudentsContext);
-    const { auth } = useContext(LoginContext); // Obtener el rol del usuario
+    const { auth } = useContext(LoginContext);
 
+    // Restaurar estados desde localStorage o usar valores iniciales
     const [show, setShow] = useState(false);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [filterCategory, setFilterCategory] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
+    const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('studentSearchTerm') || '');
+    const [filterCategory, setFilterCategory] = useState(() => localStorage.getItem('studentFilterCategory') || '');
+    const [filterStatus, setFilterStatus] = useState(() => localStorage.getItem('studentFilterStatus') || '');
+    const [currentPage, setCurrentPage] = useState(() => parseInt(localStorage.getItem('studentCurrentPage')) || 1);
     const [formData, setFormData] = useState({
         name: '',
         lastName: '',
@@ -37,16 +40,51 @@ const TableStudent = () => {
         sex: '',
         status: 'Activo'
     });
-
-    const [currentPage, setCurrentPage] = useState(1);
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
     const [isImporting, setIsImporting] = useState(false);
     const studentsPerPage = 15;
-    const maxVisiblePages = 8;
+    const [maxVisiblePages, setMaxVisiblePages] = useState(10);
     const [isMenuOpen, setIsMenuOpen] = useState(true);
 
-    // Menú completo para administradores
+    // Detectar el tamaño de pantalla y ajustar maxVisiblePages
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth <= 576) {
+                setMaxVisiblePages(5);
+            } else {
+                setMaxVisiblePages(10);
+            }
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
+
+    // Guardar los filtros y la página actual en localStorage cada vez que cambian
+    useEffect(() => {
+        localStorage.setItem('studentSearchTerm', searchTerm);
+        localStorage.setItem('studentFilterCategory', filterCategory);
+        localStorage.setItem('studentFilterStatus', filterStatus);
+        localStorage.setItem('studentCurrentPage', currentPage.toString());
+    }, [searchTerm, filterCategory, filterStatus, currentPage]);
+
+    // Limpiar localStorage al navegar a otras rutas principales
+    useEffect(() => {
+        const handleRouteChange = () => {
+            const currentPath = location.pathname;
+            if (currentPath !== '/student' && !currentPath.startsWith('/detailstudent')) {
+                localStorage.removeItem('studentSearchTerm');
+                localStorage.removeItem('studentFilterCategory');
+                localStorage.removeItem('studentFilterStatus');
+                localStorage.removeItem('studentCurrentPage');
+            }
+        };
+
+        handleRouteChange();
+    }, [location.pathname]);
+
     const adminMenuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
         { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
@@ -61,7 +99,6 @@ const TableStudent = () => {
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
-    // Menú limitado para usuarios comunes
     const userMenuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
     ];
@@ -70,7 +107,6 @@ const TableStudent = () => {
         obtenerEstudiantes();
     }, []);
 
-    // Función para eliminar acentos y normalizar texto
     const removeAccents = (str) => {
         return str
             .normalize('NFD')
@@ -89,6 +125,14 @@ const TableStudent = () => {
     });
 
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
+
+    // Ajustar currentPage si el número total de páginas cambia
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [totalPages, currentPage]);
+
     const indexOfLastStudent = currentPage * studentsPerPage;
     const indexOfFirstStudent = indexOfLastStudent - studentsPerPage;
     const currentStudents = filteredStudents.slice(indexOfFirstStudent, indexOfLastStudent);

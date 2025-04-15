@@ -40,9 +40,24 @@ const Share = () => {
     const [hasClearedStudent, setHasClearedStudent] = useState(false);
     const [showMassiveModal, setShowMassiveModal] = useState(false);
     const studentsPerPage = 15;
-    const maxVisiblePages = 7; // Número máximo de páginas visibles en la paginación
+    const [maxVisiblePages, setMaxVisiblePages] = useState(10); // Ahora es un estado dinámico
 
     const years = Array.from({ length: 5 }, (_, i) => 2025 + i);
+
+    // Detectar el tamaño de pantalla y ajustar maxVisiblePages
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth <= 576) {
+                setMaxVisiblePages(5); // Móvil: máximo 5 páginas visibles
+            } else {
+                setMaxVisiblePages(10); // Computadora: máximo 10 páginas visibles
+            }
+        };
+
+        handleResize();
+        window.addEventListener('resize', handleResize);
+        return () => window.removeEventListener('resize', handleResize);
+    }, []);
 
     useEffect(() => {
         if (!isCuotasLoaded) {
@@ -149,7 +164,7 @@ const Share = () => {
         { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
         { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
         { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
-        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
+        { name: 'Deudores', route: '/pendingshare', icon: <FaUserCog /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
         { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
@@ -253,7 +268,6 @@ const Share = () => {
         setPaymentType(cuota.paymentType || "");
         setIsEditing(true);
 
-        // Mostrar un mensaje informativo si es "Pagar" (cuota.paymentDate no está definido)
         if (!cuota.paymentDate) {
             Swal.fire({
                 title: "Completar Pago",
@@ -329,6 +343,7 @@ const Share = () => {
         const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
         return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
     };
+
     return (
         <div className="dashboard-container-share">
             <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>

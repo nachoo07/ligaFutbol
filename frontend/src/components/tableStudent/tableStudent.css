@@ -325,9 +325,13 @@
     display: none;
   }
 
+  .content-student {
+    overflow-y: auto;
+  }
   .students-table th,
   .students-table td {
-    font-size: 14px;
+    font-size: 12px;
+    padding: 7px !important;
   }
 
   .action-btn {

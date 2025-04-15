@@ -367,6 +367,14 @@ textarea {
     height: auto;
     flex-direction: column;
   }
+
+  .content-detail {
+    overflow-y: auto !important;
+  }
+
+  .perfil-container {
+    overflow-y: auto !important;
+  }
 }
 
 @media (min-width: 577px) {

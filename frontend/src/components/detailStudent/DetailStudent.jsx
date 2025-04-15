@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { FaSearch, FaDownload, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import { StudentsContext } from "../../context/student/StudentContext";
-import { LoginContext } from "../../context/login/LoginContext"; // Importar LoginContext
+import { LoginContext } from "../../context/login/LoginContext";
 import StudentFormModal from '../modal/StudentFormModal';
 import Swal from 'sweetalert2';
 import axios from 'axios';
@@ -11,7 +11,7 @@ import "./detailStudent.css";
 
 const StudentDetail = () => {
     const { updateEstudiante, deleteEstudiante } = useContext(StudentsContext);
-    const { auth } = useContext(LoginContext); // Obtener el rol del usuario
+    const { auth } = useContext(LoginContext);
     const { id } = useParams();
     const navigate = useNavigate();
     const [student, setStudent] = useState(null);
@@ -27,10 +27,8 @@ const StudentDetail = () => {
     const [loading, setLoading] = useState(true);
     const hasFetched = useRef(false);
 
-    // Imagen por defecto
     const defaultImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
 
-    // Menú completo para administradores
     const adminMenuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
         { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
@@ -45,18 +43,16 @@ const StudentDetail = () => {
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
-    // Menú limitado para usuarios comunes
     const userMenuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
     ];
 
-    // Función para transformar URLs de Cloudinary y añadir f_auto
     const getTransformedImageUrl = (url) => {
         if (!url || url === defaultImage) return defaultImage;
         const urlParts = url.split('/upload/');
         if (urlParts.length < 2) return url;
         const transformedUrl = `${urlParts[0]}/upload/f_auto/${urlParts[1]}`;
-        return `${transformedUrl}?t=${new Date().getTime()}`; // Evitar caché
+        return `${transformedUrl}?t=${new Date().getTime()}`;
     };
 
     const fetchStudent = async () => {
@@ -274,7 +270,13 @@ const StudentDetail = () => {
                     <div
                         key={index}
                         className="sidebar-item"
-                        onClick={() => item.action ? item.action() : navigate(item.route)}
+                        onClick={() => {
+                            if (item.action) {
+                                item.action();
+                            } else {
+                                navigate(item.route);
+                            }
+                        }}
                     >
                         <span className="icon">{item.icon}</span>
                         <span className="text">{item.name}</span>
@@ -364,7 +366,6 @@ const StudentDetail = () => {
                         </div>
                         {student.archived && student.archived.length > 0 && (
                             <>
-                                {/* Sección de archivos para pantallas grandes */}
                                 <div className="perfil-row archived-section archived-section-large">
                                     <label>Archivos Adjuntos</label>
                                     {student.archived.map((url, index) => (
@@ -387,7 +388,6 @@ const StudentDetail = () => {
                                         </div>
                                     ))}
                                 </div>
-                                {/* Sección de archivos para pantallas móviles */}
                                 <div className="perfil-row archived-section-mobile">
                                     <label>Archivos Adjuntos</label>
                                     <div className="archived-items-mobile">

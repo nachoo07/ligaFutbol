@@ -28,7 +28,6 @@ html, body {
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
-  height: 100vh;
   overflow-y: auto;
 }
 
@@ -144,9 +143,10 @@ html, body {
   }
 
   .content-home {
-      margin: 0;
-      padding: 10px;
-      height: 100vh !important;
+    margin: 0;
+    padding: 10px;
+    height: auto !important; /* Deja que crezca según el contenido */
+    min-height: 100vh; /* Asegura que ocupe al menos toda la pantalla */
   }
 
   .cards-container {
@@ -156,5 +156,9 @@ html, body {
 
   .card {
       min-height: 100px; /* Reducir la altura mínima en pantallas pequeñas */
+  }
+
+  html, body {
+    overflow: auto;
   }
 }
