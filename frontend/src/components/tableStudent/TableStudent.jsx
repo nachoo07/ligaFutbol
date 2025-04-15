@@ -5,12 +5,14 @@ import { FaSearch, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, Fa
 import { LuClipboardList } from "react-icons/lu";
 import { MdOutlineReadMore } from "react-icons/md";
 import { StudentsContext } from '../../context/student/StudentContext';
+import { LoginContext } from '../../context/login/LoginContext'; // Importar LoginContext
 import StudentFormModal from '../modal/StudentFormModal';
 import './tableStudent.css';
 
 const TableStudent = () => {
     const navigate = useNavigate();
     const { estudiantes, obtenerEstudiantes, addEstudiante, importStudents } = useContext(StudentsContext);
+    const { auth } = useContext(LoginContext); // Obtener el rol del usuario
 
     const [show, setShow] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -40,10 +42,12 @@ const TableStudent = () => {
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
     const [isImporting, setIsImporting] = useState(false);
-    const studentsPerPage = 10;
+    const studentsPerPage = 15;
+    const maxVisiblePages = 8;
     const [isMenuOpen, setIsMenuOpen] = useState(true);
 
-    const menuItems = [
+    // Menú completo para administradores
+    const adminMenuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
         { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
         { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
@@ -57,6 +61,11 @@ const TableStudent = () => {
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
+    // Menú limitado para usuarios comunes
+    const userMenuItems = [
+        { name: 'Inicio', route: '/', icon: <FaHome /> },
+    ];
+
     useEffect(() => {
         obtenerEstudiantes();
     }, []);
@@ -64,8 +73,8 @@ const TableStudent = () => {
     // Función para eliminar acentos y normalizar texto
     const removeAccents = (str) => {
         return str
-            .normalize('NFD') // Descompone caracteres con acentos
-            .replace(/[\u0300-\u036f]/g, '') // Elimina los combinadores de acentos
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
             .toLowerCase();
     };
 
@@ -171,13 +180,19 @@ const TableStudent = () => {
             .join(' ');
     };
 
+    const getVisiblePageNumbers = () => {
+        const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+    };
+
     return (
         <div className="dashboard-container-student">
             <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
                 <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
                     <FaBars />
                 </div>
-                {menuItems.map((item, index) => (
+                {(auth === 'admin' ? adminMenuItems : userMenuItems).map((item, index) => (
                     <div
                         key={index}
                         className="sidebar-item"
@@ -224,69 +239,71 @@ const TableStudent = () => {
                                 <option value="Inactivo">Inactivo</option>
                             </select>
                         </div>
-                        <div className="filter-actions">
-                            <div className="actions">
-                                <Button className="add-btn" onClick={handleShow}>Agregar Alumno</Button>
-                                <label htmlFor="import-excel" className="btn btn-success import-btn">
-                                    <FaFileExcel style={{ marginRight: '5px' }} /> Importar Excel
-                                </label>
-                                <input
-                                    type="file"
-                                    id="import-excel"
-                                    accept=".xlsx, .xls"
-                                    style={{ display: 'none' }}
-                                    onChange={handleImportExcel}
-                                    disabled={isImporting}
-                                />
+                        {auth === 'admin' && (
+                            <div className="filter-actions">
+                                <div className="actions">
+                                    <Button className="add-btn" onClick={handleShow}>Agregar Alumno</Button>
+                                    <label htmlFor="import-excel" className="btn btn-success import-btn">
+                                        <FaFileExcel style={{ marginRight: '5px' }} /> Importar Excel
+                                    </label>
+                                    <input
+                                        type="file"
+                                        id="import-excel"
+                                        accept=".xlsx, .xls"
+                                        style={{ display: 'none' }}
+                                        onChange={handleImportExcel}
+                                        disabled={isImporting}
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        )}
                     </div>
                     <Table className="students-table">
-      <thead>
-        <tr>
-          <th>#</th>
-          <th>Nombre</th>
-          <th>Apellido</th>
-          <th>DNI</th>
-          <th className="categoria">Categoría</th>
-          <th className="categoria">Escuela</th>
-          <th>Estado</th>
-          <th>Acciones</th>
-        </tr>
-      </thead>
-      <tbody>
-        {currentStudents.length > 0 ? (
-          currentStudents.map((estudiante, index) => (
-            <tr key={estudiante._id}>
-              <td>{indexOfFirstStudent + index + 1}</td>
-              <td>{capitalizeInitials(estudiante.name)}</td>
-              <td>{capitalizeInitials(estudiante.lastName)}</td>
-              <td>{estudiante.dni}</td>
-              <td className="categoria">{estudiante.category}</td>
-              <td className="categoria">{estudiante.school}</td>
-              <td>{estudiante.status}</td>
-              <td>
-                <Button
-                  className="action-btn ver-mas-btn"
-                  onClick={() => navigate(`/detailstudent/${estudiante._id}`)}
-                >
-                  <span className="ver-mas-text">Ver Más</span>
-                  <span className="ver-mas-icon">
-                    <MdOutlineReadMore />
-                  </span>
-                </Button>
-              </td>
-            </tr>
-          ))
-        ) : (
-          <tr>
-            <td colSpan="9" className="text-center">
-              No hay alumnos registrados.
-            </td>
-          </tr>
-        )}
-      </tbody>
-    </Table>
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Nombre</th>
+                                <th>Apellido</th>
+                                <th>DNI</th>
+                                <th className="categoria">Categoría</th>
+                                <th className="categoria">Escuela</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {currentStudents.length > 0 ? (
+                                currentStudents.map((estudiante, index) => (
+                                    <tr key={estudiante._id}>
+                                        <td>{indexOfFirstStudent + index + 1}</td>
+                                        <td>{capitalizeInitials(estudiante.name)}</td>
+                                        <td>{capitalizeInitials(estudiante.lastName)}</td>
+                                        <td>{estudiante.dni}</td>
+                                        <td className="categoria">{estudiante.category}</td>
+                                        <td className="categoria">{estudiante.school}</td>
+                                        <td>{estudiante.status}</td>
+                                        <td>
+                                            <Button
+                                                className="action-btn ver-mas-btn"
+                                                onClick={() => navigate(`/detailstudent/${estudiante._id}`)}
+                                            >
+                                                <span className="ver-mas-text">Ver Más</span>
+                                                <span className="ver-mas-icon">
+                                                    <MdOutlineReadMore />
+                                                </span>
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ))
+                            ) : (
+                                <tr>
+                                    <td colSpan="9" className="text-center">
+                                        No hay alumnos registrados.
+                                    </td>
+                                </tr>
+                            )}
+                        </tbody>
+                    </Table>
                     <div className="pagination">
                         <Button
                             disabled={currentPage === 1}
@@ -295,13 +312,13 @@ const TableStudent = () => {
                         >
                             «
                         </Button>
-                        {[...Array(totalPages).keys()].map((number) => (
+                        {getVisiblePageNumbers().map((number) => (
                             <Button
-                                key={number + 1}
-                                className={`pagination-btn ${currentPage === number + 1 ? 'active' : ''}`}
-                                onClick={() => paginate(number + 1)}
+                                key={number}
+                                className={`pagination-btn ${currentPage === number ? 'active' : ''}`}
+                                onClick={() => paginate(number)}
                             >
-                                {number + 1}
+                                {number}
                             </Button>
                         ))}
                         <Button
@@ -313,13 +330,15 @@ const TableStudent = () => {
                         </Button>
                     </div>
                 </div>
-                <StudentFormModal
-                    show={show}
-                    handleClose={handleClose}
-                    handleSubmit={handleSubmit}
-                    handleChange={handleChange}
-                    formData={formData}
-                />
+                {auth === 'admin' && (
+                    <StudentFormModal
+                        show={show}
+                        handleClose={handleClose}
+                        handleSubmit={handleSubmit}
+                        handleChange={handleChange}
+                        formData={formData}
+                    />
+                )}
                 {isImporting && (
                     <div className="loading-overlay">
                         <div className="loading-spinner">

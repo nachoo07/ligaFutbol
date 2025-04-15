@@ -1,274 +1,399 @@
 .student-detail-container {
-    display: flex;
-    justify-content: center;
-    height: 100vh;
-    background-color: #f5f6fa;
-  }
-  
-  .content-detail {
-    flex-grow: 1;
-    padding: 20px;
-    margin-left: 50px;
-    display: flex;
-    align-items: center;
-    flex-direction: column;
-    flex-wrap: nowrap;
-    overflow-y: auto !important;
-    height: 670px;
-  }
-  
-  .dashboard-container-detail {
-    display: flex;
-    height: 670px !important;
-  }
-  
-  .main-content {
-    margin-top: 0px;
-  
-  }
-  
-  .perfil-container {
-    width: 100%; /* Ocupa todo el ancho */
-    height: 100%; /* Ocupa toda la altura */
-    margin: 0; /* Elimina márgenes */
-    padding: 20px; /* Mantén el padding interno */
-    background-color: #ffffff;
-    border-radius: 0; /* Opcional: elimina el borde redondeado */
-    box-shadow: none; /* Opcional: elimina la sombra */
-    transition: all 0.3s ease;
+  display: flex;
+  justify-content: center;
+  height: 100vh;
+  background-color: #f5f6fa;
 }
-  
-  .perfil-header {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    margin-bottom: 20px;
-  }
-  
-  .perfil-avatar {
-    margin-right: 20px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  
-  .perfil-avatar img {
-    width: auto;
-    height: 180px;
-    object-fit: contain; /* Cambia cover por contain para que la imagen se ajuste completamente */
-    border: 3px solid #0163a9;
-    background-color: #f5f5f5; /* Opcional: agrega un fondo para imágenes con transparencia */
+
+.content-detail {
+  flex-grow: 1;
+  padding: 20px;
+  margin-left: 50px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  flex-wrap: nowrap;
+  overflow-y: auto !important;
+  height: 670px;
 }
-  
-  .perfil-info {
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-  }
-  
-  .perfil-info h2 {
-    margin: 0;
-    font-size: 35px;
-    color: #333;
-  }
-  
-  .btn-ver-cuotas {
-    background-color: #0163a9;
-    color: white;
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    margin-top: 10px;
-    font-size: 18px;
-    transition: background-color 0.3s ease;
-  }
-  
-  .btn-ver-cuotas:hover {
-    background-color: #013d61;
-  }
-  
-  .perfil-formulario {
-    display: flex;
-    flex-direction: column !important;
-    gap: 10px;
-    height: 700px;
-  }
-  
-  .perfil-row {
-    display: flex;
-    flex-direction: row;
-    width: 100%;
-    gap: 10px;
-  }
-  
-  .perfil-comentario {
-    width: 100%;
-  }
-  
-  .perfil-row div {
-    flex: 1;
-    gap: 10px;
-  }
-  
-  label {
-    font-size: 14px;
-    color: #333;
-    margin-bottom: 5px;
-    display: block;
-  }
-  
-  input,
-  textarea {
-    width: 100%;
-    padding: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: white;
-    transition: border-color 0.3s ease;
-  }
-  
-  input:focus,
-  textarea:focus {
-    border-color: #0163a9;
-  }
-  
-  textarea {
-    height: 60px;
-  }
-  
-  .perfil-actions {
-    display: flex;
-    flex-direction: row;
-    gap: 20px;
-    justify-content: center;
-    margin-top: 10px;
-  }
-  
-  .btn-editar,
-  .btn-eliminar {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    width: 300px;
-    font-size: 20px;
-    transition: background-color 0.3s ease;
-  }
-  
-  .btn-editar {
-    background-color: #0163a9;
-    color: white;
-  }
-  
-  .btn-editar:hover {
-    background-color: #013d61;
-  }
-  
-  .btn-eliminar {
-    background-color: #0163a9;
-    color: white;
-  }
-  
-  .btn-eliminar:hover {
-    background-color: #013d61;
-  }
 
-  .archived-section {
-    margin-top: 15px;
-  }
-  
-  .archived-item {
-    display: flex;
-    align-items: center;
-    gap: 10px; /* Espacio entre el enlace y el botón */
-    margin-bottom: 10px;
-  }
-  
-  .archived-item a {
-    color: #007bff;
-    text-decoration: none;
-  }
-  
-  .archived-item a:hover {
-    text-decoration: underline;
-  }
-  
-  .btn-download {
-    background: none;
-    border: none;
-    color: #007bff;
-    cursor: pointer;
-    font-size: 16px;
-    padding: 0;
-    display: flex;
-    align-items: center;
-  }
-  
-  .btn-download:hover {
-    color: #0056b3;
-  }
+.dashboard-container-detail {
+  display: flex;
+  height: 670px !important;
+}
 
-  .perfil-row input.habilitado {
-    color: #28a745; /* Verde para habilitado */
-    font-weight: bold;
+.main-content {
+  margin-top: 0px;
+}
+
+.perfil-container {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 20px;
+  background-color: #ffffff;
+  border-radius: 0;
+  box-shadow: none;
+  transition: all 0.3s ease;
+}
+
+.perfil-header {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+}
+
+.perfil-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 20px;
+}
+
+.perfil-avatar {
+  flex: 0 0 auto;
+}
+
+.perfil-avatar img {
+  width: auto;
+  height: 180px;
+  object-fit: contain;
+  border: 3px solid #0163a9;
+  background-color: #f5f5f5;
+}
+
+.perfil-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* Centra el contenido horizontalmente */
+  justify-content: center; /* Centra el contenido verticalmente */
+  gap: 10px; /* Espaciado entre el nombre y el botón */
+}
+
+.perfil-info h2 {
+  font-size: 35px;
+  color: #333;
+  text-align: center; /* Asegura que el texto esté centrado */
+}
+
+.perfil-actions-header {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-ver-cuotas {
+  background-color: #0163a9;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background-color 0.3s ease;
+  text-align: center; /* Centra el texto dentro del botón */
+}
+
+.btn-ver-cuotas:hover {
+  background-color: #013d61;
+}
+
+.btn-volver-atras {
+  background-color: #0163a9;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 18px;
+  transition: background-color 0.3s ease;
+}
+
+.btn-volver-atras:hover {
+  background-color: #013d61;
+}
+
+.perfil-formulario {
+  display: flex;
+  flex-direction: column !important;
+  gap: 10px;
+  height: 700px;
+}
+
+.perfil-row {
+  display: flex;
+  flex-direction: row;
+  width: 100%;
+  gap: 10px;
+}
+
+.perfil-comentario {
+  width: 100%;
+}
+
+.perfil-row div {
+  flex: 1;
+  gap: 10px;
+}
+
+label {
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 5px;
+  display: block;
+}
+
+input,
+textarea {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  background-color: white;
+  transition: border-color 0.3s ease;
+}
+
+input:focus,
+textarea:focus {
+  border-color: #0163a9;
+}
+
+textarea {
+  height: 60px;
+}
+
+.perfil-actions {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 10px;
+}
+
+.btn-editar,
+.btn-eliminar {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  width: 300px;
+  font-size: 20px;
+  transition: background-color 0.3s ease;
+}
+
+.btn-editar {
+  background-color: #0163a9;
+  color: white;
+}
+
+.btn-editar:hover {
+  background-color: #013d61;
+}
+
+.btn-eliminar {
+  background-color: #0163a9;
+  color: white;
+}
+
+.btn-eliminar:hover {
+  background-color: #013d61;
+}
+
+.archived-section {
+  margin-top: 15px;
+}
+
+.archived-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.archived-item a {
+  color: #007bff;
+  text-decoration: none;
+}
+
+.archived-item a:hover {
+  text-decoration: underline;
+}
+
+.btn-download {
+  background: none;
+  border: none;
+  color: #007bff;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+.btn-download:hover {
+  color: #0056b3;
+}
+
+.perfil-row input.habilitado {
+  color: #28a745;
+  font-weight: bold;
 }
 
 .perfil-row input.no-habilitado {
-    color: #dc3545; /* Rojo para no habilitado */
-    font-weight: bold;
+  color: #dc3545;
+  font-weight: bold;
 }
-  
-  @media (max-width: 576px) {
-  
-    .content-detail {
-      margin-left: 0;
-      padding: 10px;
-    }
-  
-    .perfil-container {
-      width: 100%;
-      padding: 10px;
-      height: auto;
-    }
-  
-    .perfil-header {
-      flex-direction: column;
-      align-items: center;
-    }
-  
-    .perfil-avatar {
-      margin-right: 0;
-      margin-bottom: 10px;
-    }
-  
-    .perfil-info h2 {
-      font-size: 24px;
-    }
-  
-    .btn-ver-cuotas {
-      font-size: 16px;
-      padding: 8px 16px;
-    }
-  
-    .perfil-row {
-      flex-direction: column;
-    }
-  
-    .perfil-actions {
-      flex-direction: row;
-      gap: 10px;
-      width: 100%;
-    }
-  
-    .btn-editar,
-    .btn-eliminar {
-      width: 100%;
-      font-size: 16px;
-    }
-  
-    .perfil-form {
-      height: auto;
-      flex-direction: column;
-    }
+
+/* Estilos para el nuevo contenedor de botones en móvil */
+.perfil-actions-mobile {
+  display: none; /* Oculto por defecto (pantallas grandes) */
+}
+
+/* Estilos para el nuevo contenedor de archivos en móvil */
+.archived-section-mobile {
+  display: none; /* Oculto por defecto (pantallas grandes) */
+}
+
+.archived-items-mobile {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.archived-item-mobile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@media (max-width: 576px) {
+  .content-detail {
+    margin-left: 0;
+    padding: 10px;
+    align-items: flex-start;
   }
+
+  .perfil-container {
+    width: 100%;
+    padding: 10px;
+    height: auto;
+  }
+
+  .perfil-header {
+    align-items: center;
+    width: 100%;
+  }
+
+  .perfil-header-row {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .perfil-avatar {
+    margin-right: 0;
+    margin-bottom: 10px;
+  }
+
+  .perfil-info {
+    align-items: center;
+    width: 100%;
+  }
+
+  .perfil-info h2 {
+    font-size: 30px; /* Aumentar el tamaño del nombre en móvil */
+    text-align: center;
+    margin-bottom: 15px;
+  }
+
+  /* Ocultar los botones originales en móvil */
+  .btn-ver-cuotas-large,
+  .btn-volver-atras-large {
+    display: none;
+  }
+
+  /* Mostrar el nuevo contenedor de botones en móvil */
+  .perfil-actions-mobile {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .btn-ver-cuotas-mobile,
+  .btn-volver-atras-mobile {
+    flex: 1;
+    font-size: 16px;
+    padding: 8px 16px;
+    width: auto;
+  }
+
+  .perfil-row {
+    flex-direction: column;
+  }
+
+  /* Ocultar la sección de archivos original en móvil */
+  .archived-section-large {
+    display: none;
+  }
+
+  /* Mostrar la nueva sección de archivos en móvil */
+  .archived-section-mobile {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .archived-section-mobile label {
+    margin-bottom: 10px;
+  }
+
+  .perfil-actions {
+    flex-direction: row;
+    gap: 10px;
+    width: 100%;
+  }
+
+  .btn-editar,
+  .btn-eliminar {
+    width: 100%;
+    font-size: 16px;
+  }
+
+  .perfil-formulario {
+    height: auto;
+    flex-direction: column;
+  }
+}
+
+@media (min-width: 577px) {
+  /* Ocultar los botones móviles en pantallas grandes */
+  .btn-ver-cuotas-mobile,
+  .btn-volver-atras-mobile {
+    display: none;
+  }
+
+  /* Mostrar los botones originales en pantallas grandes */
+  .btn-ver-cuotas-large {
+    width: 230px;
+  }
+
+  .btn-volver-atras-large {
+    margin-top: 40px;
+  }
+
+  /* Ocultar la sección de archivos móvil en pantallas grandes */
+  .archived-section-mobile {
+    display: none;
+  }
+
+  /* Mostrar la sección de archivos original en pantallas grandes */
+  .archived-section-large {
+    display: flex;
+  }
+
+ 
+}

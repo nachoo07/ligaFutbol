@@ -2,7 +2,6 @@
 import { useEffect, useState, createContext, useContext, useCallback, useRef } from "react";
 import { useLocation } from 'react-router-dom';
 import axios from "axios";
-import Swal from "sweetalert2";
 import { LoginContext } from "../login/LoginContext";
 
 export const SharesContext = createContext();
@@ -28,7 +27,7 @@ const SharesProvider = ({ children }) => {
         } catch (error) {
             console.error("Error obteniendo cuotas:", error);
             setCuotas([]);
-            Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas.", "error");
+            throw error;
         }
     }, []);
 
@@ -40,8 +39,7 @@ const SharesProvider = ({ children }) => {
             return Array.isArray(response.data) ? response.data : [];
         } catch (error) {
             console.error("Error obteniendo cuotas por estudiante:", error);
-            Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas del estudiante.", "error");
-            return [];
+           throw error;
         }
     }, []);
 
@@ -54,8 +52,7 @@ const SharesProvider = ({ children }) => {
             return Array.isArray(response.data) ? response.data : [];
         } catch (error) {
             console.error("Error obteniendo nombres disponibles:", error);
-            Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener los nombres disponibles.", "error");
-            return [];
+            throw error;
         }
     }, []);
 
@@ -82,12 +79,10 @@ const SharesProvider = ({ children }) => {
                 withCredentials: true,
             });
             setCuotas((prevCuotas) => [...prevCuotas, response.data.share]);
-            Swal.fire("¡Éxito!", "La cuota ha sido creada correctamente", "success");
             hasFetched.current = false;
             return Promise.resolve();
         } catch (error) {
             console.error("Error al crear la cuota:", error);
-            Swal.fire("¡Error!", error.response?.data?.message || "Ha ocurrido un error al crear la cuota", "error");
             return Promise.reject(error);
         }
     };
@@ -101,13 +96,11 @@ const SharesProvider = ({ children }) => {
             }, {
                 withCredentials: true,
             });
-            Swal.fire("¡Éxito!", `Se crearon ${response.data.shares.length} cuotas masivas correctamente`, "success");
             hasFetched.current = false;
             await obtenerCuotas(true); // Forzamos la recarga de cuotas
-            return Promise.resolve();
+            return response.data.shares.length; // Devolvemos la cantidad de cuotas creadas
         } catch (error) {
             console.error("Error al crear cuotas masivas:", error);
-            Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron crear las cuotas masivas.", "error");
             return Promise.reject(error);
         }
     };
@@ -115,29 +108,14 @@ const SharesProvider = ({ children }) => {
     const deleteCuota = async (id) => {
         if (auth !== "admin") return Promise.reject("No autorizado");
         try {
-            const confirmacion = await Swal.fire({
-                title: "¿Estás seguro que deseas eliminar la cuota?",
-                text: "Esta acción no se puede deshacer",
-                icon: "warning",
-                showCancelButton: true,
-                confirmButtonColor: "#3085d6",
-                cancelButtonColor: "#d33",
-                confirmButtonText: "Sí, eliminar",
-                cancelButtonText: "Cancelar",
+            await axios.delete(`/api/shares/delete/${id}`, {
+                withCredentials: true,
             });
-            if (confirmacion.isConfirmed) {
-                await axios.delete(`/api/shares/delete/${id}`, {
-                    withCredentials: true,
-                });
-                setCuotas((prevCuotas) => prevCuotas.filter((cuota) => cuota._id !== id));
-                Swal.fire("¡Eliminada!", "La cuota ha sido eliminada correctamente", "success");
-                hasFetched.current = false;
-                return Promise.resolve();
-            }
+            setCuotas((prevCuotas) => prevCuotas.filter((cuota) => cuota._id !== id));
+            hasFetched.current = false;
             return Promise.resolve();
         } catch (error) {
             console.error("Error al eliminar cuota:", error);
-            Swal.fire("¡Error!", error.response?.data?.message || "Ha ocurrido un error al eliminar la cuota", "error");
             return Promise.reject(error);
         }
     };
@@ -151,12 +129,10 @@ const SharesProvider = ({ children }) => {
             setCuotas((prevCuotas) =>
                 prevCuotas.map((c) => (c._id === cuota._id ? response.data.share : c))
             );
-            Swal.fire("¡Éxito!", "La cuota ha sido actualizada correctamente", "success");
             hasFetched.current = false;
             return Promise.resolve();
         } catch (error) {
             console.error("Error al actualizar cuota:", error);
-            Swal.fire("¡Error!", error.response?.data?.message || "Ha ocurrido un error al actualizar la cuota", "error");
             return Promise.reject(error);
         }
     };

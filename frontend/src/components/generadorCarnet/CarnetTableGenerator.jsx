@@ -7,6 +7,7 @@ import Select from 'react-select';
 import { Table, Button, Form, Spinner } from 'react-bootstrap';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import Swal from 'sweetalert2'; // Importamos Swal para mostrar la confirmación
 import './carnetTableGenerator.css';
 
 // Función para precargar una imagen y manejar errores
@@ -122,7 +123,7 @@ const CarnetTableGenerator = () => {
             );
         }
         setFilteredStudents(filtered);
-        setSelectedStudents([]);
+        setSelectedStudents([]); // Limpiar selección al cambiar filtros
     }, [filters, estudiantes]);
 
     const handleFilterChange = (name, selectedOption) => {
@@ -166,7 +167,12 @@ const CarnetTableGenerator = () => {
 
     const handleDownloadCarnets = async () => {
         if (selectedStudents.length === 0) {
-            alert('Por favor, selecciona al menos un alumno para generar los carnets.');
+            Swal.fire({
+                title: "¡Advertencia!",
+                text: "Por favor, selecciona al menos un alumno para generar los carnets.",
+                icon: "warning",
+                confirmButtonText: "Aceptar",
+            });
             return;
         }
 
@@ -184,30 +190,30 @@ const CarnetTableGenerator = () => {
 
         const carnetBackgroundUrl = 'https://res.cloudinary.com/dmjjwnvq8/image/upload/v1743467421/2025_vn4ksb.png';
 
-        for (let i = 0; i < selectedStudentsData.length; i += carnetsPerPage) {
-            const carnetsForPage = selectedStudentsData.slice(i, i + carnetsPerPage);
+        try {
+            for (let i = 0; i < selectedStudentsData.length; i += carnetsPerPage) {
+                const carnetsForPage = selectedStudentsData.slice(i, i + carnetsPerPage);
 
-            const tempContainer = document.createElement('div');
-            tempContainer.style.position = 'absolute';
-            tempContainer.style.left = '-9999px';
-            tempContainer.style.width = `${pageWidth}px`;
-            tempContainer.style.height = `${pageHeight}px`;
-            tempContainer.style.display = 'grid';
-            tempContainer.style.gridTemplateColumns = `repeat(2, ${carnetWidth}px)`; // 2 columnas
-            tempContainer.style.gridTemplateRows = `repeat(5, ${carnetHeight}px)`; // 5 filas
-            tempContainer.style.gap = `${margin}px`;
-            tempContainer.style.padding = '10px';
-            tempContainer.style.boxSizing = 'border-box';
-            tempContainer.style.justifyContent = 'center'; // Centrar las columnas en la página
+                const tempContainer = document.createElement('div');
+                tempContainer.style.position = 'absolute';
+                tempContainer.style.left = '-9999px';
+                tempContainer.style.width = `${pageWidth}px`;
+                tempContainer.style.height = `${pageHeight}px`;
+                tempContainer.style.display = 'grid';
+                tempContainer.style.gridTemplateColumns = `repeat(2, ${carnetWidth}px)`; // 2 columnas
+                tempContainer.style.gridTemplateRows = `repeat(5, ${carnetHeight}px)`; // 5 filas
+                tempContainer.style.gap = `${margin}px`;
+                tempContainer.style.padding = '10px';
+                tempContainer.style.boxSizing = 'border-box';
+                tempContainer.style.justifyContent = 'center'; // Centrar las columnas en la página
 
-            const imagePromises = [];
-            carnetsForPage.forEach(student => {
-                const profileImage = student.profileImage || 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
-                imagePromises.push(preloadImage(profileImage));
-            });
-            imagePromises.push(preloadImage(carnetBackgroundUrl));
+                const imagePromises = [];
+                carnetsForPage.forEach(student => {
+                    const profileImage = student.profileImage || 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
+                    imagePromises.push(preloadImage(profileImage));
+                });
+                imagePromises.push(preloadImage(carnetBackgroundUrl));
 
-            try {
                 const loadedImages = await Promise.all(imagePromises);
                 const carnetBackgroundImage = loadedImages.pop(); // Imagen de fondo del carnet
                 const profileImages = loadedImages; // Fotos de perfil de los estudiantes
@@ -320,18 +326,39 @@ const CarnetTableGenerator = () => {
                 pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
 
                 document.body.removeChild(tempContainer);
-            } catch (error) {
-                console.error('Error al generar el PDF:', error);
-                alert('Hubo un error al generar el PDF. Por favor, intenta de nuevo.');
+                pageIndex++;
             }
-            pageIndex++;
-        }
 
-        const schoolFilter = filters.school || 'Todas';
-        const categoryFilter = filters.category || 'Todas';
-        const colorFilter = filters.color || 'Todos';
-        pdf.save(`carnets_${schoolFilter}_${categoryFilter}_${colorFilter}.pdf`);
-        setDownloading(false); // Desactivar el estado de descarga
+            const schoolFilter = filters.school || 'Todas';
+            const categoryFilter = filters.category || 'Todas';
+            const colorFilter = filters.color || 'Todos';
+            pdf.save(`carnets_${schoolFilter}_${categoryFilter}_${colorFilter}.pdf`);
+
+            // Mostrar mensaje de confirmación y desmarcar alumnos
+            Swal.fire({
+                title: "¡Éxito!",
+                text: "Los carnets se han descargado correctamente. Las selecciones han sido desmarcadas.",
+                icon: "success",
+                timer: 2000,
+                showConfirmButton: false,
+            });
+
+            // Desmarcar todos los alumnos seleccionados
+            setSelectedStudents([]);
+
+            // Opcional: Si quieres recargar toda la página, puedes descomentar esta línea
+            // window.location.reload();
+        } catch (error) {
+            console.error('Error al generar el PDF:', error);
+            Swal.fire({
+                title: "¡Error!",
+                text: "Hubo un error al generar el PDF. Por favor, intenta de nuevo.",
+                icon: "error",
+                confirmButtonText: "Aceptar",
+            });
+        } finally {
+            setDownloading(false); // Desactivar el estado de descarga
+        }
     };
 
     return (

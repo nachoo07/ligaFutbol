@@ -6,9 +6,7 @@
 
 .income-content {
   flex-grow: 1;
-  overflow-y: auto !important;
-  height: 670px;
-  background: #f9f9f9;
+  padding: 20px;
 }
 
 .income-title {
@@ -41,7 +39,7 @@
   border-radius: 5px;
   font-size: 16px;
   flex: 1;
-  min-width: 120px; /* Reducido para que quepa la nueva columna */
+  min-width: 120px;
 }
 
 .motion-form-actions {
@@ -70,6 +68,7 @@
   align-items: center;
   gap: 10px;
   margin: 20px 0;
+  flex-wrap: wrap;
 }
 
 .motion-filter-item {
@@ -77,6 +76,8 @@
   flex-direction: row;
   justify-content: center;
   align-items: center;
+  flex: 1;
+  min-width: 200px;
 }
 
 .motion-filter-item label {
@@ -92,6 +93,7 @@
   border-radius: 5px;
   background: #fff;
   font-size: 16px;
+  width: 100%;
 }
 
 .motion-table {
@@ -147,52 +149,152 @@
   display: none;
 }
 
+.text-btn {
+  display: inline;
+}
+
 @media (max-width: 576px) {
   .income-content {
     padding: 10px;
   }
 
   .income-title {
-    font-size: 34px;
+    font-size: 28px;
+    text-align: center;
+  }
+
+  .motion-form {
+    background: #fff;
+    padding: 15px;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .motion-form-row {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .motion-form-row input,
+  .motion-form-row select {
+    width: 100%;
+    max-width: none;
+    font-size: 14px;
+  }
+
+  .motion-form-actions {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .motion-save-btn,
+  .motion-cancel-btn {
+    font-size: 14px;
+    padding: 10px;
+  }
+
+  .motion-date-filter {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    justify-items: stretch;
+  }
+
+  .motion-filter-item:nth-child(1),
+  .motion-filter-item:nth-child(2) {
+    font-size: 1;
+  }
+
+  .motion-filter-item:nth-child(3),
+  .motion-filter-item:nth-child(4) {
+     font-size: 1;
+  }
+
+  .motion-filter-item {
+    flex-direction: column;
+    align-items: flex-start;
+    min-width: 0;
+  }
+
+  .motion-filter-item label {
+    font-size: 16px;
+    margin-right: 0;
+    margin-bottom: 5px;
+  }
+
+  .motion-filter-item input,
+  .motion-filter-item select {
+    font-size: 14px;
+    padding: 6px;
+  }
+
+  .motion-table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+  }
+
+  .motion-table thead {
+    display: none;
+  }
+
+  .motion-table tbody,
+  .motion-table tr {
+    display: block;
+  }
+
+  .motion-table tr {
+    margin-bottom: 10px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 10px;
+  }
+
+  .motion-table td {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    text-align: left;
+    padding: 8px;
+    position: relative;
+  }
+
+  .motion-table td:before {
+    content: attr(data-label);
+    font-weight: bold;
+    color: #333;
+    margin-right: 10px;
+    flex: 1;
+  }
+
+  .motion-table td:not(.motion-actions) {
+    flex: 1 1 100%;
+  }
+
+  .motion-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px; /* Aumentar el espacio entre los botones */
+  }
+
+  .motion-edit-btn,
+  .motion-delete-btn {
+    padding: 8px; /* Aumentar el padding para que el botón sea más grande */
+    font-size: 16px; /* Aumentar el tamaño del icono */
   }
 
   .text-btn {
     display: none;
   }
 
-  .motion-form-row {
-    flex-direction: column;
+  .icon-btn {
+    display: inline;
   }
 
-  .motion-form-row input,
-  .motion-form-row select {
-    min-width: 100%;
-  }
-
-  .motion-date-filter {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .motion-filter-item {
-    width: 100%;
-  }
-
-  .motion-actions {
-    flex-direction: row;
-    gap: 5px;
-  }
-
-  .motion-edit-btn,
-  .motion-delete-btn {
-    padding: 5px 8px;
-  }
-
-  .metodo-pago-motion {
-    display: none;
-  }
-
-  .motion-row {
-    font-size: 15px;
+  /* Aumentar el tamaño de los iconos */
+  .motion-edit-btn .icon-btn svg,
+  .motion-delete-btn .icon-btn svg {
+    width: 20px; /* Tamaño más grande para los iconos */
+    height: 20px;
   }
 }

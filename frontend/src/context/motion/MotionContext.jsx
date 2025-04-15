@@ -15,7 +15,7 @@ export const MotionProvider = ({ children }) => {
     const fetchMotions = async () => {
         if (auth === 'admin') {
             try {
-                const response = await axios.get('/api/motions/', { withCredentials: true });
+                const response = await axios.get('http://localhost:4002/api/motions/', { withCredentials: true });
                 setMotions(response.data);
                 setIsDataLoaded(true);
             } catch (error) {
@@ -38,7 +38,7 @@ export const MotionProvider = ({ children }) => {
 
     const createMotion = async (motion) => {
         try {
-            const response = await axios.post('/api/motions/create', motion, { withCredentials: true });
+            const response = await axios.post('http://localhost:4002/api/motions/create', motion, { withCredentials: true });
             setMotions(prevMotions => [...prevMotions, response.data]);
             Swal.fire("¡Éxito!", "El movimiento ha sido creado correctamente", "success");
         } catch (error) {
@@ -71,7 +71,7 @@ export const MotionProvider = ({ children }) => {
                 cancelButtonText: "Cancelar",
             });
             if (confirmacion.isConfirmed) {
-                await axios.delete(`/api/motions/delete/${id}`, { withCredentials: true });
+                await axios.delete(`http://localhost:4002/api/motions/delete/${id}`, { withCredentials: true });
                 setMotions(motions.filter(motion => motion._id !== id));
                 Swal.fire("¡Eliminado!", "El movimiento ha sido eliminado correctamente", "success");
             }

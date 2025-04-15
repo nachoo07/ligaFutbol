@@ -33,8 +33,8 @@ const upload = multer({
   },
 });
 
-router.get('/', protect, admin, getAllStudents);
-router.get('/:id', protect, admin, getStudentById);
+router.get('/', getAllStudents);
+router.get('/:id', getStudentById);
 router.post('/create', protect, admin, upload.fields([{ name: 'profileImage', maxCount: 1 }, { name: 'archived', maxCount: 2 }]), createStudent);
 router.put('/update/:id', protect, admin, upload.fields([{ name: 'profileImage', maxCount: 1 }, { name: 'archived', maxCount: 2 }]), updateStudent);
 router.delete('/delete/:id', protect, admin, deleteStudent);

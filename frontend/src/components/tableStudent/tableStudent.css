@@ -142,9 +142,9 @@
 }
 
 .pagination-btn.active {
-  background-color: #0163a9 !important;
+  background-color: #013d61 !important;
   color: white;
-  border: none;
+  font-weight: bold;
 }
 
 .pagination-btn:disabled {

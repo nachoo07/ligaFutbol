@@ -20,14 +20,14 @@ const Income = () => {
     paymentMethod: '',
     selectedDate: '',
     incomeType: '',
-    location: 'Sede Cañada', // Valor por defecto
+    location: '',
   });
 
   const [filters, setFilters] = useState({
     startDate: dayjs().startOf('month').format('YYYY-MM-DD'),
     endDate: dayjs().format('YYYY-MM-DD'),
     incomeType: '',
-    location: '', // Nuevo filtro por sede, vacío significa "Todos"
+    location: '',
   });
 
   const [editIndex, setEditIndex] = useState(null);
@@ -67,7 +67,7 @@ const Income = () => {
       paymentMethod: '',
       selectedDate: '',
       incomeType: '',
-      location: 'Sede Cañada',
+      location: '',
     });
   };
 
@@ -93,7 +93,7 @@ const Income = () => {
       paymentMethod: '',
       selectedDate: '',
       incomeType: '',
-      location: 'Sede Cañada',
+      location: '',
     });
     setEditIndex(null);
   };
@@ -105,7 +105,7 @@ const Income = () => {
       itemDate.isAfter(dayjs(filters.startDate)) &&
       itemDate.isBefore(dayjs(filters.endDate)) &&
       (!filters.incomeType || item.incomeType === filters.incomeType) &&
-      (!filters.location || item.location === filters.location) // Nuevo filtro por sede
+      (!filters.location || item.location === filters.location)
     );
   });
 
@@ -168,7 +168,8 @@ const Income = () => {
                 onChange={handleInputChange}
                 required
               >
-                <option value="Sede Cañada">Sede Cañada</option>
+                <option value="">Sede</option>
+                <option value="Sede El Palmar">Sede El Palmar</option>
                 <option value="Sede Valladares">Sede Valladares</option>
                 <option value="Sede Sirga">Sede Sirga</option>
               </select>
@@ -223,7 +224,7 @@ const Income = () => {
               onChange={(e) => setFilters((prev) => ({ ...prev, location: e.target.value }))}
             >
               <option value="">Todas</option>
-              <option value="Sede Cañada">Sede Cañada</option>
+              <option value="Sede El Palmar">Sede El Palmar</option>
               <option value="Sede Valladares">Sede Valladares</option>
               <option value="Sede Sirga">Sede Sirga</option>
             </select>
@@ -243,30 +244,38 @@ const Income = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredData.map((item, index) => (
-              <tr key={item._id || index} className="motion-row">
-                <td>{item.concept}</td>
-                <td>{dayjs.utc(item.date).format('DD-MM-YYYY')}</td>
-                <td>{`$ ${item.amount.toLocaleString('es')}`}</td>
-                <td className="metodo-pago-motion">{item.paymentMethod}</td>
-                <td>{item.incomeType}</td>
-                <td>{item.location}</td>
-                <td className="motion-actions">
-                  <Button className="motion-edit-btn" onClick={() => handleEdit(index)}>
-                    <span className="text-btn">Editar</span>
-                    <span className="icon-btn">
-                      <FaEdit />
-                    </span>
-                  </Button>
-                  <Button className="motion-delete-btn" onClick={() => handleDelete(index)}>
-                    <span className="text-btn">Eliminar</span>
-                    <span className="icon-btn">
-                      <FaTrash />
-                    </span>
-                  </Button>
+            {filteredData.length > 0 ? (
+              filteredData.map((item, index) => (
+                <tr key={item._id || index} className="motion-row">
+                  <td data-label="Concepto">{item.concept}</td>
+                  <td data-label="Fecha">{dayjs.utc(item.date).format('DD-MM-YYYY')}</td>
+                  <td data-label="Monto">{`$ ${item.amount.toLocaleString('es')}`}</td>
+                  <td data-label="Método" className="metodo-pago-motion">{item.paymentMethod}</td>
+                  <td data-label="Tipo">{item.incomeType}</td>
+                  <td data-label="Sede">{item.location}</td>
+                  <td data-label="Acciones" className="motion-actions">
+                    <Button className="motion-edit-btn" onClick={() => handleEdit(index)}>
+                      <span className="text-btn">Editar</span>
+                      <span className="icon-btn">
+                        <FaEdit />
+                      </span>
+                    </Button>
+                    <Button className="motion-delete-btn" onClick={() => handleDelete(index)}>
+                      <span className="text-btn">Eliminar</span>
+                      <span className="icon-btn">
+                        <FaTrash />
+                      </span>
+                    </Button>
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan="7" className="text-center">
+                  No hay movimientos registrados.
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </Table>
       </div>

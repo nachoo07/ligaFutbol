@@ -16,7 +16,26 @@
     padding: 4px !important;
   }
 
-  
+  .submenu {
+    padding-left: 20px;
+    margin-top: 5px;
+}
+
+.submenu-item {
+    color: white !important;
+    font-size: 14px;
+    padding: 5px 0;
+    cursor: pointer;
+}
+
+.submenu-item:hover {
+    text-decoration: underline;
+}
+
+.submenu-icon {
+    margin-left: 5px;
+    font-size: 12px;
+}
   .navbarr {
     margin-left: auto;
     display: flex;

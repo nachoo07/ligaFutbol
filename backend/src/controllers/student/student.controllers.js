@@ -86,12 +86,41 @@ const capitalizeWords = (str) => {
       .join(' ');
 };
 
+// Función para verificar si un enlace de Google Drive es accesible
+const checkGoogleDriveLink = async (url) => {
+  try {
+    const driveId = url.match(/[-\w]{25,}/)?.[0];
+    if (!driveId) {
+      console.error(`[ERROR] No se pudo extraer el ID de Google Drive de la URL: ${url}`);
+      return false;
+    }
+    const directLink = `https://drive.google.com/uc?export=download&id=${driveId}`;
+    const response = await axios.head(directLink, {
+      timeout: 5000,
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, como Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      },
+    });
+    console.log(`[INFO] Enlace de Google Drive ${url} accesible: ${response.status === 200}`);
+    return response.status === 200;
+  } catch (error) {
+    console.error(`[ERROR] No se pudo acceder al enlace de Google Drive ${url}: ${error.message}`);
+    return false;
+  }
+};
+
 // Función para subir a Cloudinary
 const imageCache = new Map();
 
 const uploadToCloudinary = async (url, folder, options = {}) => {
   if (!url) return null;
-  if (imageCache.has(url)) return imageCache.get(url);
+
+  // Verificar si la URL ya está en caché
+  if (imageCache.has(url)) {
+    const cachedUrl = imageCache.get(url);
+    console.log(`[CACHE] Usando URL en caché para ${url}: ${cachedUrl}`);
+    return cachedUrl;
+  }
 
   try {
     console.log(`[START] Subiendo ${url} a ${folder}`);
@@ -101,13 +130,19 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
     if (url.includes('drive.google.com')) {
       const driveId = url.match(/[-\w]{25,}/)?.[0];
       if (!driveId) {
-        console.error(`No se pudo extraer el ID de Google Drive de la URL: ${url}`);
-        return null;
+        throw new Error(`No se pudo extraer el ID de Google Drive de la URL: ${url}`);
       }
       directLink = `https://drive.google.com/uc?export=download&id=${driveId}`;
+
+      // Verificar si el enlace de Google Drive es accesible
+      const isAccessible = await checkGoogleDriveLink(url);
+      if (!isAccessible) {
+        throw new Error(`El enlace de Google Drive no es accesible: ${url}`);
+      }
     }
 
     // Descargar la imagen
+    console.log(`[DOWNLOAD] Descargando imagen desde ${directLink}`);
     const response = await axios.get(directLink, {
       responseType: 'arraybuffer',
       timeout: 30000,
@@ -151,7 +186,7 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
     if (!isValidImage) {
       console.error(`La URL ${directLink} no devolvió una imagen válida. Content-Type: ${contentType}, Magic Numbers: ${magicNumbers}`);
       console.error(`Datos de respuesta: ${buffer.toString('utf8', 0, 200)}`);
-      return null;
+      throw new Error(`La URL ${directLink} no devolvió una imagen válida. Content-Type: ${contentType}`);
     }
 
     // Usar el tipo detectado o el Content-Type si es válido, fallback a image/jpeg
@@ -159,10 +194,21 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
     console.log(`Tipo de imagen detectado: ${mimeType}`);
 
     // Subir a Cloudinary
+    const uploadOptions = {
+      folder,
+      quality: 'auto',
+      resource_type: 'image',
+      ...options,
+    };
+    console.log(`[UPLOAD] Subiendo a Cloudinary con opciones: ${JSON.stringify(uploadOptions)}`);
     const result = await cloudinaryV2.uploader.upload(
       `data:${mimeType};base64,${buffer.toString('base64')}`,
-      { folder, quality: 'auto', ...options }
+      uploadOptions
     );
+
+    if (!result.secure_url) {
+      throw new Error('No se devolvió una secure_url después de subir la imagen');
+    }
 
     console.log(`[SUCCESS] Subida: ${result.secure_url}`);
     imageCache.set(url, result.secure_url);
@@ -173,7 +219,7 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
       console.error(`Código de estado: ${error.response.status}`);
       console.error(`Datos de respuesta: ${error.response.data ? error.response.data.toString().substring(0, 200) : 'Sin datos'}`);
     }
-    return null;
+    throw error; // Lanzar el error para que se maneje en el llamador
   }
 };
 
@@ -193,6 +239,10 @@ export const getAllStudents = async (req, res) => {
 // Crear un nuevo estudiante
 export const createStudent = async (req, res) => {
   try {
+    // Limpiar imageCache al inicio de la operación
+    imageCache.clear();
+    console.log('[INFO] imageCache limpiado al inicio de createStudent');
+
     const {
       name, lastName, dni, birthDate, address, motherName, fatherName,
       motherPhone, fatherPhone, category, mail, school, color, sex, status
@@ -214,51 +264,70 @@ export const createStudent = async (req, res) => {
       color: capitalizeWords(color),
       sex: capitalizeWords(sex),
       status: capitalizeWords(status),
-  };
+    };
 
-  if (!normalizedData.name || !normalizedData.lastName || !normalizedData.dni || !normalizedData.birthDate || !normalizedData.address || 
-    !normalizedData.motherName || !normalizedData.fatherName || !normalizedData.motherPhone || 
-    !normalizedData.fatherPhone || !normalizedData.category || !normalizedData.school || 
-    !normalizedData.sex || !normalizedData.status) {
-    return res.status(400).json({ message: 'Faltan campos obligatorios' });
-}
+    if (!normalizedData.name || !normalizedData.lastName || !normalizedData.dni || !normalizedData.birthDate || !normalizedData.address || 
+        !normalizedData.motherName || !normalizedData.fatherName || !normalizedData.motherPhone || 
+        !normalizedData.fatherPhone || !normalizedData.category || !normalizedData.school || 
+        !normalizedData.sex || !normalizedData.status) {
+      return res.status(400).json({ message: 'Faltan campos obligatorios' });
+    }
 
     let profileImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
     let archivedUrls = [];
     let archivedNames = [];
 
+    // Subir profileImage con un public_id basado en el dni
     if (req.files && req.files['profileImage'] && req.files['profileImage'].length > 0) {
       const file = req.files['profileImage'][0];
-      const result = await cloudinaryV2.uploader.upload(
-        `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-        { folder: 'students/profile', resource_type: 'image' }
-      );
-      profileImage = result.secure_url;
+      const publicId = `students/profile/${normalizedData.dni}`;
+      try {
+        const result = await cloudinaryV2.uploader.upload(
+          `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+          { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true }
+        );
+        if (!result.secure_url) {
+          throw new Error('Fallo al subir profileImage: secure_url no devuelto');
+        }
+        profileImage = result.secure_url;
+      } catch (error) {
+        console.error('Error al subir profileImage:', error);
+        return res.status(500).json({ message: `Error al subir profileImage: ${error.message}`, success: false });
+      }
     }
 
+    // Subir archived con public_ids basados en el dni
     if (req.files && req.files['archived'] && req.files['archived'].length > 0) {
       const archivedFiles = req.files['archived'];
       if (archivedFiles.length > 2) {
         return res.status(400).json({ message: 'Se permiten máximo 2 archivos en archived' });
       }
-      for (const file of archivedFiles) {
-        const result = await cloudinaryV2.uploader.upload(
-          `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-          { folder: 'students/archived', resource_type: 'image' }
-        );
-        archivedUrls.push(result.secure_url);
-        archivedNames.push(file.originalname);
+      for (let i = 0; i < archivedFiles.length; i++) {
+        const file = archivedFiles[i];
+        const publicId = `students/archived/${normalizedData.dni}/${i}`;
+        try {
+          const result = await cloudinaryV2.uploader.upload(
+            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+            { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true }
+          );
+          if (!result.secure_url) {
+            throw new Error(`Fallo al subir archived[${i}]: secure_url no devuelto`);
+          }
+          archivedUrls.push(result.secure_url);
+          archivedNames.push(file.originalname);
+        } catch (error) {
+          console.error(`Error al subir archived[${i}]:`, error);
+          return res.status(500).json({ message: `Error al subir archived[${i}]: ${error.message}`, success: false });
+        }
       }
     }
-
-    //const normalizedBirthDate = normalizeDate(birthDate); // Normalizar a dd/mm/yyyy
 
     const newStudent = await Student.create({
       ...normalizedData,
       profileImage,
       archived: archivedUrls,
       archivedNames,
-  });
+    });
 
     const isEnabled = await calculateStudentEnabledStatus(newStudent._id);
     newStudent.isEnabled = isEnabled;
@@ -285,17 +354,18 @@ export const deleteStudent = async (req, res) => {
 
     // Eliminar las cuotas asociadas al estudiante
     try {
-      const deletedShares = await Share.deleteMany({ student: student._id });
+      await Share.deleteMany({ student: student._id });
     } catch (shareDeleteError) {
       deletionErrors.push(`Error al eliminar las cuotas asociadas: ${shareDeleteError.message}`);
-    } 
+    }
 
+    // Eliminar profileImage de Cloudinary
     if (student.profileImage && student.profileImage !== 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg') {
       const profileImagePublicId = getPublicIdFromUrl(student.profileImage);
       if (profileImagePublicId) {
         try {
           const result = await cloudinaryV2.uploader.destroy(profileImagePublicId, { resource_type: 'image' });
-          if (result.result !== 'ok') {
+          if (result.result !== 'ok' && result.result !== 'not found') {
             deletionErrors.push(`No se pudo eliminar profileImage (${profileImagePublicId}) de Cloudinary: ${result.result}`);
           }
         } catch (deleteError) {
@@ -306,6 +376,7 @@ export const deleteStudent = async (req, res) => {
       }
     }
 
+    // Eliminar archived de Cloudinary
     if (student.archived && student.archived.length > 0) {
       const archivedPublicIds = student.archived
         .map(url => getPublicIdFromUrl(url))
@@ -323,6 +394,16 @@ export const deleteStudent = async (req, res) => {
         }
       }
     }
+
+    // Limpiar los campos profileImage y archived antes de eliminar el estudiante
+    await Student.findByIdAndUpdate(req.params.id, {
+      $set: {
+        profileImage: 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg',
+        archived: [],
+        archivedNames: [],
+      }
+    });
+
     // Eliminar el estudiante
     await Student.findByIdAndDelete(req.params.id);
 
@@ -344,6 +425,10 @@ export const deleteStudent = async (req, res) => {
 // Actualizar un estudiante por su ID
 export const updateStudent = async (req, res) => {
   try {
+    // Limpiar imageCache al inicio de la operación
+    imageCache.clear();
+    console.log('[INFO] imageCache limpiado al inicio de updateStudent');
+
     const student = await Student.findById(req.params.id);
     if (!student) {
       return res.status(404).json({ message: 'Estudiante no encontrado', success: false });
@@ -352,13 +437,15 @@ export const updateStudent = async (req, res) => {
     const studentData = { ...req.body };
     const updateErrors = [];
 
+    // Subir profileImage con un public_id basado en el dni
     if (req.files && req.files.profileImage && req.files.profileImage.length > 0) {
+      // Eliminar la imagen anterior si existe
       if (student.profileImage && student.profileImage !== 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg') {
         const oldProfileImagePublicId = getPublicIdFromUrl(student.profileImage);
         if (oldProfileImagePublicId) {
           try {
             const result = await cloudinaryV2.uploader.destroy(oldProfileImagePublicId, { resource_type: 'image' });
-            if (result.result !== 'ok') {
+            if (result.result !== 'ok' && result.result !== 'not found') {
               updateErrors.push(`No se pudo eliminar la imagen de perfil anterior (${oldProfileImagePublicId}) de Cloudinary: ${result.result}`);
             }
           } catch (deleteError) {
@@ -372,10 +459,14 @@ export const updateStudent = async (req, res) => {
         return res.status(400).json({ message: 'El archivo profileImage no es válido', success: false });
       }
       try {
+        const publicId = `students/profile/${student.dni}`;
         const result = await cloudinaryV2.uploader.upload(
           `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-          { folder: 'students/profile', width: 100, height: 100, crop: 'fill' }
+          { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true, width: 100, height: 100, crop: 'fill' }
         );
+        if (!result.secure_url) {
+          throw new Error('Fallo al subir profileImage: secure_url no devuelto');
+        }
         studentData.profileImage = result.secure_url;
       } catch (uploadError) {
         console.error('Error al subir profileImage a Cloudinary:', uploadError);
@@ -383,7 +474,9 @@ export const updateStudent = async (req, res) => {
       }
     }
 
+    // Subir archived con public_ids basados en el dni
     if (req.files && req.files.archived && req.files.archived.length > 0) {
+      // Eliminar los archivos archived anteriores si existen
       if (student.archived && student.archived.length > 0) {
         const archivedPublicIds = student.archived
           .map(url => getPublicIdFromUrl(url))
@@ -403,16 +496,21 @@ export const updateStudent = async (req, res) => {
 
       const archivedUrls = [];
       const archivedNames = studentData.archivedNames || [];
-      for (const file of req.files.archived) {
+      for (let i = 0; i < req.files.archived.length; i++) {
+        const file = req.files.archived[i];
         if (!file || !file.buffer) {
           updateErrors.push('Uno de los archivos archived no es válido');
           continue;
         }
         try {
+          const publicId = `students/archived/${student.dni}/${i}`;
           const result = await cloudinaryV2.uploader.upload(
             `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-            { folder: 'students/archived' }
+            { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true }
           );
+          if (!result.secure_url) {
+            throw new Error(`Fallo al subir archived[${i}]: secure_url no devuelto`);
+          }
           archivedUrls.push(result.secure_url);
         } catch (uploadError) {
           updateErrors.push(`Error al subir un archivo archived: ${uploadError.message}`);
@@ -464,6 +562,10 @@ export const importStudents = async (req, res) => {
       return res.status(400).json({ message: 'No se recibió ningún archivo Excel', success: false });
     }
 
+    // Limpiar imageCache al inicio de la operación
+    imageCache.clear();
+    console.log('[INFO] imageCache limpiado al inicio de importStudents');
+
     const workbook = xlsx.read(req.file.buffer, { type: 'buffer', cellDates: true });
     const sheetName = workbook.SheetNames[0];
     const worksheet = xlsx.utils.sheet_to_json(workbook.Sheets[sheetName], { raw: false });
@@ -498,10 +600,11 @@ export const importStudents = async (req, res) => {
           profileImage: row['Imagen de Perfil'] || row['profileImage'],
           archived: row['Documento'] || row['archived'],
           sex: capitalizeWords(row['Sexo'] || row['sex']),
-      };
+          status: row['Estado'] || row['status'] || 'Activo', // Valor por defecto si no se proporciona
+        };
 
         // Validar campos obligatorios
-        const requiredFields = ['name', 'lastName', 'dni', 'birthDate', 'address', 'motherName', 'fatherName', 'motherPhone', 'fatherPhone', 'category', 'school', 'sex'];
+        const requiredFields = ['name', 'lastName', 'dni', 'birthDate', 'address', 'motherName', 'fatherName', 'motherPhone', 'fatherPhone', 'category', 'school', 'sex', 'status'];
         const missingFields = requiredFields.filter(field => !studentData[field] || String(studentData[field]).trim() === '');
         if (missingFields.length > 0) {
           errors.push(`Fila ${rowIndex}: Faltan campos obligatorios: ${missingFields.join(', ')}`);
@@ -554,6 +657,12 @@ export const importStudents = async (req, res) => {
           return null;
         }
 
+        // Validar status
+        if (!['Activo', 'Inactivo'].includes(studentData.status)) {
+          errors.push(`Fila ${rowIndex}: Estado debe ser 'Activo' o 'Inactivo' (valor recibido: ${studentData.status})`);
+          return null;
+        }
+
         // Procesar profileImage (máximo 1)
         let profileImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
         if (studentData.profileImage) {
@@ -569,17 +678,25 @@ export const importStudents = async (req, res) => {
           }
 
           console.log(`[START] Subiendo profileImage para fila ${rowIndex}: ${profileImageLinks[0]}`);
-          const result = await uploadToCloudinary(profileImageLinks[0], 'students/profile', {
-            width: 100,
-            height: 100,
-            crop: 'fill',
-          });
-          if (result) {
+          const publicId = `students/profile/${studentData.dni}`; // Definir publicId usando el dni
+          try {
+            const result = await uploadToCloudinary(profileImageLinks[0], 'students/profile', {
+              public_id: publicId,
+              overwrite: true,
+              invalidate: true,
+              width: 100,
+              height: 100,
+              crop: 'fill',
+            });
+            if (!result) {
+              throw new Error('No se devolvió una URL válida');
+            }
             profileImage = result;
             console.log(`[SUCCESS] ProfileImage subido: ${result}`);
-          } else {
-            errors.push(`Fila ${rowIndex}: Error al procesar profileImage`);
-            console.log(`[ERROR] Fallo al subir profileImage: ${profileImageLinks[0]}`);
+          } catch (uploadError) {
+            errors.push(`Fila ${rowIndex}: Error al procesar profileImage: ${uploadError.message}`);
+            console.log(`[ERROR] Fallo al subir profileImage: ${profileImageLinks[0]} - ${uploadError.message}`);
+            return null; // No continuar si falla la subida de profileImage
           }
         }
 
@@ -598,17 +715,27 @@ export const importStudents = async (req, res) => {
             return null;
           }
 
-          for (const link of archivedLinks) {
+          for (let i = 0; i < archivedLinks.length; i++) {
+            const link = archivedLinks[i];
             console.log(`[START] Subiendo archived para fila ${rowIndex}: ${link}`);
-            const result = await uploadToCloudinary(link, 'students/archived');
-            if (result) {
+            const publicId = `students/archived/${studentData.dni}/${i}`; // Definir publicId usando el dni
+            try {
+              const result = await uploadToCloudinary(link, 'students/archived', {
+                public_id: publicId,
+                overwrite: true,
+                invalidate: true,
+              });
+              if (!result) {
+                throw new Error('No se devolvió una URL válida');
+              }
               const driveId = link.match(/[-\w]{25,}/)?.[0] || 'unknown';
               archivedUrls.push(result);
               archivedNames.push(driveId);
               console.log(`[SUCCESS] Archived subido: ${result}`);
-            } else {
-              errors.push(`Fila ${rowIndex}: Error al procesar archived (${link})`);
-              console.log(`[ERROR] Fallo al subir archived: ${link}`);
+            } catch (uploadError) {
+              errors.push(`Fila ${rowIndex}: Error al procesar archived (${link}): ${uploadError.message}`);
+              console.log(`[ERROR] Fallo al subir archived: ${link} - ${uploadError.message}`);
+              return null; // No continuar si falla la subida de archived
             }
           }
         }

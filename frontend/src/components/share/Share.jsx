@@ -1,14 +1,15 @@
 import { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FaBars,FaAddressCard ,FaRegListAlt , FaUsers, FaMoneyBill, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice } from 'react-icons/fa';
+import { FaBars, FaAddressCard, FaRegListAlt, FaUsers, FaMoneyBill, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice, FaSpinner } from 'react-icons/fa';
 import { MdOutlineReadMore } from "react-icons/md";
 import { LuClipboardList } from "react-icons/lu";
 import { SharesContext } from "../../context/share/ShareContext";
 import { StudentsContext } from "../../context/student/StudentContext";
 import { useEmail } from '../../context/email/EmailContext';
-import { Button, Table, Alert, Form } from 'react-bootstrap';
+import { Button, Table, Form } from 'react-bootstrap';
 import { MdDelete } from 'react-icons/md';
 import MassiveShareForm from "../shareMassive/MassiveShareForm";
+import Swal from 'sweetalert2';
 import "./share.css";
 
 const Share = () => {
@@ -29,9 +30,6 @@ const Share = () => {
     const [paymentType, setPaymentType] = useState("");
     const [selectedCuota, setSelectedCuota] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [showAlert, setShowAlert] = useState(false);
-    const [alertMessage, setAlertMessage] = useState("");
-    const [alertVariant, setAlertVariant] = useState("warning");
     const [isMenuOpen, setIsMenuOpen] = useState(true);
     const [isCuotasLoaded, setIsCuotasLoaded] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
@@ -41,13 +39,16 @@ const Share = () => {
     const [sendingReceipt, setSendingReceipt] = useState(null);
     const [hasClearedStudent, setHasClearedStudent] = useState(false);
     const [showMassiveModal, setShowMassiveModal] = useState(false);
-    const studentsPerPage = 10;
+    const studentsPerPage = 15;
+    const maxVisiblePages = 7; // Número máximo de páginas visibles en la paginación
 
     const years = Array.from({ length: 5 }, (_, i) => 2025 + i);
 
     useEffect(() => {
         if (!isCuotasLoaded) {
-            obtenerCuotas().then(() => setIsCuotasLoaded(true));
+            obtenerCuotas().then(() => setIsCuotasLoaded(true)).catch((error) => {
+                Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas.", "error");
+            });
             obtenerEstudiantes();
         }
     }, [isCuotasLoaded, obtenerCuotas, obtenerEstudiantes]);
@@ -59,6 +60,8 @@ const Share = () => {
             obtenerCuotasPorEstudiante(studentId).then((studentCuotas) => {
                 setAllStudentCuotas(studentCuotas);
                 setFilteredStudentCuotas(studentCuotas);
+            }).catch((error) => {
+                Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas del estudiante.", "error");
             });
         }
     }, [studentId, allStudents, obtenerCuotasPorEstudiante, hasClearedStudent]);
@@ -103,6 +106,8 @@ const Share = () => {
         obtenerCuotasPorEstudiante(student._id).then((studentCuotas) => {
             setAllStudentCuotas(studentCuotas);
             setFilteredStudentCuotas(studentCuotas);
+        }).catch((error) => {
+            Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas del estudiante.", "error");
         });
     };
 
@@ -135,6 +140,7 @@ const Share = () => {
             navigate(-1);
         }
     };
+
     const menuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
         { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
@@ -172,26 +178,20 @@ const Share = () => {
         setIsCuotasLoaded(false);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!selectedStudent || !selectedStudent._id) {
-            setAlertMessage("No se ha seleccionado un estudiante.");
-            setAlertVariant("warning");
-            setShowAlert(true);
+            Swal.fire("¡Advertencia!", "No se ha seleccionado un estudiante.", "warning");
             return;
         }
 
         if (!paymentName || !amount || !paymentDate || !paymentMethod || !paymentType) {
-            setAlertMessage("Por favor completa todos los campos obligatorios.");
-            setAlertVariant("warning");
-            setShowAlert(true);
+            Swal.fire("¡Advertencia!", "Por favor completa todos los campos obligatorios.", "warning");
             return;
         }
 
         const year = new Date(paymentDate).getFullYear();
         if (isNaN(year)) {
-            setAlertMessage("La fecha de pago ingresada no es válida.");
-            setAlertVariant("warning");
-            setShowAlert(true);
+            Swal.fire("¡Advertencia!", "La fecha de pago ingresada no es válida.", "warning");
             return;
         }
 
@@ -205,55 +205,43 @@ const Share = () => {
             paymentType,
         };
 
-        if (selectedCuota) {
-            updateCuota({ ...cuotaData, _id: selectedCuota._id }).then(() => {
-                Promise.all([
+        try {
+            if (selectedCuota) {
+                await updateCuota({ ...cuotaData, _id: selectedCuota._id });
+                await Promise.all([
                     obtenerCuotasPorEstudiante(selectedStudent._id),
                     obtenerCuotas(true),
-                    obtenerEstudiantes(), // Actualizar el contexto de estudiantes
+                    obtenerEstudiantes(),
                 ]).then(([studentCuotas]) => {
                     setAllStudentCuotas(studentCuotas);
                     setFilteredStudentCuotas(studentCuotas);
-                    setAlertMessage("Cuota actualizada exitosamente.");
-                    setAlertVariant("success");
-                    setShowAlert(true);
-                    // Disparar evento personalizado
-                window.dispatchEvent(new Event('shareUpdated'));
+                    window.dispatchEvent(new Event('shareUpdated'));
+                    Swal.fire("¡Éxito!", `Cuota actualizada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
                 });
-            }).catch((error) => {
-                setAlertMessage("Error al actualizar la cuota: " + error.message);
-                setAlertVariant("danger");
-                setShowAlert(true);
-            });
-        } else {
-            addCuota(cuotaData).then(() => {
-                Promise.all([
+            } else {
+                await addCuota(cuotaData);
+                await Promise.all([
                     obtenerCuotasPorEstudiante(selectedStudent._id),
                     obtenerCuotas(true),
-                    obtenerEstudiantes(), // Actualizar el contexto de estudiantes
+                    obtenerEstudiantes(),
                 ]).then(([studentCuotas]) => {
                     setAllStudentCuotas(studentCuotas);
                     setFilteredStudentCuotas(studentCuotas);
-                    setAlertMessage("Cuota agregada exitosamente.");
-                    setAlertVariant("success");
-                    setShowAlert(true);
-                    // Disparar evento personalizado
-                window.dispatchEvent(new Event('shareUpdated'));
+                    window.dispatchEvent(new Event('shareUpdated'));
+                    Swal.fire("¡Éxito!", `Cuota agregada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
                 });
-            }).catch((error) => {
-                setAlertMessage("Error al agregar la cuota: " + error.message);
-                setAlertVariant("danger");
-                setShowAlert(true);
-            });
-        }
+            }
 
-        setPaymentName("");
-        setAmount("");
-        setPaymentDate("");
-        setPaymentMethod("");
-        setPaymentType("");
-        setSelectedCuota(null);
-        setIsEditing(false);
+            setPaymentName("");
+            setAmount("");
+            setPaymentDate("");
+            setPaymentMethod("");
+            setPaymentType("");
+            setSelectedCuota(null);
+            setIsEditing(false);
+        } catch (error) {
+            Swal.fire("¡Error!", `Error al ${selectedCuota ? 'actualizar' : 'agregar'} la cuota: ${error.response?.data?.message || error.message}`, "error");
+        }
     };
 
     const handleEditClick = (cuota) => {
@@ -264,6 +252,17 @@ const Share = () => {
         setPaymentMethod(cuota.paymentMethod || "");
         setPaymentType(cuota.paymentType || "");
         setIsEditing(true);
+
+        // Mostrar un mensaje informativo si es "Pagar" (cuota.paymentDate no está definido)
+        if (!cuota.paymentDate) {
+            Swal.fire({
+                title: "Completar Pago",
+                text: "Por favor, completa los campos en el formulario de abajo para registrar el pago de la cuota.",
+                icon: "info",
+                timer: 3000,
+                showConfirmButton: false,
+            });
+        }
     };
 
     const handleCancelEdit = () => {
@@ -276,40 +275,48 @@ const Share = () => {
         setIsEditing(false);
     };
 
-    const handleDelete = (id) => {
-        deleteCuota(id).then(() => {
-            Promise.all([
-                obtenerCuotasPorEstudiante(selectedStudent._id),
-                obtenerCuotas(true),
-                obtenerEstudiantes(), // Actualizar el contexto de estudiantes
-            ]).then(([studentCuotas]) => {
-                setAllStudentCuotas(studentCuotas);
-                setFilteredStudentCuotas(studentCuotas);
-                // Disparar evento personalizado
-            window.dispatchEvent(new Event('shareUpdated'));
-            });
-        }).catch((error) => {
-            setAlertMessage("Error al eliminar la cuota: " + error.message);
-            setShowAlert(true);
+    const handleDelete = async (id) => {
+        const confirmacion = await Swal.fire({
+            title: "¿Estás seguro que deseas eliminar la cuota?",
+            text: "Esta acción no se puede deshacer",
+            icon: "warning",
+            showCancelButton: true,
+            confirmButtonColor: "#3085d6",
+            cancelButtonColor: "#d33",
+            confirmButtonText: "Sí, eliminar",
+            cancelButtonText: "Cancelar",
         });
+
+        if (confirmacion.isConfirmed) {
+            try {
+                await deleteCuota(id);
+                await Promise.all([
+                    obtenerCuotasPorEstudiante(selectedStudent._id),
+                    obtenerCuotas(true),
+                    obtenerEstudiantes(),
+                ]).then(([studentCuotas]) => {
+                    setAllStudentCuotas(studentCuotas);
+                    setFilteredStudentCuotas(studentCuotas);
+                    window.dispatchEvent(new Event('shareUpdated'));
+                    Swal.fire("¡Éxito!", "Cuota eliminada exitosamente.", "success");
+                });
+            } catch (error) {
+                Swal.fire("¡Error!", `Error al eliminar la cuota: ${error.response?.data?.message || error.message}`, "error");
+            }
+        }
     };
 
     const handleSendReceipt = async (cuota) => {
         if (!cuota.student?.mail) {
-            setAlertMessage("Advertencia: El estudiante no tiene un correo registrado.");
-            setShowAlert(true);
+            Swal.fire("¡Advertencia!", "El estudiante no tiene un correo registrado.", "warning");
             return;
         }
         setSendingReceipt(cuota._id);
         try {
             await sendReceiptEmail(cuota.student, cuota);
-            setAlertMessage("Comprobante enviado exitosamente.");
-            setAlertVariant("success"); // Asegurar que la alerta sea de éxito
-            setShowAlert(true);
+            Swal.fire("¡Éxito!", "Comprobante enviado exitosamente.", "success");
         } catch (error) {
-            setAlertMessage("Error al enviar el comprobante: " + error.message);
-            setAlertVariant("danger"); // Asegurar que la alerta sea de error
-            setShowAlert(true);
+            Swal.fire("¡Error!", `Error al enviar el comprobante: ${error.response?.data?.message || error.message}`, "error");
         } finally {
             setSendingReceipt(null);
         }
@@ -317,6 +324,11 @@ const Share = () => {
 
     const formatDate = (dateString) => dateString ? new Date(dateString).toISOString().split("T")[0] : "";
 
+    const getVisiblePageNumbers = () => {
+        const startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        const endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        return Array.from({ length: endPage - startPage + 1 }, (_, i) => startPage + i);
+    };
     return (
         <div className="dashboard-container-share">
             <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
@@ -368,49 +380,49 @@ const Share = () => {
                             <p className="loading">Cargando datos...</p>
                         ) : (
                             <Table className="students-table">
-                            <thead>
-                              <tr>
-                                <th>#</th>
-                                <th>Nombre</th>
-                                <th>Apellido</th>
-                                <th>DNI</th>
-                                <th className="estado-alumno">Estado del Alumno</th>
-                                <th>Estado de Cuotas</th>
-                                <th>Acciones</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {filteredStudents.length === 0 ? (
-                                <tr>
-                                  <td colSpan="7" className="text-center">
-                                    No hay estudiantes que coincidan con los filtros.
-                                  </td>
-                                </tr>
-                              ) : (
-                                currentStudents.map((student, index) => (
-                                  <tr key={student._id}>
-                                    <td>{indexOfFirstStudent + index + 1}</td>
-                                    <td>{student.name}</td>
-                                    <td>{student.lastName}</td>
-                                    <td>{student.dni || "-"}</td>
-                                    <td className="estado-alumno">{student.status}</td>
-                                    <td>{getStudentShareStatus(student._id)}</td>
-                                    <td>
-                                      <Button
-                                        className="action-btn ver-cuotas-btn"
-                                        onClick={() => handleSelectStudent(student)}
-                                      >
-                                        <span className="ver-cuotas-text">Ver Cuotas</span>
-                                        <span className="ver-cuotas-icon">
-                                          <MdOutlineReadMore />
-                                        </span>
-                                      </Button>
-                                    </td>
-                                  </tr>
-                                ))
-                              )}
-                            </tbody>
-                          </Table>
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Nombre</th>
+                                        <th>Apellido</th>
+                                        <th>DNI</th>
+                                        <th className="estado-alumno">Estado del Alumno</th>
+                                        <th>Estado de Cuotas</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {filteredStudents.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="7" className="text-center">
+                                                No hay estudiantes que coincidan con los filtros.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        currentStudents.map((student, index) => (
+                                            <tr key={student._id}>
+                                                <td>{indexOfFirstStudent + index + 1}</td>
+                                                <td>{student.name}</td>
+                                                <td>{student.lastName}</td>
+                                                <td>{student.dni || "-"}</td>
+                                                <td className="estado-alumno">{student.status}</td>
+                                                <td>{getStudentShareStatus(student._id)}</td>
+                                                <td>
+                                                    <Button
+                                                        className="action-btn ver-cuotas-btn"
+                                                        onClick={() => handleSelectStudent(student)}
+                                                    >
+                                                        <span className="ver-cuotas-text">Ver Cuotas</span>
+                                                        <span className="ver-cuotas-icono">
+                                                            <MdOutlineReadMore />
+                                                        </span>
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </Table>
                         )}
                         {filteredStudents.length > 0 && (
                             <div className="pagination">
@@ -421,13 +433,13 @@ const Share = () => {
                                 >
                                     «
                                 </Button>
-                                {[...Array(totalPages).keys()].map((number) => (
+                                {getVisiblePageNumbers().map((number) => (
                                     <Button
-                                        key={number + 1}
-                                        className={`pagination-btn ${currentPage === number + 1 ? 'active' : ''}`}
-                                        onClick={() => paginate(number + 1)}
+                                        key={number}
+                                        className={`pagination-btn ${currentPage === number ? 'active' : ''}`}
+                                        onClick={() => paginate(number)}
                                     >
-                                        {number + 1}
+                                        {number}
                                     </Button>
                                 ))}
                                 <Button
@@ -465,10 +477,10 @@ const Share = () => {
                                     <th>Cuota</th>
                                     <th>Monto</th>
                                     <th className="metodo-pago">Método de Pago</th>
-                                    <th>Tipo de Pago</th>
+                                    <th className="tipo-de-pago">Tipo de Pago</th>
                                     <th>Fecha de Pago</th>
                                     <th>Estado</th>
-                                    <th>Acciones</th>
+                                    <th>Accion</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -480,7 +492,7 @@ const Share = () => {
                                                 <td>{cuota.paymentName}</td>
                                                 <td>{cuota.amount ? new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 }).format(cuota.amount) : "-"}</td>
                                                 <td className="metodo-pago">{cuota.paymentMethod || "-"}</td>
-                                                <td>{cuota.paymentType || "-"}</td>
+                                                <td className="tipo-de-pago">{cuota.paymentType || "-"}</td>
                                                 <td>{cuota.paymentDate ? formatDate(cuota.paymentDate) : "-"}</td>
                                                 <td>{cuota.status}</td>
                                                 <td className="botones-acciones">
@@ -504,7 +516,11 @@ const Share = () => {
                                                         disabled={cuota.status !== "Pagado" || sendingReceipt === cuota._id}
                                                         title="Enviar Comprobante"
                                                     >
-                                                        <FaFileInvoice />
+                                                        {sendingReceipt === cuota._id ? (
+                                                            <FaSpinner className="spinner" />
+                                                        ) : (
+                                                            <FaFileInvoice />
+                                                        )}
                                                     </Button>
                                                 </td>
                                             </tr>
@@ -519,21 +535,7 @@ const Share = () => {
                                 )}
                             </tbody>
                         </Table>
-                        <div className="cuota-form">
-                            {showAlert && (
-                                <Alert
-                                    variant={alertVariant}
-                                    onClose={() => setShowAlert(false)}
-                                    dismissible
-                                    className="custom-alert"
-                                >
-                                    <Alert.Heading>
-                                        {alertVariant === "success" ? "¡Éxito!" :
-                                         alertVariant === "danger" ? "¡Error!" : "¡Advertencia!"}
-                                    </Alert.Heading>
-                                    <p>{alertMessage}</p>
-                                </Alert>
-                            )}
+                        <div className={`cuota-form ${isEditing ? 'highlight-form' : ''}`}>
                             <div className="form-row">
                                 <input
                                     type="text"

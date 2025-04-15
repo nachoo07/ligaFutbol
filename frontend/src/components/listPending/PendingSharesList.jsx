@@ -17,8 +17,8 @@ const PendingSharesList = () => {
     const [schools, setSchools] = useState([]);
     const [categories, setCategories] = useState([]);
     const [colors, setColors] = useState([]);
-    const [semesters, setSemesters] = useState([]); // Nuevo estado para los semestres
-    const [filters, setFilters] = useState({ school: '', category: '', color: '', semester: '', status: 'all' }); // Agregar semester a los filtros
+    const [semesters, setSemesters] = useState([]);
+    const [filters, setFilters] = useState({ school: '', category: '', color: '', semester: '', status: 'all' });
     const [isMenuOpen, setIsMenuOpen] = useState(true);
 
     const menuItems = [
@@ -67,7 +67,7 @@ const PendingSharesList = () => {
 
             // Extraer semestres del paymentName
             const uniqueSemesters = [...new Set(cuotas.map(share => {
-                const match = share.paymentName.match(/Semestre (\d+)/i); // Buscar "Semestre 1", "Semestre 2", etc.
+                const match = share.paymentName.match(/Semestre (\d+)/i);
                 return match ? `Semestre ${match[1]}` : null;
             }))]
                 .filter(semester => semester)
@@ -122,17 +122,31 @@ const PendingSharesList = () => {
         }));
     };
 
+    // Función para obtener el primer nombre
+    const getFirstName = (fullName) => {
+        if (!fullName) return '';
+        const names = fullName.trim().split(' ');
+        return names[0]; // Tomar solo el primer nombre
+    };
+
+    // Función para obtener el primer apellido
+    const getFirstLastName = (fullLastName) => {
+        if (!fullLastName) return '';
+        const lastNames = fullLastName.trim().split(' ');
+        return lastNames[0]; // Tomar solo el primer apellido
+    };
+
     const exportToPDF = () => {
         const doc = new jsPDF();
         doc.text('Lista de Cuotas Pendientes', 14, 16);
 
         const tableData = filteredShares.map(share => [
-            share.student.name,
-            share.student.lastName,
+            getFirstName(share.student.name), // Solo el primer nombre
+            getFirstLastName(share.student.lastName), // Solo el primer apellido
             share.student.dni,
             share.student.school,
-            share.paymentName, // Agregar Concepto
-            share.status === 'Pagado' ? share.amount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }) : '-', // Agregar Monto
+            share.paymentName,
+            share.status === 'Pagado' ? share.amount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }) : '-',
             share.status,
         ]);
 
@@ -158,7 +172,7 @@ const PendingSharesList = () => {
                         onClick={() => item.action ? item.action() : navigate(item.route)}
                     >
                         <span className="icon">{item.icon}</span>
-                        <span className="text">{item.name}</span>
+                        <span class="text">{item.name}</span>
                     </div>
                 ))}
             </div>

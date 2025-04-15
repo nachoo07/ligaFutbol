@@ -112,7 +112,7 @@ const Report = () => {
       icon: <FaChartBar />,
       hasSubmenu: true,
       submenu: [
-        { name: 'Sede Cañada', route: '/report/canada' },
+        { name: 'Sede El Palmar', route: '/report/canada' },
         { name: 'Sede Valladares', route: '/report/valladares' },
         { name: 'Sede Sirga', route: '/report/sirga' },
       ],

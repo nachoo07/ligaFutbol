@@ -14,9 +14,14 @@
   }
   
   .btn-share-masive{
-    background-color: #0163a9;
+    background-color: #0163a9 !important;
     margin-left: 20px;
     margin-right: 10px;
+    border: none;
+  }
+
+  .btn-share-masive:hover{
+    background-color: #013d61 !important;
   }
 
   .massive-cuota-form .form-row {
@@ -72,7 +77,7 @@
   }
   
   .massive-cuota-modal .modal-footer .btn:hover {
-    background-color: #013d61;
+    background-color: #013d61 !important;
   }
   .pagination-btn {
     background: #0163a9 !important;
@@ -109,11 +114,6 @@
     align-items: center;
   }
   
-  .custom-alert.alert-warning {
-    background-color: #ffeb3b; /* Amarillo más brillante */
-    border-color: #fbc02d;
-    color: #212529; /* Texto oscuro para contraste */
-}
   
   .cuotas-table {
     border-radius: 10px;
@@ -181,6 +181,7 @@
     margin-right: 10px;
     border-radius: 5px;
     font-size: 18px !important;
+    
   }
   
   .custom-alert {
@@ -255,7 +256,7 @@
     font-size: 18px !important;
   }
 
-  .ver-cuotas-icon {
+  .ver-cuotas-icono {
     display: none;
   }
 
@@ -269,86 +270,144 @@ select option[disabled] {
   color: gray;
   font-style: italic;
 }
+/* Estilo para la ruedita de carga */
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* Estilo para resaltar el formulario */
+.cuota-form.highlight-form {
+  border: 2px solid #007bff;
+  background-color: #e7f1ff;
+  padding: 15px;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+}
+
 
   @media (max-width: 576px) {
     .sidebar {
       display: none;
-    }
-  
-    .content-share {
+  }
+
+  .content-share {
       margin-left: 0;
-    }
-  
-    .search-bar .search-input {
+      padding: 10px;
+  }
+
+  .search-bar .search-input {
       width: 100%;
-    }
-  
-    .share-header {
+  }
+
+  .share-header {
       flex-direction: column;
       gap: 10px;
-    }
-  
-    .metodo-pago {
+  }
+
+  .metodo-pago {
       display: none;
-    }
-  
-    .edit {
+  }
+
+  .edit {
       margin: 0px;
       width: 30px;
       padding: 4px 8px;
-    }
+  }
   
-    .delete {
+  .modal-content {
+      width: 440px; 
+  }
+  
+  .delete {
       margin: 0px;
       width: 30px;
       padding: 4px 8px;
-    }
-  
-    .btn-text {
+  }
+
+  .btn-text {
       display: none;
-    }
-  
-    .btn-icon {
+  }
+
+  .btn-icon {
       display: inline;
-    }
-  
-    .botones-acciones {
+  }
+
+  .botones-acciones {
       display: flex;
       flex-direction: column;
-      margin-left: 20px;
       gap: 5px;
-    }
-  
-    .cancel-btn {
+  }
+  .students-table th.estado-alumno,
+  .students-table td.estado-alumno {
+    display: none; /* Oculta la columna */
+  }
+  .cancel-btn {
       height: 40px;
       margin: 10px 10px 0px 0px;
-    }
-  
-    .cuotas-table {
-      margin: 0px;
-  
-    }
+  }
 
-    .students-table th.estado-alumno,
-    .students-table td.estado-alumno {
-      display: none; /* Oculta la columna */
-    }
-  
-    /* Cambiar el botón "Ver Cuotas" a un ícono */
-    .ver-cuotas-icon {
-      display: inline; /* Muestra el ícono en pantallas pequeñas */
-      font-size: 20px;
-    }
-  
-    .ver-cuotas-text {
+  .cuotas-table {
+      margin: 0px;
+  }
+
+  /* Ocultar columnas específicas en móvil */
+  .hide-on-mobile {
+      display: none;
+  }
+
+  /* Asegurarse de que la columna "Acciones" sea visible */
+  .students-table th:last-child,
+  .students-table td:last-child {
+      display: table-cell !important;
+      width: 50px;
+      text-align: center;
+  }
+
+  /* Ajustar el padding y tamaño de fuente para las columnas visibles */
+  .students-table th,
+  .students-table td {
+      padding: 6px;
+  }
+
+  /* Asegurarse de que el texto no se desborde */
+  .students-table td {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+  }
+
+  .ver-cuotas-text {
       display: none; /* Oculta el texto en pantallas pequeñas */
-    }
-  
-    .ver-cuotas-btn {
+  }
+
+  .ver-cuotas-btn {
       padding: 6px !important;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 5px;
-    }
+  }
+
+  .action-btn {
+      margin-left: 10px !important;
+      width: 30px !important;
+      height: 30px !important;
+  }
+
+.ver-cuotas-icono {
+  display: inline; /* Muestra el ícono en pantallas pequeñas */
+
+}
+.tipo-de-pago{
+  display: none;
+}
+
+    
   }

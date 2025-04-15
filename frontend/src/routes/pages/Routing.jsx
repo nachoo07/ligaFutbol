@@ -18,6 +18,7 @@ import PageMotion from '../../pages/motion/PageMotion';
 import PageListPending from '../../pages/listPending/PageListPending';
 import PageUser from '../../pages/user/PageUser';
 import PageReport from '../../pages/report/PageReport';
+import PageHomeUser from '../../pages/homeUser/PageHomeUser';
 import SedeUno from '../../components/individualReports/SedeUno';
 import SedeDos from '../../components/individualReports/SedeDos';
 import SedeTres from '../../components/individualReports/SedeTres';
@@ -49,7 +50,7 @@ const Routing = () => {
         />
         <Route
           path="/student"
-          element={<ProtectedRoute element={<PageStudent />} role="admin" />}
+          element={<ProtectedRoute element={<PageStudent />} />}
         />
         <Route
           path="/pendingshare"
@@ -57,7 +58,7 @@ const Routing = () => {
         />
         <Route
           path="/detailstudent/:id"
-          element={<ProtectedRoute element={<PageDetail />} role="admin" />}
+          element={<ProtectedRoute element={<PageDetail />} />}
         />
         <Route path="/email"
           element={<ProtectedRoute element={<PageEmail />} role="admin" />}
@@ -86,6 +87,10 @@ const Routing = () => {
         <Route path="/list"
           element={<ProtectedRoute element={<PageList />} role="admin" />}
         />
+        <Route
+        path="/homeuser"
+        element={<ProtectedRoute element={<PageHomeUser />} role='user' />}
+      />
       </Route>
     </Routes>
   );

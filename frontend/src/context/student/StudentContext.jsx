@@ -58,6 +58,8 @@ const StudentsProvider = ({ children }) => {
                         formData.append(key, estudiante[key]);
                     }
                 }
+                 // Añadir el parámetro invalidate: true para evitar problemas de caché en Cloudinary
+                 formData.append("invalidate", "true");
                 const response = await axios.post("/api/students/create", formData, {
                     withCredentials: true,
                     headers: { "Content-Type": "multipart/form-data" },
@@ -66,8 +68,9 @@ const StudentsProvider = ({ children }) => {
                 Swal.fire("¡Éxito!", "El estudiante ha sido creado correctamente", "success");
                 await obtenerEstudiantes(); // Recargar datos después de agregar
             } catch (error) {
-                console.error("Error al crear el estudiante:", error);
-                Swal.fire("¡Error!", "Ha ocurrido un error al crear el estudiante", "error");
+                console.error("Error al crear el estudiante:", error.response?.data || error.message);
+                Swal.fire("¡Error!", `Ha ocurrido un error al crear el estudiante: ${error.response?.data?.message || error.message}`, "error");
+                throw error; // Lanzar el error para que se pueda depurar
             }
         }
     };
@@ -116,6 +119,8 @@ const StudentsProvider = ({ children }) => {
     const updateEstudiante = async (id, formData) => {
         if (auth === "admin") {
             try {
+                     // Añadir el parámetro invalidate: true para evitar problemas de caché en Cloudinary
+                     formData.append("invalidate", "true");
                 const response = await axios.put(
                     `/api/students/update/${id}`,
                     formData,
@@ -152,25 +157,128 @@ const StudentsProvider = ({ children }) => {
                     headers: { "Content-Type": "multipart/form-data" },
                 });
 
+                // Mapa de traducción para nombres de campos
+                const fieldTranslations = {
+                    name: "Nombre",
+                    lastName: "Apellido",
+                    dni: "DNI",
+                    birthDate: "Fecha de nacimiento",
+                    address: "Dirección",
+                    motherName: "Nombre de la madre",
+                    fatherName: "Nombre del padre",
+                    motherPhone: "Teléfono de la madre",
+                    fatherPhone: "Teléfono del padre",
+                    category: "Categoría",
+                    school: "Escuela",
+                    sex: "Sexo",
+                };
+
+                // Agrupar errores por tipo y personalizar mensajes
+                const errorGroups = response.data.errors.reduce((acc, error) => {
+                    // Extraer el DNI y la fila del mensaje de error
+                    const dniMatch = error.match(/DNI (\d+)/);
+                    const dni = dniMatch ? dniMatch[1] : "Desconocido";
+                    const rowMatch = error.match(/Fila (\d+)/);
+                    const row = rowMatch ? rowMatch[1] : "Desconocida";
+                    let errorType = "Otros errores";
+                    let customizedMessage = error;
+
+                    if (error.includes("Faltan campos obligatorios")) {
+                        errorType = "Campos obligatorios faltantes";
+                        // Extraer los campos faltantes y traducirlos
+                        const fieldsMatch = error.match(/Faltan campos obligatorios: (.+)$/);
+                        if (fieldsMatch) {
+                            const missingFields = fieldsMatch[1].split(", ").map((field) => fieldTranslations[field] || field);
+                            customizedMessage = `Fila ${row}: Faltan campos obligatorios: ${missingFields.join(", ")}`;
+                        }
+                    } else if (error.includes("DNI") && error.includes("debe contener 8 a 10 dígitos")) {
+                        errorType = "DNI con formato inválido";
+                    } else if (error.includes("ya existe")) {
+                        errorType = "DNI repetido";
+                    } else if (error.includes("El teléfono de la madre")) {
+                        errorType = "Teléfono de la madre inválido";
+                    } else if (error.includes("El teléfono del padre")) {
+                        errorType = "Teléfono del padre inválido";
+                    } else if (error.includes("Formato inválido de email")) {
+                        errorType = "Email con formato inválido";
+                    } else if (error.includes("Formato de fecha inválido")) {
+                        errorType = "Fecha de nacimiento con formato inválido";
+                    } else if (error.includes("La fecha de nacimiento es obligatoria")) {
+                        errorType = "Fecha de nacimiento faltante";
+                    } else if (error.includes("Sexo debe ser")) {
+                        errorType = "Sexo inválido";
+                    } else if (error.includes("Solo se permite 1 imagen en 'profileImage'")) {
+                        errorType = "Múltiples imágenes en profileImage";
+                    } else if (error.includes("Error al procesar profileImage")) {
+                        errorType = "Error al procesar profileImage";
+                    } else if (error.includes("Solo se permiten hasta 2 imágenes en 'archived'")) {
+                        errorType = "Más de 2 imágenes en archived";
+                    } else if (error.includes("Error al procesar archived")) {
+                        errorType = "Error al procesar archived";
+                    }
+
+                    if (!acc[errorType]) {
+                        acc[errorType] = [];
+                    }
+                    acc[errorType].push({ dni, row, message: customizedMessage });
+                    return acc;
+                }, {});
+
+                // Siempre importar los alumnos válidos
                 setEstudiantes((prev) => [...prev, ...response.data.students]);
 
-                if (response.data.success) {
-                    let message = `Se importaron ${response.data.imported} estudiantes.`;
-                    if (response.data.errors.length > 0) {
-                        message += `<br />Errores: <ul>${response.data.errors.map((err, idx) => `<li>${err}</li>`).join("")}</ul>`;
+                // Generar el mensaje para Swal.fire
+                let message = `Se importaron ${response.data.imported} estudiantes.`;
+                if (response.data.errors.length > 0) {
+                    message += "<br /><br /><strong>Resumen de errores:</strong><ul>";
+                    for (const [errorType, errors] of Object.entries(errorGroups)) {
+                        message += `<li>${errorType}: ${errors.length} alumnos afectados.</li>`;
                     }
+                    message += "</ul>";
+
+                    // Mostrar los primeros 5 errores detallados de cada tipo, excepto para "DNI repetido"
+                    message += "<br /><strong>Detalles de los primeros errores:</strong><ul>";
+                    for (const [errorType, errors] of Object.entries(errorGroups)) {
+                        if (errorType === "DNI repetido") continue; // No mostrar detalles de DNI repetido
+                        message += `<li><strong>${errorType}:</strong><ul>`;
+                        const limitedErrors = errors.slice(0, 5);
+                        limitedErrors.forEach((error) => {
+                            // Para "Otros errores", incluir la fila en el mensaje
+                            if (errorType === "Otros errores") {
+                                message += `<li>Fila ${error.row}: ${error.message.split(": ").slice(1).join(": ")}</li>`;
+                            } else {
+                                message += `<li>${error.message}</li>`;
+                            }
+                        });
+                        if (errors.length > 5) {
+                            message += `<li>(y ${errors.length - 5} errores más...)</li>`;
+                        }
+                        message += "</ul></li>";
+                    }
+                    message += "</ul>";
+                }
+
+                if (response.data.success || response.data.imported > 0) {
                     Swal.fire({
                         icon: "success",
                         title: "¡Éxito!",
                         html: message,
+                        confirmButtonText: "Aceptar",
+                        width: "600px",
+                        customClass: {
+                            htmlContainer: "swal2-html-container-scroll",
+                        },
                     });
                 } else {
                     Swal.fire({
                         icon: "error",
                         title: "Error",
-                        html: `No se pudieron importar los estudiantes.<br />Errores: <ul>${response.data.errors.map(
-                            (err, idx) => `<li>${err}</li>`
-                        ).join("")}</ul>`,
+                        html: message,
+                        confirmButtonText: "Aceptar",
+                        width: "600px",
+                        customClass: {
+                            htmlContainer: "swal2-html-container-scroll",
+                        },
                     });
                 }
 

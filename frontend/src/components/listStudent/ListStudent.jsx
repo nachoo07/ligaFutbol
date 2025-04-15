@@ -193,7 +193,7 @@ const ListStudent = () => {
             };
         });
 
-        for (let i = 0; i < 18; i++) {
+        for (let i = 0; i < 20; i++) {
             const student = filteredStudents[i];
             const row = {
                 number: (i + 1).toString(),
@@ -237,7 +237,7 @@ const ListStudent = () => {
     };
 
     const previewData = [];
-    for (let i = 0; i < 18; i++) {
+    for (let i = 0; i < 20; i++) {
         const student = filteredStudents[i];
         previewData.push({
             number: i + 1,

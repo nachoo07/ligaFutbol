@@ -1,24 +1,55 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Modal, Button, Form, Alert } from 'react-bootstrap';
+import { FaTimes } from 'react-icons/fa';
 import './studentModal.css';
 
 const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formData }) => {
     const [uploading, setUploading] = useState(false);
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
+    const fileInputRef = useRef(null);
+
+    // Imagen por defecto
+    const defaultImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
+
+    // Asegurarnos de que archived sea un array vacío si no está definido
+    useEffect(() => {
+        if (show) {
+            if (!formData.archived || !Array.isArray(formData.archived)) {
+                handleChange({ target: { name: 'archived', value: [] } });
+                handleChange({ target: { name: 'archivedNames', value: [] } });
+            }
+        }
+    }, [show, formData]);
+
+    // Función para transformar URLs de Cloudinary y añadir f_auto
+    const getTransformedImageUrl = (url) => {
+        if (!url || url === defaultImage) return defaultImage;
+
+        // Si es un string que comienza con "https://res.cloudinary.com", añadir f_auto
+        if (typeof url === 'string' && url.startsWith('https://res.cloudinary.com')) {
+            const urlParts = url.split('/upload/');
+            if (urlParts.length < 2) return url;
+            const transformedUrl = `${urlParts[0]}/upload/f_auto/${urlParts[1]}`;
+            return `${transformedUrl}?t=${new Date().getTime()}`; // Evitar caché
+        }
+        return url; // Devolver sin cambios si no es una URL de Cloudinary
+    };
 
     const capitalizeWords = (str) => {
         if (!str) return '';
         return str
-            .trim()
-            .split(/\s+/)
+            .split(' ')
             .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join(' ');
     };
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        const normalizedValue = capitalizeWords(value);
+        const normalizedValue = value
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
         handleChange({ target: { name, value: normalizedValue } });
     };
 
@@ -45,12 +76,11 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
             handleChange({ target: { name, value: file } });
         } else if (name === 'archived') {
             const selectedFiles = Array.from(files);
-            if (selectedFiles.length > 2) {
-                setAlertMessage('Solo se permiten hasta 2 archivos adjuntos.');
-                setShowAlert(true);
-                setTimeout(() => setShowAlert(false), 3000);
-                return;
-            }
+            const currentFiles = formData.archived || [];
+            const currentFileCount = currentFiles.length;
+            const newFileCount = selectedFiles.length;
+
+            // Validar formatos
             const invalidFiles = selectedFiles.filter(file => !validImageTypes.includes(file.type));
             if (invalidFiles.length > 0) {
                 setAlertMessage(`Formatos no soportados: ${invalidFiles.map(f => f.type).join(', ')}. Usa JPEG, PNG, GIF, HEIC, WEBP, BMP o TIFF.`);
@@ -58,8 +88,54 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                 setTimeout(() => setShowAlert(false), 3000);
                 return;
             }
-            handleChange({ target: { name, value: selectedFiles, archivedNames: selectedFiles.map(f => f.name) } });
+
+            // Verificar límite de 2 archivos
+            if (currentFileCount + newFileCount > 2) {
+                setAlertMessage('Ya tienes 2 archivos. Elimina uno para agregar otro.');
+                setShowAlert(true);
+                setTimeout(() => setShowAlert(false), 3000);
+                return;
+            }
+
+            // Acumular los nuevos archivos
+            const updatedFiles = [...currentFiles, ...selectedFiles];
+            const updatedFileNames = updatedFiles.map(f => f.name);
+
+            handleChange({
+                target: {
+                    name: 'archived',
+                    value: updatedFiles,
+                    archivedNames: updatedFileNames
+                }
+            });
+
+            // Resetear el input de archivos después de cada selección
+            if (fileInputRef.current) {
+                fileInputRef.current.value = null;
+            }
         }
+    };
+
+    // Función para eliminar un archivo específico
+    const handleRemoveFile = (index) => {
+        const updatedFiles = formData.archived.filter((_, i) => i !== index);
+        const updatedFileNames = formData.archivedNames?.filter((_, i) => i !== index);
+        handleChange({
+            target: {
+                name: 'archived',
+                value: updatedFiles,
+                archivedNames: updatedFileNames
+            }
+        });
+        // Resetear el input de archivos
+        if (fileInputRef.current) {
+            fileInputRef.current.value = null;
+        }
+    };
+
+    // Función para eliminar la imagen de perfil
+    const handleRemoveProfileImage = () => {
+        handleChange({ target: { name: 'profileImage', value: null } });
     };
 
     const handleDateChange = (e) => {
@@ -75,7 +151,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
         ? (() => {
             const [day, month, year] = formData.birthDate.split('/');
             return `${year}-${month}-${day}`;
-          })()
+        })()
         : '';
 
     const onSubmit = (e) => {
@@ -92,7 +168,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
         setUploading(true);
         handleSubmit(e).finally(() => {
             setUploading(false);
-            handleClose(); // Cerrar el modal solo después de guardar exitosamente
+            handleClose();
         });
     };
 
@@ -103,8 +179,8 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
             show={show} 
             onHide={handleClose} 
             dialogClassName="student-modal" 
-            backdrop="static" // No cerrar al hacer clic fuera
-            keyboard={false}  // No cerrar con Escape
+            backdrop="static"
+            keyboard={false}
         >
             <Modal.Header closeButton>
                 <Modal.Title>{formData._id ? "Editar Alumno" : "Agregar Alumno"}</Modal.Title>
@@ -301,7 +377,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                         </Form.Select>
                     </Form.Group>
                     <Form.Group controlId="formProfileImage" className="full-width form-group-with-preview">
-                        <div>
+                        <div className="profile-image-container">
                             <Form.Label>Imagen de Perfil</Form.Label>
                             <Form.Control
                                 type="file"
@@ -313,12 +389,26 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                             {uploading && <p className="uploading">Subiendo imagen...</p>}
                         </div>
                         {formData.profileImage && (
-                            <img
-                                src={formData.profileImage instanceof File ? URL.createObjectURL(formData.profileImage) : formData.profileImage}
-                                alt="Vista previa"
-                                className="preview-img"
-                                onError={(e) => (e.target.src = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg')}
-                            />
+                            <div className="preview-container-profile">
+                                <img
+                                    src={
+                                        formData.profileImage instanceof File
+                                            ? URL.createObjectURL(formData.profileImage)
+                                            : getTransformedImageUrl(formData.profileImage)
+                                    }
+                                    alt="Vista previa"
+                                    className="preview-img"
+                                    onError={(e) => (e.target.src = defaultImage)}
+                                />
+                                <button
+                                    type="button"
+                                    className="remove-btn"
+                                    onClick={handleRemoveProfileImage}
+                                    title="Eliminar imagen de perfil"
+                                >
+                                    <FaTimes />
+                                </button>
+                            </div>
                         )}
                     </Form.Group>
                     <Form.Group controlId="formArchived" className="full-width form-group-with-preview">
@@ -327,6 +417,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                             <Form.Control
                                 type="file"
                                 name="archived"
+                                ref={fileInputRef}
                                 onChange={handleFileChange}
                                 disabled={uploading}
                                 multiple
@@ -338,13 +429,26 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                             <div className="archived-preview">
                                 {formData.archived.map((file, index) => (
                                     <div key={index} className="archived-item">
-                                        <img
-                                            src={file instanceof File ? URL.createObjectURL(file) : file}
-                                            alt={`Archivo ${index + 1}`}
-                                            className="preview-img"
-                                            onError={(e) => (e.target.src = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg')}
-                                        />
-                                        <span>{formData.archivedNames?.[index] || (file instanceof File ? file.name : 'Archivo')}</span>
+                                        <div className="preview-container-archived">
+                                            <img
+                                                src={
+                                                    file instanceof File
+                                                        ? URL.createObjectURL(file)
+                                                        : getTransformedImageUrl(file)
+                                                }
+                                                alt={`Archivo ${index + 1}`}
+                                                className="preview-img"
+                                                onError={(e) => (e.target.src = defaultImage)}
+                                            />
+                                            <button
+                                                type="button"
+                                                className="remove-btn"
+                                                onClick={() => handleRemoveFile(index)}
+                                                title="Eliminar archivo"
+                                            >
+                                                <FaTimes />
+                                            </button>
+                                        </div>
                                     </div>
                                 ))}
                             </div>

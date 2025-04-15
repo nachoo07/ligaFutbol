@@ -125,11 +125,12 @@ const User = () => {
     }, []);
 
     const getRoleName = (role) => {
+        const isMobile = window.innerWidth <= 576; // Detectar si es tamaño móvil
         switch (role) {
             case 'admin':
-                return 'Administrador';
+                return isMobile ? 'Admin' : 'Administrador';
             case 'user':
-                return 'Usuario';
+                return isMobile ? 'User' : 'Usuario';
             default:
                 return role;
         }

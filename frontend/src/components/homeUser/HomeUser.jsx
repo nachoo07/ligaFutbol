@@ -4,23 +4,15 @@ import { FaUsers, FaBell, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarChec
 import { LoginContext } from '../../context/login/LoginContext';
 import { LuClipboardList } from "react-icons/lu";
 import { useContext } from 'react';
-import "./home.css";
+import "./homeUser.css";
 
-const Home = () => {
+const HomeUser = () => {
     const navigate = useNavigate();
     const [isMenuOpen, setIsMenuOpen] = useState(true);
     const { loading } = useContext(LoginContext);
 
     const menuItems = [
-        { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
-        { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
-        { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
-        { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
-        { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
-        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> }
+        { name: 'Alumnos', route: '/student', icon: <FaUsers /> }
     ];
 
     if (loading) {
@@ -59,7 +51,7 @@ const Home = () => {
                 </div>
             </div>
         </div>
-    );
-};
+  )
+}
 
-export default Home;
+export default HomeUser
