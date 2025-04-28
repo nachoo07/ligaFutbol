@@ -15,12 +15,11 @@ const TableStudent = () => {
     const { estudiantes, obtenerEstudiantes, addEstudiante, importStudents } = useContext(StudentsContext);
     const { auth } = useContext(LoginContext);
 
-    // Restaurar estados desde localStorage o usar valores iniciales
     const [show, setShow] = useState(false);
-    const [searchTerm, setSearchTerm] = useState(() => localStorage.getItem('studentSearchTerm') || '');
-    const [filterCategory, setFilterCategory] = useState(() => localStorage.getItem('studentFilterCategory') || '');
-    const [filterStatus, setFilterStatus] = useState(() => localStorage.getItem('studentFilterStatus') || '');
-    const [currentPage, setCurrentPage] = useState(() => parseInt(localStorage.getItem('studentCurrentPage')) || 1);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [filterCategory, setFilterCategory] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
     const [formData, setFormData] = useState({
         name: '',
         lastName: '',
@@ -47,7 +46,6 @@ const TableStudent = () => {
     const [maxVisiblePages, setMaxVisiblePages] = useState(10);
     const [isMenuOpen, setIsMenuOpen] = useState(true);
 
-    // Detectar el tamaño de pantalla y ajustar maxVisiblePages
     useEffect(() => {
         const handleResize = () => {
             if (window.innerWidth <= 576) {
@@ -62,28 +60,23 @@ const TableStudent = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    // Guardar los filtros y la página actual en localStorage cada vez que cambian
     useEffect(() => {
-        localStorage.setItem('studentSearchTerm', searchTerm);
-        localStorage.setItem('studentFilterCategory', filterCategory);
-        localStorage.setItem('studentFilterStatus', filterStatus);
-        localStorage.setItem('studentCurrentPage', currentPage.toString());
-    }, [searchTerm, filterCategory, filterStatus, currentPage]);
-
-    // Limpiar localStorage al navegar a otras rutas principales
-    useEffect(() => {
-        const handleRouteChange = () => {
-            const currentPath = location.pathname;
-            if (currentPath !== '/student' && !currentPath.startsWith('/detailstudent')) {
-                localStorage.removeItem('studentSearchTerm');
-                localStorage.removeItem('studentFilterCategory');
-                localStorage.removeItem('studentFilterStatus');
-                localStorage.removeItem('studentCurrentPage');
-            }
-        };
-
-        handleRouteChange();
+        const currentPath = location.pathname;
+        if (currentPath !== '/student' && !currentPath.startsWith('/detailstudent')) {
+            localStorage.removeItem('studentSearchTerm');
+            localStorage.removeItem('studentFilterCategory');
+            localStorage.removeItem('studentFilterStatus');
+            localStorage.removeItem('studentCurrentPage');
+        }
     }, [location.pathname]);
+
+    useEffect(() => {
+        setSearchTerm('');
+        setFilterCategory('');
+        setFilterStatus('');
+        setCurrentPage(1);
+        obtenerEstudiantes();
+    }, []);
 
     const adminMenuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
@@ -102,10 +95,6 @@ const TableStudent = () => {
     const userMenuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
     ];
-
-    useEffect(() => {
-        obtenerEstudiantes();
-    }, []);
 
     const removeAccents = (str) => {
         return str
@@ -126,7 +115,6 @@ const TableStudent = () => {
 
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
 
-    // Ajustar currentPage si el número total de páginas cambia
     useEffect(() => {
         if (currentPage > totalPages) {
             setCurrentPage(totalPages);
@@ -177,16 +165,13 @@ const TableStudent = () => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!formData.dni || !formData.name || !formData.lastName || !formData.birthDate || !formData.address ||
-            !formData.mail || !formData.motherName || !formData.fatherName || !formData.motherPhone ||
-            !formData.fatherPhone || !formData.category || !formData.school || !formData.color ||
-            !formData.sex || !formData.status) {
-            setAlertMessage("Todos los campos obligatorios deben estar completos (DNI, Nombre, Apellido, Fecha de Nacimiento, Dirección, Email, Nombre y Teléfono de los Padres, Categoría, Escuela, Color, Sexo, Estado).");
-            setShowAlert(true);
-            return;
+        try {
+            await addEstudiante(formData);
+            // No mostrar alerta aquí, el modal manejará el éxito
+        } catch (error) {
+            // Propagar el error al modal
+            throw error;
         }
-        await addEstudiante(formData);
-        setShow(false);
     };
 
     const handleImportExcel = async (e) => {
@@ -210,6 +195,9 @@ const TableStudent = () => {
         setIsImporting(true);
         try {
             await importStudents(file);
+        } catch (error) {
+            setAlertMessage(error.response?.data?.message || "Error al importar el archivo Excel");
+            setShowAlert(true);
         } finally {
             setIsImporting(false);
             e.target.value = null;

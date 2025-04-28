@@ -56,25 +56,42 @@ const normalizeDate = (dateInput) => {
   let parsedDate;
 
   const formats = [
-    'yyyy-MM-dd', // 2025-03-24 (desde input tipo date)
     'dd/MM/yyyy', // 24/03/2025
+    'd/MM/yyyy',  // 3/03/2025
     'dd/M/yyyy',  // 24/3/2025
-    'd/MM/yy',    // 3/25/25
-    'd/M/yy',     // 3/3/25
-    'M/d/yy',     // 3/25/25 (mes/día/año)
-    'MM/dd/yy',   // 03/25/25
-    'M/d/yyyy',   // 3/25/2025
-    'MM/dd/yyyy', // 03/25/2025
+    'd/M/yyyy',   // 3/3/2025
+    'yyyy-MM-dd', // 2025-03-24
     'dd-MM-yyyy', // 24-03-2025
+    'd-MM-yyyy',  // 3-03-2025
     'dd-M-yyyy',  // 24-3-2025
+    'd-M-yyyy',   // 3-3-2025
+    // Formatos con años de dos dígitos como última opción
+    'dd/MM/yy',   // 24/03/25
+    'd/MM/yy',    // 3/03/25
+    'dd/M/yy',    // 24/3/25
+    'd/M/yy',     // 3/3/25
+    'MM/dd/yy',   // 03/25/25
+    'M/d/yy',     // 3/25/25
   ];
 
   for (const fmt of formats) {
     parsedDate = parse(dateStr, fmt, new Date());
-    if (isValid(parsedDate)) break;
+    if (isValid(parsedDate)) {
+      // Validar que el año esté en un rango razonable (por ejemplo, 1900 hasta el año actual + 1)
+      const year = parsedDate.getFullYear();
+      const currentYear = new Date().getFullYear();
+      if (year >= 1900 && year <= currentYear + 1) {
+        break;
+      }
+    }
   }
 
-  return isValid(parsedDate) ? format(parsedDate, 'dd/MM/yyyy') : dateStr; // Si no es válido, devolver original
+  if (isValid(parsedDate)) {
+    return format(parsedDate, 'dd/MM/yyyy');
+  } else {
+    console.warn(`[WARN] Fecha no válida detectada: ${dateStr}`);
+    return ''; // Devolver cadena vacía si la fecha no es válida
+  }
 };
 
 const capitalizeWords = (str) => {
@@ -239,7 +256,6 @@ export const getAllStudents = async (req, res) => {
 // Crear un nuevo estudiante
 export const createStudent = async (req, res) => {
   try {
-    // Limpiar imageCache al inicio de la operación
     imageCache.clear();
     console.log('[INFO] imageCache limpiado al inicio de createStudent');
 
@@ -266,18 +282,16 @@ export const createStudent = async (req, res) => {
       status: capitalizeWords(status),
     };
 
-    if (!normalizedData.name || !normalizedData.lastName || !normalizedData.dni || !normalizedData.birthDate || !normalizedData.address || 
-        !normalizedData.motherName || !normalizedData.fatherName || !normalizedData.motherPhone || 
-        !normalizedData.fatherPhone || !normalizedData.category || !normalizedData.school || 
-        !normalizedData.sex || !normalizedData.status) {
-      return res.status(400).json({ message: 'Faltan campos obligatorios' });
+    const requiredFields = ['name', 'lastName', 'dni', 'birthDate', 'address', 'motherName', 'fatherName', 'motherPhone', 'fatherPhone', 'category', 'school', 'sex', 'status'];
+    const missingFields = requiredFields.filter(field => !normalizedData[field] || String(normalizedData[field]).trim() === '');
+    if (missingFields.length > 0) {
+      return res.status(400).json({ message: `Faltan campos obligatorios: ${missingFields.join(', ')}` });
     }
 
     let profileImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
     let archivedUrls = [];
     let archivedNames = [];
 
-    // Subir profileImage con un public_id basado en el dni
     if (req.files && req.files['profileImage'] && req.files['profileImage'].length > 0) {
       const file = req.files['profileImage'][0];
       const publicId = `students/profile/${normalizedData.dni}`;
@@ -296,7 +310,6 @@ export const createStudent = async (req, res) => {
       }
     }
 
-    // Subir archived con public_ids basados en el dni
     if (req.files && req.files['archived'] && req.files['archived'].length > 0) {
       const archivedFiles = req.files['archived'];
       if (archivedFiles.length > 2) {
@@ -339,7 +352,22 @@ export const createStudent = async (req, res) => {
     });
   } catch (error) {
     console.error('Error en createStudent:', error);
-    return res.status(500).json({ message: 'Error al crear el estudiante', error: error.message });
+    if (error.code === 11000) { // Error de clave duplicada
+      const field = Object.keys(error.keyValue)[0];
+      return res.status(400).json({ message: `${field} duplicado: ${error.keyValue[field]}` });
+    }
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.entries(error.errors).map(([field, err]) => {
+        if (err.kind === 'required') {
+          return `${field} es obligatorio`;
+        } else if (err.kind === 'enum') {
+          return `${field} debe ser ${err.enumValues.map(v => `"${v}"`).join(' o ')}`;
+        }
+        return err.message;
+      });
+      return res.status(400).json({ message: `Errores de validación: ${validationErrors.join('; ')}` });
+    }
+    return res.status(500).json({ message: `Error al crear el estudiante: ${error.message}` });
   }
 };
 
@@ -425,7 +453,6 @@ export const deleteStudent = async (req, res) => {
 // Actualizar un estudiante por su ID
 export const updateStudent = async (req, res) => {
   try {
-    // Limpiar imageCache al inicio de la operación
     imageCache.clear();
     console.log('[INFO] imageCache limpiado al inicio de updateStudent');
 
@@ -437,9 +464,7 @@ export const updateStudent = async (req, res) => {
     const studentData = { ...req.body };
     const updateErrors = [];
 
-    // Subir profileImage con un public_id basado en el dni
     if (req.files && req.files.profileImage && req.files.profileImage.length > 0) {
-      // Eliminar la imagen anterior si existe
       if (student.profileImage && student.profileImage !== 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg') {
         const oldProfileImagePublicId = getPublicIdFromUrl(student.profileImage);
         if (oldProfileImagePublicId) {
@@ -474,9 +499,7 @@ export const updateStudent = async (req, res) => {
       }
     }
 
-    // Subir archived con public_ids basados en el dni
     if (req.files && req.files.archived && req.files.archived.length > 0) {
-      // Eliminar los archivos archived anteriores si existen
       if (student.archived && student.archived.length > 0) {
         const archivedPublicIds = student.archived
           .map(url => getPublicIdFromUrl(url))
@@ -521,7 +544,7 @@ export const updateStudent = async (req, res) => {
     }
 
     if (studentData.birthDate) {
-      studentData.birthDate = normalizeDate(studentData.birthDate); // Normalizar a dd/mm/yyyy
+      studentData.birthDate = normalizeDate(studentData.birthDate);
     }
 
     const updatedStudent = await Student.findByIdAndUpdate(req.params.id, studentData, { new: true });
@@ -538,7 +561,18 @@ export const updateStudent = async (req, res) => {
     }
   } catch (error) {
     console.error('Error en updateStudent:', error);
-    res.status(500).json({ message: 'Error al actualizar el estudiante', error: error.message, success: false });
+    if (error.name === 'ValidationError') {
+      const validationErrors = Object.entries(error.errors).map(([field, err]) => {
+        if (err.kind === 'required') {
+          return `${field} es obligatorio`;
+        } else if (err.kind === 'enum') {
+          return `${field} debe ser ${err.enumValues.map(v => `"${v}"`).join(' o ')}`;
+        }
+        return err.message;
+      });
+      return res.status(400).json({ message: `Errores de validación: ${validationErrors.join('; ')}` });
+    }
+    return res.status(500).json({ message: `Error al actualizar el estudiante: ${error.message}`, success: false });
   }
 };
 
@@ -642,8 +676,8 @@ export const importStudents = async (req, res) => {
         // Normalizar birthDate
         if (studentData.birthDate) {
           studentData.birthDate = normalizeDate(studentData.birthDate);
-          if (!isValid(parse(studentData.birthDate, 'dd/MM/yyyy', new Date()))) {
-            errors.push(`Fila ${rowIndex}: Formato de fecha inválido (${studentData.birthDate})`);
+          if (!studentData.birthDate || !isValid(parse(studentData.birthDate, 'dd/MM/yyyy', new Date()))) {
+            errors.push(`Fila ${rowIndex}: Formato de fecha inválido (${row['Fecha de Nacimiento'] || row['birthDate']})`);
             return null;
           }
         } else {

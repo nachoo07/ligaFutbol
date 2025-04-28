@@ -1,39 +1,40 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Modal, Button, Form, Alert } from 'react-bootstrap';
+import { Modal, Button, Form } from 'react-bootstrap';
 import { FaTimes } from 'react-icons/fa';
+import Swal from 'sweetalert2';
 import './studentModal.css';
 
 const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formData }) => {
     const [uploading, setUploading] = useState(false);
-    const [showAlert, setShowAlert] = useState(false);
-    const [alertMessage, setAlertMessage] = useState('');
     const fileInputRef = useRef(null);
 
     // Imagen por defecto
     const defaultImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
 
-    // Asegurarnos de que archived sea un array vacío si no está definido
+    // Inicializar archived y archivedNames cuando el modal se abre
     useEffect(() => {
-        if (show) {
-            if (!formData.archived || !Array.isArray(formData.archived)) {
-                handleChange({ target: { name: 'archived', value: [] } });
-                handleChange({ target: { name: 'archivedNames', value: [] } });
-            }
+        if (show && (!formData.archived || !Array.isArray(formData.archived))) {
+            handleChange({
+                target: {
+                    name: 'archived',
+                    value: [],
+                    archivedNames: []
+                }
+            });
         }
-    }, [show, formData]);
+    }, [show, handleChange]);
 
     // Función para transformar URLs de Cloudinary y añadir f_auto
     const getTransformedImageUrl = (url) => {
         if (!url || url === defaultImage) return defaultImage;
 
-        // Si es un string que comienza con "https://res.cloudinary.com", añadir f_auto
         if (typeof url === 'string' && url.startsWith('https://res.cloudinary.com')) {
             const urlParts = url.split('/upload/');
             if (urlParts.length < 2) return url;
             const transformedUrl = `${urlParts[0]}/upload/f_auto/${urlParts[1]}`;
-            return `${transformedUrl}?t=${new Date().getTime()}`; // Evitar caché
+            return `${transformedUrl}?t=${new Date().getTime()}`;
         }
-        return url; // Devolver sin cambios si no es una URL de Cloudinary
+        return url;
     };
 
     const capitalizeWords = (str) => {
@@ -68,9 +69,12 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
         if (name === 'profileImage') {
             const file = files[0];
             if (file && !validImageTypes.includes(file.type)) {
-                setAlertMessage(`Formato no soportado para Imagen de Perfil: ${file.type}. Usa JPEG, PNG, GIF, HEIC, WEBP, BMP o TIFF.`);
-                setShowAlert(true);
-                setTimeout(() => setShowAlert(false), 3000);
+                Swal.fire({
+                    icon: 'error',
+                    title: '¡Error!',
+                    text: `Formato no soportado para Imagen de Perfil: ${file.type}. Usa JPEG, PNG, GIF, HEIC, WEBP, BMP o TIFF.`,
+                    confirmButtonText: 'Aceptar',
+                });
                 return;
             }
             handleChange({ target: { name, value: file } });
@@ -80,24 +84,27 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
             const currentFileCount = currentFiles.length;
             const newFileCount = selectedFiles.length;
 
-            // Validar formatos
             const invalidFiles = selectedFiles.filter(file => !validImageTypes.includes(file.type));
             if (invalidFiles.length > 0) {
-                setAlertMessage(`Formatos no soportados: ${invalidFiles.map(f => f.type).join(', ')}. Usa JPEG, PNG, GIF, HEIC, WEBP, BMP o TIFF.`);
-                setShowAlert(true);
-                setTimeout(() => setShowAlert(false), 3000);
+                Swal.fire({
+                    icon: 'error',
+                    title: '¡Error!',
+                    text: `Formatos no soportados: ${invalidFiles.map(f => f.type).join(', ')}. Usa JPEG, PNG, GIF, HEIC, WEBP, BMP o TIFF.`,
+                    confirmButtonText: 'Aceptar',
+                });
                 return;
             }
 
-            // Verificar límite de 2 archivos
             if (currentFileCount + newFileCount > 2) {
-                setAlertMessage('Ya tienes 2 archivos. Elimina uno para agregar otro.');
-                setShowAlert(true);
-                setTimeout(() => setShowAlert(false), 3000);
+                Swal.fire({
+                    icon: 'error',
+                    title: '¡Error!',
+                    text: 'Ya tienes 2 archivos. Elimina uno para agregar otro.',
+                    confirmButtonText: 'Aceptar',
+                });
                 return;
             }
 
-            // Acumular los nuevos archivos
             const updatedFiles = [...currentFiles, ...selectedFiles];
             const updatedFileNames = updatedFiles.map(f => f.name);
 
@@ -109,14 +116,12 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                 }
             });
 
-            // Resetear el input de archivos después de cada selección
             if (fileInputRef.current) {
                 fileInputRef.current.value = null;
             }
         }
     };
 
-    // Función para eliminar un archivo específico
     const handleRemoveFile = (index) => {
         const updatedFiles = formData.archived.filter((_, i) => i !== index);
         const updatedFileNames = formData.archivedNames?.filter((_, i) => i !== index);
@@ -127,13 +132,11 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                 archivedNames: updatedFileNames
             }
         });
-        // Resetear el input de archivos
         if (fileInputRef.current) {
             fileInputRef.current.value = null;
         }
     };
 
-    // Función para eliminar la imagen de perfil
     const handleRemoveProfileImage = () => {
         handleChange({ target: { name: 'profileImage', value: null } });
     };
@@ -154,22 +157,126 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
         })()
         : '';
 
-    const onSubmit = (e) => {
-        e.preventDefault();
+    // Validaciones adicionales
+    const validateForm = () => {
         if (!formData.dni || !formData.name || !formData.lastName || !formData.birthDate || !formData.address ||
             !formData.mail || !formData.motherName || !formData.fatherName || !formData.motherPhone ||
             !formData.fatherPhone || !formData.category || !formData.school || !formData.color ||
             !formData.sex || !formData.status) {
-            setAlertMessage('Todos los campos obligatorios deben estar completos (DNI, Nombre, Apellido, Fecha de Nacimiento, Dirección, Email, Nombre y Teléfono de los Padres, Categoría, Escuela, Color, Sexo, Estado).');
-            setShowAlert(true);
-            setTimeout(() => setShowAlert(false), 3000);
+            return 'Todos los campos obligatorios deben estar completos (DNI, Nombre, Apellido, Fecha de Nacimiento, Dirección, Email, Nombre y Teléfono de los Padres, Categoría, Escuela, Color, Sexo, Estado).';
+        }
+
+        // Validar formato de correo
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(formData.mail)) {
+            return 'El correo electrónico no tiene un formato válido.';
+        }
+
+        // Validar fecha de nacimiento
+        const [day, month, year] = formData.birthDate.split('/');
+        const birthDate = new Date(`${year}-${month}-${day}`);
+        const today = new Date();
+        if (isNaN(birthDate) || birthDate > today) {
+            return 'La fecha de nacimiento no es válida o está en el futuro.';
+        }
+
+        // Validar longitud del DNI
+        if (formData.dni.length < 8 || formData.dni.length > 10) {
+            return 'El DNI debe tener entre 8 y 10 dígitos.';
+        }
+
+        // Validar números de teléfono
+        if (formData.motherPhone.length < 10 || formData.motherPhone.length > 15 ||
+            formData.fatherPhone.length < 10 || formData.fatherPhone.length > 15) {
+            return 'Los números de teléfono deben tener entre 10 y 15 dígitos.';
+        }
+
+        return null;
+    };
+
+    const onSubmit = async (e) => {
+        e.preventDefault();
+
+        // Validaciones del frontend
+        const validationError = validateForm();
+        if (validationError) {
+            Swal.fire({
+                icon: 'error',
+                title: '¡Error!',
+                text: validationError,
+                confirmButtonText: 'Aceptar',
+            });
             return;
         }
+
         setUploading(true);
-        handleSubmit(e).finally(() => {
-            setUploading(false);
+        try {
+            await handleSubmit(e);
             handleClose();
-        });
+        } catch (error) {
+            // Procesar el mensaje de error del backend
+            const rawMessage = error.response?.data?.message || 'Error al guardar el alumno. Por favor, intenta de nuevo.';
+            let errorMessage = 'Ha ocurrido un error al guardar el estudiante: ';
+
+            // Mapa de traducción para nombres de campos
+            const fieldTranslations = {
+                name: 'Nombre',
+                lastName: 'Apellido',
+                dni: 'DNI',
+                birthDate: 'Fecha de Nacimiento',
+                address: 'Dirección',
+                motherName: 'Nombre de la Madre',
+                fatherName: 'Nombre del Padre',
+                motherPhone: 'Teléfono de la Madre',
+                fatherPhone: 'Teléfono del Padre',
+                category: 'Categoría',
+                mail: 'Correo Electrónico',
+                school: 'Escuela',
+                sex: 'Sexo',
+                status: 'Estado',
+            };
+
+            if (rawMessage.includes('duplicate key error')) {
+                const match = rawMessage.match(/index: (\w+)_1/);
+                const field = match ? match[1] : 'desconocido';
+                const readableField = fieldTranslations[field] || field;
+                errorMessage += `${readableField} duplicado.`;
+            } else if (rawMessage.includes('validation failed')) {
+                // Extraer los errores de validación
+                const validationErrors = error.response?.data?.error?.errors || {};
+                const errorMessages = Object.entries(validationErrors).map(([field, err]) => {
+                    const readableField = fieldTranslations[field] || field;
+                    if (err.kind === 'required') {
+                        return `${readableField} es obligatorio.`;
+                    } else if (err.kind === 'enum') {
+                        return `${readableField} debe ser ${err.enumValues.map(v => `"${v}"`).join(' o ')}.`;
+                    } else if (err.message) {
+                        return `${readableField}: ${err.message}`;
+                    }
+                    return `${readableField}: Valor inválido.`;
+                });
+                errorMessage += errorMessages.join(' ');
+            } else if (rawMessage.includes('Faltan campos obligatorios')) {
+                errorMessage += 'Faltan campos obligatorios. Por favor, completa todos los campos requeridos.';
+            } else if (rawMessage.includes('Se permiten máximo 2 archivos en archived')) {
+                errorMessage += 'Solo se permiten máximo 2 archivos adjuntos.';
+            } else if (rawMessage.includes('Error al subir profileImage')) {
+                errorMessage += 'Hubo un problema al subir la imagen de perfil.';
+            } else if (rawMessage.includes('Error al subir archived')) {
+                errorMessage += 'Hubo un problema al subir los archivos adjuntos.';
+            } else {
+                errorMessage += rawMessage;
+            }
+
+            Swal.fire({
+                icon: 'error',
+                title: '¡Error!',
+                text: errorMessage,
+                confirmButtonText: 'Aceptar',
+            });
+        } finally {
+            setUploading(false);
+        }
     };
 
     const today = new Date().toISOString().split('T')[0];
@@ -186,12 +293,6 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                 <Modal.Title>{formData._id ? "Editar Alumno" : "Agregar Alumno"}</Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                {showAlert && (
-                    <Alert variant="warning" onClose={() => setShowAlert(false)} dismissible className="custom-alert">
-                        <Alert.Heading>¡Atención!</Alert.Heading>
-                        <p>{alertMessage}</p>
-                    </Alert>
-                )}
                 <Form onSubmit={onSubmit} className="form-grid" encType="multipart/form-data">
                     <Form.Group controlId="formNombre">
                         <Form.Label>Nombre *</Form.Label>
