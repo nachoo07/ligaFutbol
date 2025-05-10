@@ -1,0 +1,193 @@
+/* Vista de pagos */
+.payment-view {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+/* Título */
+.title {
+    font-size: 36px !important;
+    font-weight: bold;
+    text-align: center;
+    color: #333;
+    margin-bottom: 0px !important;
+}
+
+/* Barra de búsqueda */
+.search-bar {
+    position: relative;
+    max-width: 500px;
+    margin: 0 auto;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 12px 40px 12px 15px;
+    border: 1px solid #ccc;
+    border-radius: 25px;
+    font-size: 16px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.search-icon {
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #0163a9 !important;
+    font-size: 18px;
+}
+
+/* Filtros */
+.filters {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+    align-items: center;
+    justify-content: center;
+}
+
+.filter-group {
+    flex: 1;
+    max-width: 300px;
+}
+
+.filter-group label {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 16px;
+    color: #333;
+}
+
+.filter-group .form-control {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    font-size: 16px;
+    width: 100%;
+}
+
+.clear-filter-btn {
+    background: #dc3545 !important;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-size: 16px !important;
+}
+
+.clear-filter-btn:hover {
+    background: #c82333 !important;
+}
+
+/* Tabla */
+.payment-table {
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.payment-table th,
+.payment-table td {
+    padding: 12px;
+    text-align: center;
+    border: none;
+    background: #fff;
+}
+
+.payment-table th {
+    background: #0163a9 !important;
+    color: white;
+    font-weight: bold;
+}
+
+.payment-table tr:hover {
+    background: #e8e8e8;
+}
+
+.payment-table td {
+    border-bottom: 1px solid #dee2e6;
+}
+
+.total-row {
+    background: #f0f0f0;
+    font-weight: bold;
+}
+
+/* Responsividad */
+@media (max-width: 768px) {
+    .sidebar {
+        width: 60px;
+    }
+
+    .sidebar.open {
+        width: 250px;
+    }
+
+    .content-share {
+        margin-left: 60px;
+    }
+
+    .content-share.full {
+        margin-left: 60px;
+    }
+
+    .filters {
+        flex-direction: column;
+        gap: 10px;
+    }
+
+    .filter-group {
+        max-width: 100%;
+    }
+
+    .search-bar {
+        max-width: 100%;
+    }
+
+    .payment-table th,
+    .payment-table td {
+        padding: 8px;
+        font-size: 14px;
+    }
+
+    .clear-filter-btn {
+        width: 100%;
+        padding: 12px;
+    }
+}
+
+@media (max-width: 576px) {
+    .sidebar {
+        display: none;
+    }
+
+    .content-share {
+        margin-left: 0;
+    }
+
+    .payment-table th,
+    .payment-table td {
+        font-size: 12px;
+        padding: 7px !important;
+    }
+
+    .payment-table th:nth-child(4),
+    .payment-table td:nth-child(4),
+    .payment-table th:nth-child(5),
+    .payment-table td:nth-child(5) {
+        display: none; /* Oculta "Método de Pago" y "Usuario que registró" */
+    }
+
+    .payment-table th:nth-child(3),
+    .payment-table td:nth-child(3) {
+        width: 100px; /* Ajusta el ancho de "Escuela" */
+    }
+
+    .clear-filter-btn {
+        font-size: 14px !important;
+    }
+}

@@ -41,6 +41,8 @@ export const createShare = async (req, res) => {
             return res.status(404).json({ message: 'Estudiante no encontrado' });
         }
 
+         const userName = req.user?.name;
+
         const newShare = await Share.create({
             student,
             paymentName,
@@ -50,6 +52,7 @@ export const createShare = async (req, res) => {
             paymentMethod: paymentDate ? paymentMethod : null,
             paymentType: paymentDate ? paymentType : null,
             status: paymentDate ? 'Pagado' : 'Pendiente',
+            registeredBy: userName || null,
         });
 
         await updateStudentEnabledStatus(student);
@@ -200,18 +203,20 @@ export const updateShare = async (req, res) => {
             return res.status(404).json({ message: 'Cuota no encontrada' });
         }
 
-        // Validar que todos los campos necesarios estén presentes si se está registrando un pago
         if (paymentDate && (!amount || !paymentMethod || !paymentType)) {
             return res.status(400).json({ message: 'Faltan campos obligatorios para registrar el pago: amount, paymentMethod, paymentType' });
         }
 
+        const userName = req.user?.name;
+
         share.paymentName = paymentName !== undefined ? paymentName : share.paymentName;
-        share.year = share.year; // El año no se puede modificar
+        share.year = share.year;
         share.amount = amount !== undefined ? amount : share.amount;
         share.paymentDate = paymentDate !== undefined ? paymentDate : share.paymentDate;
         share.paymentMethod = paymentMethod !== undefined ? paymentMethod : share.paymentMethod;
         share.paymentType = paymentType !== undefined ? paymentType : share.paymentType;
         share.status = paymentDate ? 'Pagado' : 'Pendiente';
+        share.registeredBy = userName || share.registeredBy || null;
 
         await share.save();
 

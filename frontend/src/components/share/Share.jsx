@@ -4,6 +4,7 @@ import { FaBars, FaAddressCard, FaRegListAlt, FaUsers, FaMoneyBill, FaChartBar, 
 import { MdOutlineReadMore } from "react-icons/md";
 import { LuClipboardList } from "react-icons/lu";
 import { SharesContext } from "../../context/share/ShareContext";
+
 import { StudentsContext } from "../../context/student/StudentContext";
 import { useEmail } from '../../context/email/EmailContext';
 import { Button, Table, Form } from 'react-bootstrap';
@@ -194,70 +195,70 @@ const Share = () => {
     };
 
     const handleSave = async () => {
-        if (!selectedStudent || !selectedStudent._id) {
-            Swal.fire("¡Advertencia!", "No se ha seleccionado un estudiante.", "warning");
-            return;
-        }
+    if (!selectedStudent || !selectedStudent._id) {
+        Swal.fire("¡Advertencia!", "No se ha seleccionado un estudiante.", "warning");
+        return;
+    }
 
-        if (!paymentName || !amount || !paymentDate || !paymentMethod || !paymentType) {
-            Swal.fire("¡Advertencia!", "Por favor completa todos los campos obligatorios.", "warning");
-            return;
-        }
+    if (!paymentName || !amount || !paymentDate || !paymentMethod || !paymentType) {
+        Swal.fire("¡Advertencia!", "Por favor completa todos los campos obligatorios.", "warning");
+        return;
+    }
 
-        const year = new Date(paymentDate).getFullYear();
-        if (isNaN(year)) {
-            Swal.fire("¡Advertencia!", "La fecha de pago ingresada no es válida.", "warning");
-            return;
-        }
+    const year = new Date(paymentDate).getFullYear();
+    if (isNaN(year)) {
+        Swal.fire("¡Advertencia!", "La fecha de pago ingresada no es válida.", "warning");
+        return;
+    }
 
-        const cuotaData = {
-            student: selectedStudent._id,
-            paymentName,
-            year,
-            amount: parseFloat(amount),
-            paymentDate,
-            paymentMethod,
-            paymentType,
-        };
-
-        try {
-            if (selectedCuota) {
-                await updateCuota({ ...cuotaData, _id: selectedCuota._id });
-                await Promise.all([
-                    obtenerCuotasPorEstudiante(selectedStudent._id),
-                    obtenerCuotas(true),
-                    obtenerEstudiantes(),
-                ]).then(([studentCuotas]) => {
-                    setAllStudentCuotas(studentCuotas);
-                    setFilteredStudentCuotas(studentCuotas);
-                    window.dispatchEvent(new Event('shareUpdated'));
-                    Swal.fire("¡Éxito!", `Cuota actualizada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
-                });
-            } else {
-                await addCuota(cuotaData);
-                await Promise.all([
-                    obtenerCuotasPorEstudiante(selectedStudent._id),
-                    obtenerCuotas(true),
-                    obtenerEstudiantes(),
-                ]).then(([studentCuotas]) => {
-                    setAllStudentCuotas(studentCuotas);
-                    setFilteredStudentCuotas(studentCuotas);
-                    window.dispatchEvent(new Event('shareUpdated'));
-                    Swal.fire("¡Éxito!", `Cuota agregada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
-                });
-            }
-
-            setPaymentName("");
-            setAmount("");
-            setPaymentDate("");
-            setPaymentMethod("");
-            setPaymentType("");
-            setSelectedCuota(null);
-            setIsEditing(false);
-        } catch (error) {
-            Swal.fire("¡Error!", `Error al ${selectedCuota ? 'actualizar' : 'agregar'} la cuota: ${error.response?.data?.message || error.message}`, "error");
-        }
+    const cuotaData = {
+        student: selectedStudent._id,
+        paymentName,
+        year,
+        amount: parseFloat(amount),
+        paymentDate,
+        paymentMethod,
+        paymentType,
     };
+
+    try {
+        if (selectedCuota) {
+            await updateCuota({ ...cuotaData, _id: selectedCuota._id });
+            await Promise.all([
+                obtenerCuotasPorEstudiante(selectedStudent._id),
+                obtenerCuotas(true),
+                obtenerEstudiantes(),
+            ]).then(([studentCuotas]) => {
+                setAllStudentCuotas(studentCuotas);
+                setFilteredStudentCuotas(studentCuotas);
+                window.dispatchEvent(new Event('shareUpdated'));
+                Swal.fire("¡Éxito!", `Cuota actualizada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
+            });
+        } else {
+            await addCuota(cuotaData);
+            await Promise.all([
+                obtenerCuotasPorEstudiante(selectedStudent._id),
+                obtenerCuotas(true),
+                obtenerEstudiantes(),
+            ]).then(([studentCuotas]) => {
+                setAllStudentCuotas(studentCuotas);
+                setFilteredStudentCuotas(studentCuotas);
+                window.dispatchEvent(new Event('shareUpdated'));
+                Swal.fire("¡Éxito!", `Cuota agregada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
+            });
+        }
+
+        setPaymentName("");
+        setAmount("");
+        setPaymentDate("");
+        setPaymentMethod("");
+        setPaymentType("");
+        setSelectedCuota(null);
+        setIsEditing(false);
+    } catch (error) {
+        Swal.fire("¡Error!", `Error al ${selectedCuota ? 'actualizar' : 'agregar'} la cuota: ${error.response?.data?.message || error.message}`, "error");
+    }
+};
 
     const handleEditClick = (cuota) => {
         setSelectedCuota(cuota);

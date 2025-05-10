@@ -38,6 +38,10 @@ const shareSchema = new mongoose.Schema({
         enum: ['Pendiente', 'Pagado'],
         default: 'Pendiente',
     },
+    registeredBy: {
+        type: String, // Nombre del usuario que registró el pago
+        required: false, // Opcional para cuotas antiguas
+    },
 }, {
     timestamps: true,
 });

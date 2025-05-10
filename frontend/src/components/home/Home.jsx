@@ -20,7 +20,8 @@ const Home = () => {
         { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
-        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> }
+        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
+        { name: 'Detalle cuotas', route: '/share/detail', icon: <FaEnvelope /> }
     ];
 
     if (loading) {

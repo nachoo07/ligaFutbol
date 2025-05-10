@@ -98,16 +98,18 @@ const Income = () => {
     setEditIndex(null);
   };
 
-  const filteredData = motions.filter((item) => {
-    if (!item?.date) return false;
-    const itemDate = dayjs(item.date);
-    return (
-      itemDate.isAfter(dayjs(filters.startDate)) &&
-      itemDate.isBefore(dayjs(filters.endDate)) &&
-      (!filters.incomeType || item.incomeType === filters.incomeType) &&
-      (!filters.location || item.location === filters.location)
-    );
-  });
+  const filteredData = Array.isArray(motions) 
+    ? motions.filter((item) => {
+        if (!item?.date) return false;
+        const itemDate = dayjs(item.date);
+        return (
+          itemDate.isAfter(dayjs(filters.startDate)) &&
+          itemDate.isBefore(dayjs(filters.endDate)) &&
+          (!filters.incomeType || item.incomeType === filters.incomeType) &&
+          (!filters.location || item.location === filters.location)
+        );
+      })
+    : [];
 
   return (
     <div className="income-dashboard">

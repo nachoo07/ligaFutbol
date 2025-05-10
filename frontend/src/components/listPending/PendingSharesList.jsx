@@ -13,13 +13,14 @@ const PendingSharesList = () => {
   const { cuotas, obtenerCuotas, loading } = useContext(SharesContext);
   const navigate = useNavigate();
 
-  const [filteredShares, setFilteredShares] = useState([]);
+  const [studentShares, setStudentShares] = useState([]);
   const [schools, setSchools] = useState([]);
   const [categories, setCategories] = useState([]);
   const [colors, setColors] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [filters, setFilters] = useState({ school: '', category: '', color: '', semester: '', status: 'all' });
   const [isMenuOpen, setIsMenuOpen] = useState(true);
+  const [maxShares, setMaxShares] = useState(1);
 
   const menuItems = [
     { name: 'Inicio', route: '/', icon: <FaHome /> },
@@ -40,6 +41,7 @@ const PendingSharesList = () => {
   }, [obtenerCuotas]);
 
   useEffect(() => {
+    console.log('Cuotas recibidas:', cuotas);
     if (cuotas && Array.isArray(cuotas)) {
       const uniqueSchools = [...new Set(cuotas.map(share => share.student.school))]
         .filter(school => school)
@@ -80,22 +82,34 @@ const PendingSharesList = () => {
   }, [cuotas]);
 
   useEffect(() => {
-    if (!filters.school && !filters.category && !filters.color && !filters.semester && filters.status === 'all') {
-      setFilteredShares([]);
+    console.log('Filtros aplicados:', filters);
+    if (!cuotas || !Array.isArray(cuotas)) {
+      setStudentShares([]);
       return;
     }
 
-    let filtered = cuotas || [];
+    // Solo procesar si hay al menos un filtro seleccionado
+    const hasFilters = filters.school || filters.category || filters.color || filters.semester || (filters.status && filters.status !== 'all');
+    if (!hasFilters) {
+      setStudentShares([]);
+      return;
+    }
+
+    let filtered = [...cuotas];
     if (filters.school) {
+      console.log('Filtrando por escuela:', filters.school);
       filtered = filtered.filter(share => share.student.school === filters.school);
     }
     if (filters.category) {
+      console.log('Filtrando por categoría:', filters.category);
       filtered = filtered.filter(share => share.student.category === filters.category);
     }
     if (filters.color) {
+      console.log('Filtrando por color:', filters.color);
       filtered = filtered.filter(share => share.student.color === filters.color);
     }
     if (filters.semester) {
+      console.log('Filtrando por semestre:', filters.semester);
       filtered = filtered.filter(share => {
         const match = share.paymentName.match(/Semestre (\d+)/i);
         const semester = match ? `Semestre ${match[1]}` : null;
@@ -103,10 +117,33 @@ const PendingSharesList = () => {
       });
     }
     if (filters.status && filters.status !== 'all') {
+      console.log('Filtrando por estado:', filters.status);
       filtered = filtered.filter(share => share.status === filters.status);
     }
 
-    setFilteredShares(filtered);
+    console.log('Datos filtrados:', filtered);
+
+    // Agrupar cuotas por estudiante
+    const groupedByStudent = filtered.reduce((acc, share) => {
+      const studentId = share.student._id;
+      if (!acc[studentId]) {
+        acc[studentId] = {
+          student: share.student,
+          shares: [],
+        };
+      }
+      acc[studentId].shares.push(share);
+      return acc;
+    }, {});
+
+    const studentArray = Object.values(groupedByStudent);
+    console.log('Estudiantes agrupados:', studentArray);
+
+    // Determinar el número máximo de cuotas para definir columnas
+    const maxSharesPerStudent = Math.max(...studentArray.map(student => student.shares.length), 1);
+    setMaxShares(maxSharesPerStudent);
+
+    setStudentShares(studentArray);
   }, [filters, cuotas]);
 
   const handleFilterChange = (name, selectedOption) => {
@@ -116,22 +153,13 @@ const PendingSharesList = () => {
     }));
   };
 
-  const getFirstName = (fullName) => {
-    if (!fullName) return '';
-    const names = fullName.trim().split(' ');
-    return names[0];
+  const getFullName = (name, lastName) => {
+    if (!name && !lastName) return '';
+    return `${name || ''} ${lastName || ''}`.trim();
   };
 
-  const getFirstLastName = (fullLastName) => {
-    if (!fullLastName) return '';
-    const lastNames = fullLastName.trim().split(' ');
-    return lastNames[0];
-  };
-
-  // Función para formatear la fecha en dd/mm/yyyy sin ajustar zona horaria
   const formatDate = (dateString) => {
     if (!dateString) return '-';
-    // Extraer la fecha directamente de la cadena ISO (yyyy-mm-dd)
     const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (!match) return '-';
     const [, year, month, day] = match;
@@ -142,20 +170,32 @@ const PendingSharesList = () => {
     const doc = new jsPDF();
     doc.text('Lista de Cuotas Pendientes', 14, 16);
 
-    const tableData = filteredShares.map(share => [
-      getFirstName(share.student.name),
-      getFirstLastName(share.student.lastName),
-      share.student.dni,
-      share.student.school,
-      share.paymentName,
-      share.status === 'Pagado' ? share.amount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }) : '-',
-      share.status,
-      formatDate(share.paymentDate),
-      share.paymentMethod || '-',
-    ]);
+    const headers = ['Nombre Completo', 'Escuela'];
+    for (let i = 1; i <= maxShares; i++) {
+      headers.push(`Concepto ${i}`, `Monto ${i}`, `Estado ${i}`);
+    }
+
+    const tableData = studentShares.map(student => {
+      const row = [
+        getFullName(student.student.name, student.student.lastName),
+        student.student.school,
+      ];
+      for (let i = 0; i < maxShares; i++) {
+        if (i < student.shares.length) {
+          row.push(
+            student.shares[i].paymentName,
+            student.shares[i].amount ? student.shares[i].amount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }) : '-',
+            student.shares[i].status
+          );
+        } else {
+          row.push('-', '-', '-');
+        }
+      }
+      return row;
+    });
 
     autoTable(doc, {
-      head: [['Nombre', 'Apellido', 'DNI', 'Escuela', 'Concepto', 'Monto', 'Estado', 'Fecha de Pago', 'Método de Pago']],
+      head: [headers],
       body: tableData,
       startY: 20,
     });
@@ -237,44 +277,47 @@ const PendingSharesList = () => {
           </div>
 
           <div className="table-actions">
-            <Button onClick={exportToPDF} variant="primary" disabled={filteredShares.length === 0}>
+            <Button onClick={exportToPDF} variant="primary" disabled={studentShares.length === 0}>
               Exportar a PDF
             </Button>
           </div>
 
-          {filteredShares.length > 0 ? (
+          {studentShares.length > 0 ? (
             <Table className="students-table">
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Nombre</th>
-                  <th>Apellido</th>
-                  <th>DNI</th>
+                  <th>Nombre y Apellido</th>
                   <th>Escuela</th>
-                  <th>Concepto</th>
-                  <th>Monto</th>
-                  <th>Estado</th>
-                  <th>Fecha de Pago</th>
-                  <th>Método de Pago</th>
+                  {Array.from({ length: maxShares }, (_, i) => (
+                    <React.Fragment key={i}>
+                      <th>Concepto </th>
+                      <th>Monto</th>
+                      <th>Estado</th>
+                    </React.Fragment>
+                  ))}
                 </tr>
               </thead>
               <tbody>
-                {filteredShares.map((share, index) => (
-                  <tr key={index} className={share.status === 'Pendiente' ? 'state-inactivo' : 'state-activo'}>
+                {studentShares.map((student, index) => (
+                  <tr
+                    key={student.student._id}
+                    className={student.shares.some(share => share.status === 'Pendiente') ? 'state-inactivo' : 'state-activo'}
+                  >
                     <td>{index + 1}</td>
-                    <td>{share.student.name}</td>
-                    <td>{share.student.lastName}</td>
-                    <td>{share.student.dni}</td>
-                    <td>{share.student.school}</td>
-                    <td>{share.paymentName}</td>
-                    <td>
-                      {share.status === 'Pagado'
-                        ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(share.amount)
-                        : '-'}
-                    </td>
-                    <td>{share.status}</td>
-                    <td>{formatDate(share.paymentDate)}</td>
-                    <td>{share.paymentMethod || '-'}</td>
+                    <td>{getFullName(student.student.name, student.student.lastName)}</td>
+                    <td>{student.student.school}</td>
+                    {Array.from({ length: maxShares }, (_, i) => (
+                      <React.Fragment key={i}>
+                        <td>{i < student.shares.length ? student.shares[i].paymentName : '-'}</td>
+                        <td>
+                          {i < student.shares.length && student.shares[i].amount
+                            ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(student.shares[i].amount)
+                            : '-'}
+                        </td>
+                        <td>{i < student.shares.length ? student.shares[i].status : '-'}</td>
+                      </React.Fragment>
+                    ))}
                   </tr>
                 ))}
               </tbody>

@@ -45,8 +45,12 @@ const Report = () => {
 
   const calculateCardData = (selectedDate, type) => {
     const selectedDateStr = formatDate(selectedDate);
-    const filteredMovements = motions.filter(mov => mov.date.split('T')[0] === selectedDateStr);
-    const filteredCuotas = cuotas.filter(cuota => cuota.paymentDate && cuota.paymentDate.split('T')[0] === selectedDateStr);
+      const filteredMovements = Array.isArray(motions) 
+    ? motions.filter(mov => mov.date && mov.date.split('T')[0] === selectedDateStr)
+    : [];
+  const filteredCuotas = Array.isArray(cuotas) 
+    ? cuotas.filter(cuota => cuota.paymentDate && cuota.paymentDate.split('T')[0] === selectedDateStr)
+    : [];
 
     if (type === 'cuotas') {
       const cuotasEfectivo = filteredCuotas
@@ -115,6 +119,7 @@ const Report = () => {
         { name: 'Sede El Palmar', route: '/report/canada' },
         { name: 'Sede Valladares', route: '/report/valladares' },
         { name: 'Sede Sirga', route: '/report/sirga' },
+        { name: 'Reporte escuela', route: '/report/School' },
       ],
     },
     { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
@@ -130,40 +135,44 @@ const Report = () => {
   const monthName = selectedMonth.toLocaleString('es-ES', { month: 'long', year: 'numeric' });
 
   const chartData = useMemo(() => {
+
+      // Verificamos que cuotas y motions sean arrays
+  const cuotasArray = Array.isArray(cuotas) ? cuotas : [];
+  const motionsArray = Array.isArray(motions) ? motions : [];
     // Cuotas
     const cuotasTotal = cuotas
       .filter(cuota => cuota.paymentDate && cuota.paymentDate.startsWith(monthStr))
       .reduce((sum, cuota) => sum + (cuota.amount || 0), 0);
 
-    // Ingresos por movimientos
-    const ingresosMovimientos = motions
-      .filter(mov => mov.date.startsWith(monthStr) && mov.incomeType === 'ingreso')
-      .reduce((sum, mov) => sum + (mov.amount || 0), 0);
+  // Ingresos por movimientos
+  const ingresosMovimientos = motionsArray
+    .filter(mov => mov.date && mov.date.startsWith(monthStr) && mov.incomeType === 'ingreso')
+    .reduce((sum, mov) => sum + (mov.amount || 0), 0);
 
     // Egresos por movimientos
-    const egresosTotal = motions
-      .filter(mov => mov.date.startsWith(monthStr) && mov.incomeType === 'egreso')
-      .reduce((sum, mov) => sum + (mov.amount || 0), 0);
+  const egresosTotal = motionsArray
+    .filter(mov => mov.date && mov.date.startsWith(monthStr) && mov.incomeType === 'egreso')
+    .reduce((sum, mov) => sum + (mov.amount || 0), 0);
 
-    // Total en efectivo (cuotas + movimientos)
-    const efectivoTotal = (
-      cuotas
-        .filter(cuota => cuota.paymentDate && cuota.paymentDate.startsWith(monthStr) && cuota.paymentMethod === 'Efectivo')
-        .reduce((sum, cuota) => sum + (cuota.amount || 0), 0) +
-      motions
-        .filter(mov => mov.date.startsWith(monthStr) && mov.incomeType === 'ingreso' && mov.paymentMethod === 'efectivo')
-        .reduce((sum, mov) => sum + (mov.amount || 0), 0)
-    );
+  // Total en efectivo (cuotas + movimientos)
+  const efectivoTotal = (
+    cuotasArray
+      .filter(cuota => cuota.paymentDate && cuota.paymentDate.startsWith(monthStr) && cuota.paymentMethod === 'Efectivo')
+      .reduce((sum, cuota) => sum + (cuota.amount || 0), 0) +
+    motionsArray
+      .filter(mov => mov.date && mov.date.startsWith(monthStr) && mov.incomeType === 'ingreso' && mov.paymentMethod === 'efectivo')
+      .reduce((sum, mov) => sum + (mov.amount || 0), 0)
+  );
 
-    // Total por transferencia (cuotas + movimientos)
-    const transferenciaTotal = (
-      cuotas
-        .filter(cuota => cuota.paymentDate && cuota.paymentDate.startsWith(monthStr) && cuota.paymentMethod === 'Transferencia')
-        .reduce((sum, cuota) => sum + (cuota.amount || 0), 0) +
-      motions
-        .filter(mov => mov.date.startsWith(monthStr) && mov.incomeType === 'ingreso' && mov.paymentMethod === 'transferencia')
-        .reduce((sum, mov) => sum + (mov.amount || 0), 0)
-    );
+  // Total por transferencia (cuotas + movimientos)
+  const transferenciaTotal = (
+    cuotasArray
+      .filter(cuota => cuota.paymentDate && cuota.paymentDate.startsWith(monthStr) && cuota.paymentMethod === 'Transferencia')
+      .reduce((sum, cuota) => sum + (cuota.amount || 0), 0) +
+    motionsArray
+      .filter(mov => mov.date && mov.date.startsWith(monthStr) && mov.incomeType === 'ingreso' && mov.paymentMethod === 'transferencia')
+      .reduce((sum, mov) => sum + (mov.amount || 0), 0)
+  );
 
     // Balance final (ingresos totales - egresos)
     const ingresosTotales = cuotasTotal + ingresosMovimientos;

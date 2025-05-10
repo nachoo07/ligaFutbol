@@ -22,6 +22,8 @@ import PageHomeUser from '../../pages/homeUser/PageHomeUser';
 import SedeUno from '../../components/individualReports/SedeUno';
 import SedeDos from '../../components/individualReports/SedeDos';
 import SedeTres from '../../components/individualReports/SedeTres';
+import ReportSchool from '../../components/reportSchool/ReportSchool';
+import PageShareDetail from '../../pages/shareDetail/PageShareDetail';
 
 const Routing = () => {
   const { auth } = useContext(LoginContext);
@@ -81,11 +83,17 @@ const Routing = () => {
          <Route path="/report/sirga"
           element={<ProtectedRoute element={<SedeTres />} role="admin" />}
         />
+        <Route path="/report/school"
+          element={<ProtectedRoute element={<ReportSchool />} role="admin" />}
+        />
         <Route path="/massive"
           element={<ProtectedRoute element={<PageMassive />} role="admin" />}
         />
         <Route path="/list"
           element={<ProtectedRoute element={<PageList />} role="admin" />}
+        />
+        <Route path="/share/detail"
+          element={<ProtectedRoute element={<PageShareDetail />} role="admin" />}
         />
         <Route
         path="/homeuser"
