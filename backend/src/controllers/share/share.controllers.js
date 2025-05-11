@@ -2,6 +2,7 @@ import Share from '../../models/share/share.model.js';
 import Student from '../../models/student/student.model.js';
 import { calculateStudentEnabledStatus, updateStudentEnabledStatus } from '../../utils/student.utils.js';
 
+import logger from '../../winston/logger.js';
 // Obtener todas las cuotas
 export const getAllShares = async (req, res) => {
     try {
@@ -29,43 +30,48 @@ export const getAllShares = async (req, res) => {
 
 // Crear una nueva cuota (individual)
 export const createShare = async (req, res) => {
-    const { student, paymentName, year, amount, paymentDate, paymentMethod, paymentType } = req.body;
+  const { student, paymentName, year, amount, paymentDate, paymentMethod, paymentType } = req.body;
 
-    if (!student || !paymentName || !year) {
-        return res.status(400).json({ message: 'Faltan campos obligatorios: student, paymentName, year' });
+  if (!student || !paymentName || !year) {
+    logger.warn('Faltan campos obligatorios en createShare', { student, paymentName, year });
+    return res.status(400).json({ message: 'Faltan campos obligatorios: student, paymentName, year' });
+  }
+
+  try {
+    logger.info('Iniciando creación de nueva cuota', { student, paymentName, year });
+    const studentExists = await Student.findById(student);
+    if (!studentExists) {
+      logger.error('Estudiante no encontrado', { student });
+      return res.status(404).json({ message: 'Estudiante no encontrado' });
     }
 
-    try {
-        const studentExists = await Student.findById(student);
-        if (!studentExists) {
-            return res.status(404).json({ message: 'Estudiante no encontrado' });
-        }
+    const userName = req.user?.name || 'UsuarioDesconocido';
+    logger.info('Usuario asignado para registeredBy', { userName });
+    const newShare = await Share.create({
+      student,
+      paymentName,
+      year,
+      amount: amount || null,
+      paymentDate: paymentDate || null,
+      paymentMethod: paymentDate ? paymentMethod : null,
+      paymentType: paymentDate ? paymentType : null,
+      status: paymentDate ? 'Pagado' : 'Pendiente',
+      registeredBy: userName,
+    });
 
-         const userName = req.user?.name;
+    logger.info('Cuota creada exitosamente', { shareId: newShare._id, registeredBy: userName });
+    await updateStudentEnabledStatus(student);
+    logger.info('Estado del estudiante actualizado', { student });
 
-        const newShare = await Share.create({
-            student,
-            paymentName,
-            year,
-            amount: amount || null, // Opcional
-            paymentDate: paymentDate || null,
-            paymentMethod: paymentDate ? paymentMethod : null,
-            paymentType: paymentDate ? paymentType : null,
-            status: paymentDate ? 'Pagado' : 'Pendiente',
-            registeredBy: userName || null,
-        });
-
-        await updateStudentEnabledStatus(student);
-
-        res.status(201).json({
-            message: 'La cuota se agregó exitosamente',
-            share: newShare,
-        });
-    } catch (error) {
-        return res.status(500).json({ message: 'Error al crear la cuota', error: error.message });
-    }
+    res.status(201).json({
+      message: 'La cuota se agregó exitosamente',
+      share: newShare,
+    });
+  } catch (error) {
+    logger.error('Error al crear la cuota', { error: error.message, stack: error.stack });
+    return res.status(500).json({ message: 'Error al crear la cuota', error: error.message });
+  }
 };
-
 // Crear cuotas masivas
 export const createMassiveShares = async (req, res) => {
     const { paymentName, year } = req.body;
@@ -195,42 +201,47 @@ export const createMassiveShares = async (req, res) => {
 
 // Actualizar una cuota (registrar pago)
 export const updateShare = async (req, res) => {
-    const { paymentName, amount, paymentDate, paymentMethod, paymentType } = req.body;
+  const { paymentName, amount, paymentDate, paymentMethod, paymentType } = req.body;
 
-    try {
-        const share = await Share.findById(req.params.id);
-        if (!share) {
-            return res.status(404).json({ message: 'Cuota no encontrada' });
-        }
-
-        if (paymentDate && (!amount || !paymentMethod || !paymentType)) {
-            return res.status(400).json({ message: 'Faltan campos obligatorios para registrar el pago: amount, paymentMethod, paymentType' });
-        }
-
-        const userName = req.user?.name;
-
-        share.paymentName = paymentName !== undefined ? paymentName : share.paymentName;
-        share.year = share.year;
-        share.amount = amount !== undefined ? amount : share.amount;
-        share.paymentDate = paymentDate !== undefined ? paymentDate : share.paymentDate;
-        share.paymentMethod = paymentMethod !== undefined ? paymentMethod : share.paymentMethod;
-        share.paymentType = paymentType !== undefined ? paymentType : share.paymentType;
-        share.status = paymentDate ? 'Pagado' : 'Pendiente';
-        share.registeredBy = userName || share.registeredBy || null;
-
-        await share.save();
-
-        await updateStudentEnabledStatus(share.student);
-
-        res.status(200).json({
-            message: 'Cuota actualizada correctamente',
-            share,
-        });
-    } catch (error) {
-        return res.status(500).json({ message: 'Error al actualizar la cuota', error: error.message });
+  try {
+    logger.info('Iniciando actualización de cuota', { shareId: req.params.id });
+    const share = await Share.findById(req.params.id);
+    if (!share) {
+      logger.error('Cuota no encontrada', { shareId: req.params.id });
+      return res.status(404).json({ message: 'Cuota no encontrada' });
     }
-};
 
+    if (paymentDate && (!amount || !paymentMethod || !paymentType)) {
+      logger.warn('Faltan campos obligatorios para registrar el pago', { amount, paymentMethod, paymentType });
+      return res.status(400).json({ message: 'Faltan campos obligatorios para registrar el pago: amount, paymentMethod, paymentType' });
+    }
+
+    const userName = req.user?.name || 'UsuarioDesconocido';
+    logger.info('Usuario asignado para registeredBy en actualización', { userName });
+    share.paymentName = paymentName !== undefined ? paymentName : share.paymentName;
+    share.year = share.year;
+    share.amount = amount !== undefined ? amount : share.amount;
+    share.paymentDate = paymentDate !== undefined ? paymentDate : share.paymentDate;
+    share.paymentMethod = paymentMethod !== undefined ? paymentMethod : share.paymentMethod;
+    share.paymentType = paymentType !== undefined ? paymentType : share.paymentType;
+    share.status = paymentDate ? 'Pagado' : 'Pendiente';
+    share.registeredBy = userName;
+
+    await share.save();
+    logger.info('Cuota actualizada exitosamente', { shareId: share._id, registeredBy: userName });
+
+    await updateStudentEnabledStatus(share.student);
+    logger.info('Estado del estudiante actualizado tras pago', { student: share.student });
+
+    res.status(200).json({
+      message: 'Cuota actualizada correctamente',
+      share,
+    });
+  } catch (error) {
+    logger.error('Error al actualizar la cuota', { error: error.message, stack: error.stack });
+    return res.status(500).json({ message: 'Error al actualizar la cuota', error: error.message });
+  }
+};
 // Eliminar una cuota
 export const deleteShare = async (req, res) => {
     try {
