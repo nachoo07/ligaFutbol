@@ -30,6 +30,7 @@ export const getAllShares = async (req, res) => {
 
 // Crear una nueva cuota (individual)
 export const createShare = async (req, res) => {
+    logger.info('Entrando en createShare', { path: req.path, body: req.body });
   const { student, paymentName, year, amount, paymentDate, paymentMethod, paymentType } = req.body;
 
   if (!student || !paymentName || !year) {
@@ -46,7 +47,8 @@ export const createShare = async (req, res) => {
     }
 
     const userName = req.user?.name || 'UsuarioDesconocido';
-    logger.info('Usuario asignado para registeredBy', { userName });
+  logger.info('Asignando registeredBy:', { userName });
+
     const newShare = await Share.create({
       student,
       paymentName,
