@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBars, FaChartBar, FaAngleDown, FaAngleUp, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa';
+import { FaBars, FaChartBar, FaAngleDown, FaAngleUp, FaListUl, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import DatePicker from 'react-datepicker';
 import { es } from 'date-fns/locale';
@@ -91,6 +91,7 @@ const ReportByLocation = ({ location }) => {
     { name: 'Deudores', route: '/report/pendingshare', icon: <LuClipboardList /> },
     { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
     { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
+    { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
     { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
   ];
 

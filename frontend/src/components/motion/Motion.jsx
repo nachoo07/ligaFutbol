@@ -1,7 +1,7 @@
 import { React, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import '../motion/motion.css'
-import { FaSearch, FaBars, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUsers,FaAddressCard, FaListUl, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import Icome from './income/Income'
 
@@ -19,6 +19,7 @@ const Motion = () => {
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
         { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
+        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 

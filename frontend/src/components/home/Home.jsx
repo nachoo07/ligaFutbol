@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaUsers, FaBell, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaBars, FaRegListAlt, FaAddressCard } from 'react-icons/fa';
+import { FaUsers, FaBell, FaMoneyBill, FaChartBar, FaExchangeAlt,FaListUl, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaBars, FaRegListAlt, FaAddressCard } from 'react-icons/fa';
 import { LoginContext } from '../../context/login/LoginContext';
 import { LuClipboardList } from "react-icons/lu";
 import { useContext } from 'react';
@@ -21,7 +21,7 @@ const Home = () => {
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
-        { name: 'Detalle cuotas', route: '/share/detail', icon: <FaEnvelope /> }
+        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> }
     ];
 
     if (loading) {

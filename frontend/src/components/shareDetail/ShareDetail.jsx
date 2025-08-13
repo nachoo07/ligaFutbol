@@ -7,8 +7,10 @@ import Select from 'react-select';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaListUl, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
+import { jsPDF } from 'jspdf'; // Nuevo: importar jsPDF
+import autoTable from 'jspdf-autotable'; // Nuevo: importar autoTable
 import './shareDetail.css';
 
 const ShareDetail = () => {
@@ -31,39 +33,36 @@ const ShareDetail = () => {
     }, []);
 
     useEffect(() => {
-        // Cargar datos si hay al menos un filtro o búsqueda
-        if ((selectedUser || selectedDate || searchTerm) && !isDataLoaded) {
+        if (selectedUser && selectedDate && !isDataLoaded) {
             fetchCuotas();
         }
-    }, [selectedUser, selectedDate, searchTerm]);
+    }, [selectedUser, selectedDate, isDataLoaded]);
 
     useEffect(() => {
         if (!isDataLoaded) return;
 
         let filtered = [...cuotas].filter(cuota => cuota.status === 'Pagado');
 
-        if (selectedUser) {
+        if (selectedUser && selectedDate) {
             filtered = filtered.filter(cuota => cuota.registeredBy === selectedUser.label);
-        }
-        if (selectedDate) {
             const dateStr = selectedDate.toISOString().split('T')[0];
             filtered = filtered.filter(cuota => cuota.paymentDate && new Date(cuota.paymentDate).toISOString().split('T')[0] === dateStr);
-        }
-        if (searchTerm) {
-            const searchLower = searchTerm.toLowerCase();
-            filtered = filtered.filter(cuota => {
-                const studentName = `${cuota.student?.name || ''} ${cuota.student?.lastName || ''}`.toLowerCase();
-                return studentName.includes(searchLower);
-            });
-        }
 
-        // Si no hay filtros ni búsqueda activa, no mostrar datos
-        if (!selectedUser && !selectedDate && !searchTerm) {
-            setFilteredCuotas([]);
-        } else {
+            if (searchTerm) {
+                const searchLower = searchTerm.toLowerCase();
+                filtered = filtered.filter(cuota => {
+                    const studentName = `${cuota.student?.name || ''} ${cuota.student?.lastName || ''}`.toLowerCase();
+                    return studentName.includes(searchLower);
+                });
+            }
+
             setFilteredCuotas(filtered);
+        } else {
+            setFilteredCuotas([]);
         }
-    }, [cuotas, selectedUser, selectedDate, searchTerm, isDataLoaded]);
+    },
+
+    [cuotas, selectedUser, selectedDate, searchTerm, isDataLoaded]);
 
     const userOptions = usuarios.map(user => ({
         value: user._id,
@@ -71,6 +70,49 @@ const ShareDetail = () => {
     }));
 
     const formatDate = (dateString) => dateString ? new Date(dateString).toISOString().split('T')[0] : '-';
+
+    // Nuevo: función para exportar a PDF
+    const exportToPDF = () => {
+        const doc = new jsPDF();
+        doc.text('Registro de Pagos', 14, 16);
+
+        const headers = ['Fecha', 'Estudiante', 'Escuela', 'Monto', 'Método de Pago', 'Usuario que registró'];
+        const tableData = filteredCuotas.map(cuota => [
+            formatDate(cuota.paymentDate),
+            `${cuota.student?.name || ''} ${cuota.student?.lastName || '-'}`,
+            cuota.student?.school || '-',
+            cuota.amount !== null && cuota.amount !== undefined
+                ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(cuota.amount)
+                : '-',
+            cuota.paymentMethod || '-',
+            cuota.registeredBy || '-'
+        ]);
+
+        // Agregar totales al final de la tabla
+        const { total, efectivo, transferencia } = calculateTotals();
+        tableData.push([
+            { content: 'Total:', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
+            new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(total),
+            { content: `${efectivo > 0 ? `Efectivo: ${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(efectivo)}` : ''}${efectivo > 0 && transferencia > 0 ? ' - ' : ''}${transferencia > 0 ? `Transferencia: ${new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(transferencia)}` : ''}`, colSpan: 2 }
+        ]);
+
+        autoTable(doc, {
+            head: [headers],
+            body: tableData,
+            startY: 20,
+            styles: { fontSize: 10 },
+            columnStyles: {
+                0: { cellWidth: 30 },
+                1: { cellWidth: 40 },
+                2: { cellWidth: 30 },
+                3: { cellWidth: 30 },
+                4: { cellWidth: 30 },
+                5: { cellWidth: 30 }
+            }
+        });
+
+        doc.save('registro_pagos.pdf');
+    };
 
     const adminMenuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
@@ -83,6 +125,7 @@ const ShareDetail = () => {
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
         { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
+        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
@@ -106,10 +149,9 @@ const ShareDetail = () => {
         setSelectedDate(null);
         setSearchTerm('');
         setFilteredCuotas([]);
-        setIsDataLoaded(false); // Restablecer carga de datos
+        setIsDataLoaded(false);
     };
 
-    // Calcular totales
     const calculateTotals = () => {
         const total = filteredCuotas.reduce((sum, cuota) => sum + (cuota.amount || 0), 0);
         const efectivo = filteredCuotas
@@ -130,7 +172,9 @@ const ShareDetail = () => {
                 <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
                     <FaBars />
                 </div>
-                {(auth === 'admin' ? adminMenuItems : userMenuItems).map((item, index) => (
+                {(auth === 'admin' ? adminMenuItems : userMenuItems).map((item
+
+, index) => (
                     <div
                         key={index}
                         className="sidebar-item"
@@ -180,6 +224,12 @@ const ShareDetail = () => {
                             </Button>
                         </div>
                     </div>
+                    {/* Nuevo: sección para el botón de exportar a PDF */}
+                    <div className="table-actions">
+                        <Button onClick={exportToPDF} variant="primary" disabled={filteredCuotas.length === 0}>
+                            Exportar a PDF
+                        </Button>
+                    </div>
                     <Table className="payment-table">
                         <thead>
                             <tr>
@@ -199,12 +249,12 @@ const ShareDetail = () => {
                                         <td>{cuota.student?.name} {cuota.student?.lastName || '-'}</td>
                                         <td>{cuota.student?.school || '-'}</td>
                                         <td>
-                                            {cuota.amount
+                                            {cuota.amount !== null && cuota.amount !== undefined
                                                 ? new Intl.NumberFormat('es-CL', {
-                                                      style: 'currency',
-                                                      currency: 'CLP',
-                                                      minimumFractionDigits: 0,
-                                                  }).format(cuota.amount)
+                                                    style: 'currency',
+                                                    currency: 'CLP',
+                                                    minimumFractionDigits: 0,
+                                                }).format(cuota.amount)
                                                 : '-'}
                                         </td>
                                         <td>{cuota.paymentMethod || '-'}</td>
@@ -214,11 +264,11 @@ const ShareDetail = () => {
                             ) : (
                                 <tr>
                                     <td colSpan="6" className="text-center">
-                                        {isDataLoaded && !searchTerm && !selectedUser && !selectedDate
-                                            ? "Seleccione algún filtro o use el buscador para ver los pagos."
+                                        {isDataLoaded && !searchTerm && (!selectedUser || !selectedDate)
+                                            ? "Por favor, selecciona un usuario y una fecha para ver los pagos."
                                             : searchTerm && !filteredCuotas.length
-                                            ? "No hay datos según tu búsqueda."
-                                            : "Seleccione algún filtro o use el buscador para ver los pagos."}
+                                                ? "No hay datos según tu búsqueda."
+                                                : "Por favor, selecciona un usuario y una fecha para ver los pagos."}
                                     </td>
                                 </tr>
                             )}

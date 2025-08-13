@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { SharesContext } from '../../context/share/ShareContext';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUsers, FaAddressCard, FaListUl, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import Select from 'react-select';
 import { Table, Button } from 'react-bootstrap';
@@ -18,7 +18,8 @@ const PendingSharesList = () => {
   const [categories, setCategories] = useState([]);
   const [colors, setColors] = useState([]);
   const [semesters, setSemesters] = useState([]);
-  const [filters, setFilters] = useState({ school: '', category: '', color: '', semester: '', status: 'all' });
+  const [years, setYears] = useState([]);
+  const [filters, setFilters] = useState({ school: '', category: '', color: '', semester: '', year: '', status: 'all' });
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [maxShares, setMaxShares] = useState(1);
 
@@ -33,6 +34,7 @@ const PendingSharesList = () => {
     { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
     { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
     { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
+    { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
     { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
   ];
 
@@ -74,10 +76,21 @@ const PendingSharesList = () => {
           label: semester,
         }));
 
+      const uniqueYears = [...new Set(cuotas.map(share => {
+        const yearMatch = share.paymentName.match(/(\d{4})/);
+        return yearMatch ? yearMatch[1] : null;
+      }))]
+        .filter(year => year)
+        .map(year => ({
+          value: year,
+          label: year,
+        }));
+
       setSchools(uniqueSchools);
       setCategories(uniqueCategories);
       setColors(uniqueColors);
       setSemesters(uniqueSemesters);
+      setYears(uniqueYears);
     }
   }, [cuotas]);
 
@@ -88,9 +101,9 @@ const PendingSharesList = () => {
       return;
     }
 
-    // Solo procesar si hay al menos un filtro seleccionado
-    const hasFilters = filters.school || filters.category || filters.color || filters.semester || (filters.status && filters.status !== 'all');
-    if (!hasFilters) {
+    // Modificado: requerir que school, semester y year estén seleccionados
+    const hasRequiredFilters = filters.school && filters.semester && filters.year;
+    if (!hasRequiredFilters) {
       setStudentShares([]);
       return;
     }
@@ -115,6 +128,10 @@ const PendingSharesList = () => {
         const semester = match ? `Semestre ${match[1]}` : null;
         return semester === filters.semester;
       });
+    }
+    if (filters.year) {
+      console.log('Filtrando por año:', filters.year);
+      filtered = filtered.filter(share => share.paymentName.includes(filters.year));
     }
     if (filters.status && filters.status !== 'all') {
       console.log('Filtrando por estado:', filters.status);
@@ -172,7 +189,7 @@ const PendingSharesList = () => {
 
     const headers = ['Nombre Completo', 'Escuela'];
     for (let i = 1; i <= maxShares; i++) {
-      headers.push(`Concepto ${i}`, `Monto ${i}`, `Estado ${i}`);
+      headers.push(`Concepto `, `Monto `, `Estado `);
     }
 
     const tableData = studentShares.map(student => {
@@ -234,6 +251,24 @@ const PendingSharesList = () => {
                 isClearable
               />
             </div>
+              <div className="filter-group">
+              <label>Semestre:</label>
+              <Select
+                options={semesters}
+                onChange={(option) => handleFilterChange('semester', option)}
+                placeholder="Selecciona un semestre"
+                isClearable
+              />
+            </div>
+            <div className="filter-group">
+              <label>Año:</label>
+              <Select
+                options={years}
+                onChange={(option) => handleFilterChange('year', option)}
+                placeholder="Selecciona un año"
+                isClearable
+              />
+            </div>
             <div className="filter-group">
               <label>Categoría:</label>
               <Select
@@ -243,24 +278,8 @@ const PendingSharesList = () => {
                 isClearable
               />
             </div>
-            <div className="filter-group">
-              <label>Color:</label>
-              <Select
-                options={colors}
-                onChange={(option) => handleFilterChange('color', option)}
-                placeholder="Selecciona un color"
-                isClearable
-              />
-            </div>
-            <div className="filter-group">
-              <label>Semestre:</label>
-              <Select
-                options={semesters}
-                onChange={(option) => handleFilterChange('semester', option)}
-                placeholder="Selecciona un semestre"
-                isClearable
-              />
-            </div>
+          
+          
             <div className="filter-group">
               <label>Estado:</label>
               <Select
@@ -324,7 +343,8 @@ const PendingSharesList = () => {
             </Table>
           ) : (
             <div className="no-data-message">
-              Por favor, selecciona al menos un filtro para ver las cuotas pendientes.
+              {/* Modificado: mensaje específico para indicar filtros obligatorios */}
+              Por favor, selecciona una escuelita, un semestre y un año para ver las cuotas pendientes.
             </div>
           )}
         </div>

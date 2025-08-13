@@ -8,6 +8,7 @@ export const StudentsContext = createContext();
 
 const StudentsProvider = ({ children }) => {
     const [estudiantes, setEstudiantes] = useState([]);
+    const [estudiante, setEstudiante] = useState(null);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     const [loading, setLoading] = useState(false);
     const { auth, loading: authLoading } = useContext(LoginContext);
@@ -48,6 +49,30 @@ const StudentsProvider = ({ children }) => {
                 icon: "error",
                 title: "¡Error!",
                 text: "No se pudieron obtener los estudiantes. Verifica la URL y el servidor.",
+                confirmButtonText: "Aceptar",
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const obtenerEstudiante = async (id) => {
+        if (loading) return;
+        if (auth !== "admin" && auth !== "user") return;
+
+        setLoading(true);
+        try {
+            const response = await axios.get(`/api/students/${id}`, {
+                withCredentials: true,
+            });
+            setEstudiante(response.data);
+        } catch (error) {
+            console.error(`Error obteniendo estudiante con ID ${id}:`, error);
+            setEstudiante(null);
+            Swal.fire({
+                icon: "error",
+                title: "¡Error!",
+                text: "No se pudo encontrar el estudiante.",
                 confirmButtonText: "Aceptar",
             });
         } finally {
@@ -475,7 +500,9 @@ const StudentsProvider = ({ children }) => {
         <StudentsContext.Provider
             value={{
                 estudiantes,
+                estudiante,
                 obtenerEstudiantes,
+                obtenerEstudiante,
                 addEstudiante,
                 deleteEstudiante,
                 updateEstudiante,

@@ -21,7 +21,10 @@ const studentSchema = new mongoose.Schema({
             message: "DNI debe contener 8 a 10 dígitos.",
         },
     },
-    birthDate: { type: String, required: true }, // Cambiado de Date a String
+    birthDate: { 
+        type: String, 
+        required: true 
+    },
     address: {
         type: String,
         required: true,
@@ -29,32 +32,36 @@ const studentSchema = new mongoose.Schema({
     },
     motherName: {
         type: String,
-        required: true, // Ahora obligatorio
         trim: true,
     },
     fatherName: {
         type: String,
-        required: true, // Ahora obligatorio
         trim: true,
     },
     motherPhone: {
         type: String,
-        required: true, // Ahora obligatorio
         trim: true,
-        validate: {
-            validator: (v) => /^\d{10,15}$/.test(v),
+           validate: {
+            validator: function(v) {
+                // Solo validar si el campo tiene contenido
+                if (!v || v.trim() === '') return true;
+                return /^\d{10,15}$/.test(v);
+            },
             message: "El número de teléfono de la madre debe tener entre 10 y 15 dígitos.",
         },
     },
-    fatherPhone: {
+        fatherPhone: {
         type: String,
-        required: true, // Ahora obligatorio
         trim: true,
         validate: {
-            validator: (v) => /^\d{10,15}$/.test(v),
+            validator: function(v) {
+                // Solo validar si el campo tiene contenido
+                if (!v || v.trim() === '') return true;
+                return /^\d{10,15}$/.test(v);
+            },
             message: "El número de teléfono del padre debe tener entre 10 y 15 dígitos.",
         },
-    },
+    }, 
     category: {
         type: String,
         required: true,
@@ -101,7 +108,6 @@ const studentSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        required: true, // Obligatorio
         enum: ['Activo', 'Inactivo'], // Solo estas opciones
         default: 'Activo', // Por defecto "Activo"
         trim: true,

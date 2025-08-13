@@ -1,5 +1,5 @@
 import { Container, Nav, Navbar, Button } from 'react-bootstrap';
-import { FaHome, FaUsers, FaAddressCard,FaRegListAlt, FaBell, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaAngleDown, FaAngleUp } from 'react-icons/fa';
+import { FaHome, FaUsers, FaAddressCard,FaRegListAlt, FaBell, FaListUl, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaAngleDown, FaAngleUp } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import './navbar.css';
 import { useNavigate } from 'react-router-dom';
@@ -68,7 +68,7 @@ const Navigate = () => {
             src={logo}
             width="90"
             height="70"
-            className="logo"
+            className="logo-navbar"
             alt="Logo"
           />
         </Navbar.Brand>

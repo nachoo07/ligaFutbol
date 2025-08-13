@@ -282,7 +282,7 @@ export const createStudent = async (req, res) => {
       status: capitalizeWords(status),
     };
 
-    const requiredFields = ['name', 'lastName', 'dni', 'birthDate', 'address', 'motherName', 'fatherName', 'motherPhone', 'fatherPhone', 'category', 'school', 'sex', 'status'];
+    const requiredFields = ['name', 'lastName', 'dni', 'birthDate', 'address', 'category', 'school', 'sex'];
     const missingFields = requiredFields.filter(field => !normalizedData[field] || String(normalizedData[field]).trim() === '');
     if (missingFields.length > 0) {
       return res.status(400).json({ message: `Faltan campos obligatorios: ${missingFields.join(', ')}` });
@@ -451,6 +451,8 @@ export const deleteStudent = async (req, res) => {
 };
 
 // Actualizar un estudiante por su ID
+
+
 export const updateStudent = async (req, res) => {
   try {
     imageCache.clear();
@@ -461,17 +463,30 @@ export const updateStudent = async (req, res) => {
       return res.status(404).json({ message: 'Estudiante no encontrado', success: false });
     }
 
+    // Normalizar los datos recibidos
     const studentData = { ...req.body };
+
+    // Excluir isEnabled del frontend, ya que se calcula en el backend
+    if (studentData.isEnabled !== undefined) {
+      delete studentData.isEnabled;
+    }
+
     const updateErrors = [];
 
+    // Depuración: inspeccionar datos recibidos
+    console.log('[INFO] req.body:', req.body);
+    console.log('[INFO] req.files:', req.files);
+
+    // Manejar profileImage
     if (req.files && req.files.profileImage && req.files.profileImage.length > 0) {
+      // Eliminar imagen de perfil anterior si existe
       if (student.profileImage && student.profileImage !== 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg') {
         const oldProfileImagePublicId = getPublicIdFromUrl(student.profileImage);
         if (oldProfileImagePublicId) {
           try {
             const result = await cloudinaryV2.uploader.destroy(oldProfileImagePublicId, { resource_type: 'image' });
             if (result.result !== 'ok' && result.result !== 'not found') {
-              updateErrors.push(`No se pudo eliminar la imagen de perfil anterior (${oldProfileImagePublicId}) de Cloudinary: ${result.result}`);
+              updateErrors.push(`No se pudo eliminar la imagen de perfil anterior (${oldProfileImagePublicId}): ${result.result}`);
             }
           } catch (deleteError) {
             updateErrors.push(`Error al eliminar profileImage anterior (${oldProfileImagePublicId}): ${deleteError.message}`);
@@ -481,25 +496,97 @@ export const updateStudent = async (req, res) => {
 
       const file = req.files.profileImage[0];
       if (!file || !file.buffer) {
-        return res.status(400).json({ message: 'El archivo profileImage no es válido', success: false });
-      }
-      try {
-        const publicId = `students/profile/${student.dni}`;
-        const result = await cloudinaryV2.uploader.upload(
-          `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-          { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true, width: 100, height: 100, crop: 'fill' }
-        );
-        if (!result.secure_url) {
-          throw new Error('Fallo al subir profileImage: secure_url no devuelto');
+        updateErrors.push('El archivo profileImage no es válido');
+      } else {
+        try {
+          const publicId = `students/profile/${student.dni}`;
+          const result = await cloudinaryV2.uploader.upload(
+            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+            { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true, width: 100, height: 100, crop: 'fill' }
+          );
+          if (!result.secure_url) {
+            throw new Error('Fallo al subir profileImage: secure_url no devuelto');
+          }
+          studentData.profileImage = result.secure_url;
+        } catch (uploadError) {
+          console.error('Error al subir profileImage a Cloudinary:', uploadError);
+          updateErrors.push(`Error al subir la imagen de perfil: ${uploadError.message}`);
         }
-        studentData.profileImage = result.secure_url;
-      } catch (uploadError) {
-        console.error('Error al subir profileImage a Cloudinary:', uploadError);
-        return res.status(500).json({ message: 'Error al subir la imagen de perfil', success: false });
       }
     }
 
+    // Manejar archived
+    let archivedUrls = [];
+    let archivedNames = [];
+
+    // Procesar URLs existentes
+    let existingArchived = [];
+    if (req.body.existingArchived) {
+      existingArchived = Array.isArray(req.body.existingArchived)
+        ? req.body.existingArchived
+        : [req.body.existingArchived];
+      existingArchived = existingArchived.filter(url => url && url.startsWith('http'));
+    }
+
+    // Usar existingArchived como base, no combinar con student.archived
+    archivedUrls = [...existingArchived].slice(0, 2);
+
+    // Procesar archivedNames
+    if (req.body.archivedNames) {
+      try {
+        archivedNames = JSON.parse(req.body.archivedNames);
+        if (!Array.isArray(archivedNames)) {
+          throw new Error('archivedNames debe ser un arreglo');
+        }
+      } catch (error) {
+        updateErrors.push(`Error al procesar archivedNames: ${error.message}`);
+        archivedNames = student.archivedNames || [];
+      }
+    } else {
+      archivedNames = student.archivedNames || [];
+    }
+
+    // Si se envían nuevos archivos adjuntos
     if (req.files && req.files.archived && req.files.archived.length > 0) {
+      // Validar límite de 2 archivos
+      const totalFiles = archivedUrls.length + req.files.archived.length;
+      if (totalFiles > 2) {
+        return res.status(400).json({
+          message: `Se permiten máximo 2 archivos en archived. Actualmente hay ${archivedUrls.length} archivo(s) existente(s).`,
+          success: false
+        });
+      }
+
+      // Subir nuevos archivos
+      const newUrls = [];
+      for (let i = 0; i < req.files.archived.length; i++) {
+        const file = req.files.archived[i];
+        if (!file || !file.buffer) {
+          updateErrors.push(`El archivo archived[${i}] no es válido`);
+          continue;
+        }
+        try {
+          const publicId = `students/archived/${student.dni}/${Date.now()}-${i}`;
+          const result = await cloudinaryV2.uploader.upload(
+            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+            { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true }
+          );
+          if (!result.secure_url) {
+            throw new Error(`Fallo al subir archived[${i}]: secure_url no devuelto`);
+          }
+          newUrls.push(result.secure_url);
+          // Añadir el nombre del archivo nuevo al índice correcto
+          const targetIndex = archivedUrls.length + i;
+          archivedNames[targetIndex] = file.originalname || `Archivo ${targetIndex + 1}`;
+        } catch (uploadError) {
+          updateErrors.push(`Error al subir un archivo archived: ${uploadError.message}`);
+        }
+      }
+
+      // Combinar URLs nuevas con existentes
+      archivedUrls = [...archivedUrls, ...newUrls].slice(0, 2);
+    } else if (req.body.archived && JSON.parse(req.body.archived).length === 0) {
+      // Si se envía archived como arreglo vacío, limpiar todo
       if (student.archived && student.archived.length > 0) {
         const archivedPublicIds = student.archived
           .map(url => getPublicIdFromUrl(url))
@@ -516,38 +603,65 @@ export const updateStudent = async (req, res) => {
           }
         }
       }
+      archivedUrls = [];
+      archivedNames = [];
+    }
 
-      const archivedUrls = [];
-      const archivedNames = studentData.archivedNames || [];
-      for (let i = 0; i < req.files.archived.length; i++) {
-        const file = req.files.archived[i];
-        if (!file || !file.buffer) {
-          updateErrors.push('Uno de los archivos archived no es válido');
-          continue;
-        }
+    // Eliminar archivos de Cloudinary que ya no están en archivedUrls
+    if (student.archived && student.archived.length > 0) {
+      const currentPublicIds = student.archived
+        .map(url => getPublicIdFromUrl(url))
+        .filter(publicId => publicId);
+      const newPublicIds = archivedUrls
+        .map(url => getPublicIdFromUrl(url))
+        .filter(publicId => publicId);
+      const publicIdsToDelete = currentPublicIds.filter(id => !newPublicIds.includes(id));
+      if (publicIdsToDelete.length > 0) {
         try {
-          const publicId = `students/archived/${student.dni}/${i}`;
-          const result = await cloudinaryV2.uploader.upload(
-            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-            { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true }
-          );
-          if (!result.secure_url) {
-            throw new Error(`Fallo al subir archived[${i}]: secure_url no devuelto`);
+          const result = await cloudinaryV2.api.delete_resources(publicIdsToDelete, { resource_type: 'image' });
+          const notDeleted = Object.keys(result.deleted).filter(id => result.deleted[id] !== 'deleted');
+          if (notDeleted.length > 0) {
+            updateErrors.push(`No se pudieron eliminar algunos archivos archived anteriores: ${notDeleted.join(', ')}`);
           }
-          archivedUrls.push(result.secure_url);
-        } catch (uploadError) {
-          updateErrors.push(`Error al subir un archivo archived: ${uploadError.message}`);
+        } catch (deleteError) {
+          updateErrors.push(`Error al eliminar archived anteriores: ${deleteError.message}`);
         }
       }
-      studentData.archived = archivedUrls;
-      studentData.archivedNames = archivedNames;
     }
 
-    if (studentData.birthDate) {
-      studentData.birthDate = normalizeDate(studentData.birthDate);
+    studentData.archived = archivedUrls;
+    studentData.archivedNames = archivedNames;
+
+    // Normalizar campos de texto
+    if (studentData.name) studentData.name = capitalizeWords(studentData.name);
+    if (studentData.lastName) studentData.lastName = capitalizeWords(studentData.lastName);
+    if (studentData.address) studentData.address = capitalizeWords(studentData.address);
+    if (studentData.motherName) studentData.motherName = capitalizeWords(studentData.motherName);
+    if (studentData.fatherName) studentData.fatherName = capitalizeWords(studentData.fatherName);
+    if (studentData.category) studentData.category = capitalizeWords(studentData.category);
+    if (studentData.school) studentData.school = capitalizeWords(studentData.school);
+    if (studentData.color) studentData.color = capitalizeWords(studentData.color);
+    if (studentData.sex) studentData.sex = capitalizeWords(studentData.sex);
+    if (studentData.status) studentData.status = capitalizeWords(studentData.status);
+    if (studentData.birthDate) studentData.birthDate = normalizeDate(studentData.birthDate);
+
+    // Validar campos obligatorios
+    const requiredFields = ['name', 'lastName', 'dni', 'birthDate', 'address', 'category', 'school', 'sex'];
+    const missingFields = requiredFields.filter(field => !studentData[field] || String(studentData[field]).trim() === '');
+    if (missingFields.length > 0) {
+      return res.status(400).json({ message: `Faltan campos obligatorios: ${missingFields.join(', ')}`, success: false });
     }
 
-    const updatedStudent = await Student.findByIdAndUpdate(req.params.id, studentData, { new: true });
+    // Depuración: inspeccionar studentData antes de actualizar
+    console.log('[INFO] studentData para actualizar:', studentData);
+
+    // Actualizar el estudiante
+    const updatedStudent = await Student.findByIdAndUpdate(req.params.id, studentData, { new: true, runValidators: true });
+
+    // Recalcular isEnabled después de la actualización
+    const isEnabled = await calculateStudentEnabledStatus(updatedStudent._id);
+    updatedStudent.isEnabled = isEnabled;
+    await updatedStudent.save();
 
     if (updateErrors.length > 0) {
       res.status(200).json({
@@ -567,14 +681,18 @@ export const updateStudent = async (req, res) => {
           return `${field} es obligatorio`;
         } else if (err.kind === 'enum') {
           return `${field} debe ser ${err.enumValues.map(v => `"${v}"`).join(' o ')}`;
+        } else if (err.kind === 'CastError') {
+          return `Valor inválido para ${field}: ${err.value}`;
         }
         return err.message;
       });
-      return res.status(400).json({ message: `Errores de validación: ${validationErrors.join('; ')}` });
+      return res.status(400).json({ message: `Errores de validación: ${validationErrors.join('; ')}`, success: false });
     }
     return res.status(500).json({ message: `Error al actualizar el estudiante: ${error.message}`, success: false });
   }
 };
+
+
 
 // Obtener un estudiante por su ID
 export const getStudentById = async (req, res) => {
@@ -583,8 +701,9 @@ export const getStudentById = async (req, res) => {
     if (!student) {
       return res.status(404).json({ message: 'Estudiante no encontrado' });
     }
-    res.json(student);
+    res.status(200).json(student); // Usar 200 para consistencia con otros endpoints exitosos
   } catch (error) {
+    console.error(`[ERROR] Error al obtener el estudiante con ID ${req.params.id}: ${error.message}`);
     res.status(500).json({ message: 'Error al obtener el estudiante', error: error.message });
   }
 };

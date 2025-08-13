@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaBars, FaUsers,FaAddressCard, FaMoneyBill,FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaListUl, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import { StudentsContext } from '../../context/student/StudentContext';
 import Select from 'react-select';
@@ -16,11 +16,11 @@ const ListStudent = () => {
     const [schools, setSchools] = useState([]);
     const [categories, setCategories] = useState([]);
     const [colors, setColors] = useState([]);
-    const [filters, setFilters] = useState({ school: '', category: '', color: '' });
+    const [sexes, setSexes] = useState([]);
+    const [filters, setFilters] = useState({ school: '', category: '', color: '', sex: '' });
     const [isMenuOpen, setIsMenuOpen] = useState(true);
-    const [loading, setLoading] = useState(true); // Estado de carga
+    const [loading, setLoading] = useState(true);
 
-    // Categorías agrupadas predefinidas
     const groupedCategories = [
         { value: '2011-2012', label: '2011-2012', years: ['2011', '2012'] },
         { value: '2013-2014', label: '2013-2014', years: ['2013', '2014'] },
@@ -42,10 +42,10 @@ const ListStudent = () => {
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
         { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
+        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
 
-    // Cargar estudiantes si no están en el contexto
     useEffect(() => {
         const fetchStudents = async () => {
             setLoading(true);
@@ -57,20 +57,24 @@ const ListStudent = () => {
         fetchStudents();
     }, [obtenerEstudiantes, estudiantes]);
 
-    // Cargar escuelas al inicio
     useEffect(() => {
         if (estudiantes && Array.isArray(estudiantes)) {
             const uniqueSchools = [...new Set(estudiantes.map(student => student.school))]
                 .filter(school => school)
-                .map(school => ({
-                    value: school,
-                    label: school,
-                }));
+                .map(school => ({ value: school, label: school }));
             setSchools(uniqueSchools);
         }
     }, [estudiantes]);
 
-    // Actualizar categorías cuando cambia la escuelita
+    useEffect(() => {
+        if (estudiantes && Array.isArray(estudiantes)) {
+            const uniqueSexes = [...new Set(estudiantes.map(student => student.sex))]
+                .filter(sex => sex)
+                .map(sex => ({ value: sex, label: sex }));
+            setSexes(uniqueSexes);
+        }
+    }, [estudiantes]);
+
     useEffect(() => {
         if (filters.school && estudiantes && Array.isArray(estudiantes)) {
             const studentsInSchool = estudiantes.filter(student => student.school === filters.school);
@@ -80,7 +84,6 @@ const ListStudent = () => {
             );
             setCategories(availableCategories);
 
-            // Resetear categoría y color si la escuelita cambia
             if (!availableCategories.some(cat => cat.value === filters.category)) {
                 setFilters(prev => ({ ...prev, category: '', color: '' }));
                 setColors([]);
@@ -92,7 +95,6 @@ const ListStudent = () => {
         }
     }, [filters.school, estudiantes]);
 
-    // Actualizar colores cuando cambia la categoría
     useEffect(() => {
         if (filters.school && filters.category && estudiantes && Array.isArray(estudiantes)) {
             const selectedGroup = groupedCategories.find(group => group.value === filters.category);
@@ -103,13 +105,9 @@ const ListStudent = () => {
                 );
                 const uniqueColors = [...new Set(studentsInSchoolAndCategory.map(student => student.color))]
                     .filter(color => color)
-                    .map(color => ({
-                        value: color,
-                        label: color,
-                    }));
+                    .map(color => ({ value: color, label: color }));
                 setColors(uniqueColors);
 
-                // Resetear color si la categoría cambia
                 if (!uniqueColors.some(col => col.value === filters.color)) {
                     setFilters(prev => ({ ...prev, color: '' }));
                 }
@@ -120,7 +118,6 @@ const ListStudent = () => {
         }
     }, [filters.school, filters.category, estudiantes]);
 
-    // Filtrar estudiantes
     useEffect(() => {
         if (!filters.school) {
             setFilteredStudents([]);
@@ -140,6 +137,9 @@ const ListStudent = () => {
         if (filters.color) {
             filtered = filtered.filter(student => student.color === filters.color);
         }
+        if (filters.sex) {
+            filtered = filtered.filter(student => student.sex === filters.sex);
+        }
         setFilteredStudents(filtered);
     }, [filters, estudiantes]);
 
@@ -153,6 +153,15 @@ const ListStudent = () => {
     const handleExportToExcel = async () => {
         const workbook = new ExcelJS.Workbook();
         const worksheet = workbook.addWorksheet('Lista de Alumnos');
+
+        // Configurar página A4 horizontal
+        worksheet.pageSetup = {
+            paperSize: 9, // A4
+            orientation: 'landscape',
+            fitToPage: true,
+            fitToHeight: 1, // Ajustar a 1 página en altura
+            fitToWidth: 1, // Ajustar a 1 página en ancho
+        };
 
         worksheet.columns = [
             { key: 'number', width: 5 },
@@ -178,6 +187,8 @@ const ListStudent = () => {
 
         worksheet.getCell('A3').value = `CLUB PARTICIPANTE: ${filters.school || '__________'}`;
         worksheet.getCell('E3').value = `CATEGORÍA: ${filters.category || '__________'}`;
+        worksheet.getCell('I3').value = `COLOR: ${filters.color || '__________'}`;
+        worksheet.getCell('M3').value = `SEXO: ${filters.sex || '__________'}`;
 
         const tableHeader = ['N°', 'NOMBRE Y APELLIDO', 'D.N.I', 'FECHA NACIMIENTO', 'VS', 'VS', 'VS', 'VS', 'VS', 'VS', 'VS', 'VS', 'SEMIFINAL', 'FINAL'];
         worksheet.addRow(tableHeader);
@@ -193,11 +204,13 @@ const ListStudent = () => {
             };
         });
 
-        for (let i = 0; i < 20; i++) {
+        // Generar 20 filas base + filas extras si hay más de 20 estudiantes
+        const totalRows = Math.max(20, filteredStudents.length);
+        for (let i = 0; i < totalRows; i++) {
             const student = filteredStudents[i];
             const row = {
                 number: (i + 1).toString(),
-                name: student ? `${student.lastName} ${student.name}` : '',
+                name: student ? `${student.name} ${student.lastName}` : '',
                 dni: student ? student.dni : '',
                 birthDate: student ? student.birthDate : '',
                 vs1: '',
@@ -224,24 +237,29 @@ const ListStudent = () => {
             });
         }
 
-        worksheet.getCell('A24').value = 'RESULTADO';
-        worksheet.getCell('A26').value = 'FIRMA DEL DELEGADO';
-        worksheet.getCell('J26').value = 'FIRMA DEL ÁRBITRO';
+        // Ajustar posición de "RESULTADO" y firmas
+        const resultRow = totalRows + 6;
+        worksheet.getCell(`A${resultRow}`).value = 'RESULTADO';
+        worksheet.getCell(`A${resultRow + 2}`).value = 'FIRMA DEL DELEGADO';
+        worksheet.getCell(`J${resultRow + 2}`).value = 'FIRMA DEL ÁRBITRO';
 
         const buffer = await workbook.xlsx.writeBuffer();
         const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const schoolFilter = filters.school || 'Todas';
         const categoryFilter = filters.category || 'Todas';
         const colorFilter = filters.color || 'Todos';
-        saveAs(blob, `lista_alumnos_${schoolFilter}_${categoryFilter}_${colorFilter}.xlsx`);
+        const sexFilter = filters.sex || 'Todos';
+        saveAs(blob, `lista_alumnos_${schoolFilter}_${categoryFilter}_${colorFilter}_${sexFilter}.xlsx`);
     };
 
+    // Generar datos para la tabla con 20 filas como mínimo
     const previewData = [];
-    for (let i = 0; i < 20; i++) {
+    const totalRows = Math.max(20, filteredStudents.length);
+    for (let i = 0; i < totalRows; i++) {
         const student = filteredStudents[i];
         previewData.push({
             number: i + 1,
-            name: student ? `${student.lastName} ${student.name}` : '',
+            name: student ? `${student.name} ${student.lastName}` : '',
             dni: student ? student.dni : '',
             birthDate: student ? student.birthDate : '',
         });
@@ -294,7 +312,7 @@ const ListStudent = () => {
                                         onChange={(option) => handleFilterChange('category', option)}
                                         placeholder="Selecciona una categoría"
                                         isClearable
-                                        isDisabled={!filters.school} // Deshabilitado hasta que haya escuelita
+                                        isDisabled={!filters.school}
                                     />
                                 </div>
                                 <div className="filter-group">
@@ -304,7 +322,16 @@ const ListStudent = () => {
                                         onChange={(option) => handleFilterChange('color', option)}
                                         placeholder="Selecciona un color"
                                         isClearable
-                                        isDisabled={!filters.category} // Deshabilitado hasta que haya categoría
+                                        isDisabled={!filters.category}
+                                    />
+                                </div>
+                                <div className="filter-group">
+                                    <label>Sexo:</label>
+                                    <Select
+                                        options={sexes}
+                                        onChange={(option) => handleFilterChange('sex', option)}
+                                        placeholder="Selecciona un sexo"
+                                        isClearable
                                     />
                                 </div>
                             </div>
@@ -316,7 +343,7 @@ const ListStudent = () => {
                             </div>
 
                             {filteredStudents.length > 0 ? (
-                                <div className="preview-container">
+                                <div className="print-container">
                                     <div className="preview-header">
                                         <h1>LIGA INFANTIL DE FUTBOL YERBA BUENA 2025</h1>
                                     </div>
@@ -324,6 +351,7 @@ const ListStudent = () => {
                                         <p>CLUB PARTICIPANTE: {filters.school || '__________'}</p>
                                         <p>CATEGORÍA: {filters.category || '__________'}</p>
                                         <p>COLOR: {filters.color || '__________'}</p>
+                                        <p>SEXO: {filters.sex || '__________'}</p>
                                     </div>
                                     <Table bordered className="preview-table">
                                         <thead>

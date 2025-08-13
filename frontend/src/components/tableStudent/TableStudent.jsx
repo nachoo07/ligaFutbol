@@ -1,13 +1,25 @@
-import { useState, useContext, useEffect } from 'react';
+import React, { useState, useContext, useEffect, useMemo, useRef } from 'react';
 import { Table, Button, Alert, Spinner } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaSearch, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
+import { FaSearch, FaBars, FaUsers, FaAddressCard, FaListUl, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import { MdOutlineReadMore } from "react-icons/md";
 import { StudentsContext } from '../../context/student/StudentContext';
 import { LoginContext } from '../../context/login/LoginContext';
 import StudentFormModal from '../modal/StudentFormModal';
 import './tableStudent.css';
+
+// Hook personalizado para debounce
+function useDebounce(value, delay) {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+        return () => clearTimeout(handler);
+    }, [value, delay]);
+    return debouncedValue;
+}
 
 const TableStudent = () => {
     const navigate = useNavigate();
@@ -33,7 +45,8 @@ const TableStudent = () => {
         fatherName: '',
         fatherPhone: '',
         profileImage: null,
-        archived: null,
+        archived: [],
+        archivedNames: [],
         school: '',
         color: '',
         sex: '',
@@ -42,40 +55,57 @@ const TableStudent = () => {
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
     const [isImporting, setIsImporting] = useState(false);
-    const studentsPerPage = 15;
+    const studentsPerPage = 5;
     const [maxVisiblePages, setMaxVisiblePages] = useState(10);
     const [isMenuOpen, setIsMenuOpen] = useState(true);
+    const isMounted = useRef(false);
 
+    // Estado temporal para paginación
+    const tempState = useRef({
+        currentPage: 1,
+        searchTerm: '',
+        filterCategory: '',
+        filterStatus: ''
+    });
+
+    // Obtener estudiantes y manejar query params
+    useEffect(() => {
+        if (isMounted.current) return;
+        isMounted.current = true;
+
+        console.log('[DEBUG] TableStudent - Inicializando, location.search:', location.search);
+        const queryParams = new URLSearchParams(location.search);
+        const page = parseInt(queryParams.get('page')) || 1;
+        setCurrentPage(page);
+        obtenerEstudiantes();
+    }, [obtenerEstudiantes]);
+
+    // Manejar paginación según la ruta
+    useEffect(() => {
+        console.log('[DEBUG] TableStudent - location:', location.pathname, location.state);
+        if (location.pathname !== '/student' && !location.state?.fromDetailStudent) {
+            console.log('[DEBUG] Reiniciando paginación');
+            setCurrentPage(1);
+            setSearchTerm('');
+            setFilterCategory('');
+            setFilterStatus('');
+        } else if (location.pathname === '/student' && location.state?.fromDetailStudent) {
+            console.log('[DEBUG] Restaurando estado:', tempState.current);
+            setCurrentPage(tempState.current.currentPage);
+            setSearchTerm(tempState.current.searchTerm);
+            setFilterCategory(tempState.current.filterCategory);
+            setFilterStatus(tempState.current.filterStatus);
+        }
+    }, [location]);
+
+    // Manejar resize para paginación visible
     useEffect(() => {
         const handleResize = () => {
-            if (window.innerWidth <= 576) {
-                setMaxVisiblePages(5);
-            } else {
-                setMaxVisiblePages(10);
-            }
+            setMaxVisiblePages(window.innerWidth <= 576 ? 5 : 10);
         };
-
         handleResize();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
-    }, []);
-
-    useEffect(() => {
-        const currentPath = location.pathname;
-        if (currentPath !== '/student' && !currentPath.startsWith('/detailstudent')) {
-            localStorage.removeItem('studentSearchTerm');
-            localStorage.removeItem('studentFilterCategory');
-            localStorage.removeItem('studentFilterStatus');
-            localStorage.removeItem('studentCurrentPage');
-        }
-    }, [location.pathname]);
-
-    useEffect(() => {
-        setSearchTerm('');
-        setFilterCategory('');
-        setFilterStatus('');
-        setCurrentPage(1);
-        obtenerEstudiantes();
     }, []);
 
     const adminMenuItems = [
@@ -89,29 +119,34 @@ const TableStudent = () => {
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
         { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
-        { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
+        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
+        {
+            name: 'Volver Atrás',
+            route: null,
+            action: () => navigate(-1, { state: { fromDetailStudent: true } }),
+            icon: <FaArrowLeft />
+        },
     ];
 
-    const userMenuItems = [
-        { name: 'Inicio', route: '/', icon: <FaHome /> },
-    ];
+    const userMenuItems = [{ name: 'Inicio', route: '/', icon: <FaHome /> }];
 
     const removeAccents = (str) => {
-        return str
-            .normalize('NFD')
-            .replace(/[\u0300-\u036f]/g, '')
-            .toLowerCase();
+        return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     };
 
-    const filteredStudents = estudiantes.filter((estudiante) => {
-        const fullName = removeAccents(`${estudiante.name} ${estudiante.lastName}`);
-        const dni = removeAccents(estudiante.dni || '');
-        const search = removeAccents(searchTerm);
-        const matchesSearch = fullName.includes(search) || dni.includes(search);
-        const matchesCategory = filterCategory === '' || estudiante.category === filterCategory;
-        const matchesStatus = filterStatus === '' || estudiante.status === filterStatus;
-        return matchesSearch && matchesCategory && matchesStatus;
-    });
+    const debouncedSearchTerm = useDebounce(searchTerm, 300);
+
+    const filteredStudents = useMemo(() => {
+        return estudiantes.filter((estudiante) => {
+            const fullName = removeAccents(`${estudiante.name} ${estudiante.lastName}`);
+            const dni = removeAccents(estudiante.dni || '');
+            const search = removeAccents(debouncedSearchTerm);
+            const matchesSearch = fullName.includes(search) || dni.includes(search);
+            const matchesCategory = filterCategory === '' || estudiante.category === filterCategory;
+            const matchesStatus = filterStatus === '' || estudiante.status === filterStatus;
+            return matchesSearch && matchesCategory && matchesStatus;
+        });
+    }, [estudiantes, debouncedSearchTerm, filterCategory, filterStatus]);
 
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
 
@@ -127,7 +162,10 @@ const TableStudent = () => {
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-    const handleSearchChange = (e) => setSearchTerm(e.target.value);
+    const handleSearchChange = (e) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1);
+    };
 
     const handleShow = () => {
         setFormData({
@@ -143,7 +181,8 @@ const TableStudent = () => {
             fatherName: '',
             fatherPhone: '',
             profileImage: null,
-            archived: null,
+            archived: [],
+            archivedNames: [],
             school: '',
             color: '',
             sex: '',
@@ -157,9 +196,13 @@ const TableStudent = () => {
     const handleChange = (e) => {
         const { name, value, files } = e.target;
         if (files) {
-            setFormData({ ...formData, [name]: files[0] });
+            setFormData(prev => ({
+                ...prev,
+                [name]: name === 'archived' ? Array.from(files) : files[0],
+                ...(name === 'archived' && { archivedNames: Array.from(files).map(f => f.name) })
+            }));
         } else {
-            setFormData({ ...formData, [name]: value });
+            setFormData(prev => ({ ...prev, [name]: value }));
         }
     };
 
@@ -167,9 +210,10 @@ const TableStudent = () => {
         e.preventDefault();
         try {
             await addEstudiante(formData);
-            // No mostrar alerta aquí, el modal manejará el éxito
+            handleClose();
+            obtenerEstudiantes();
         } catch (error) {
-            // Propagar el error al modal
+            console.error('[DEBUG] Error en handleSubmit:', error);
             throw error;
         }
     };
@@ -181,20 +225,16 @@ const TableStudent = () => {
             setShowAlert(true);
             return;
         }
-
-        const validTypes = [
-            'application/vnd.ms-excel',
-            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        ];
+        const validTypes = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
         if (!validTypes.includes(file.type)) {
             setAlertMessage("El archivo debe ser un Excel (.xlsx o .xls)");
             setShowAlert(true);
             return;
         }
-
         setIsImporting(true);
         try {
             await importStudents(file);
+            obtenerEstudiantes();
         } catch (error) {
             setAlertMessage(error.response?.data?.message || "Error al importar el archivo Excel");
             setShowAlert(true);
@@ -206,10 +246,7 @@ const TableStudent = () => {
 
     const capitalizeInitials = (text) => {
         if (!text) return '';
-        return text
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
+        return text.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
     };
 
     const getVisiblePageNumbers = () => {
@@ -228,7 +265,13 @@ const TableStudent = () => {
                     <div
                         key={index}
                         className="sidebar-item"
-                        onClick={() => item.action ? item.action() : navigate(item.route)}
+                        onClick={() => {
+                            if (item.action) {
+                                item.action();
+                            } else {
+                                navigate(item.route);
+                            }
+                        }}
                     >
                         <span className="icon">{item.icon}</span>
                         <span className="text">{item.name}</span>
@@ -237,12 +280,7 @@ const TableStudent = () => {
             </div>
             <div className="content-student">
                 {showAlert && (
-                    <Alert
-                        variant="warning"
-                        onClose={() => setShowAlert(false)}
-                        dismissible
-                        className="custom-alert"
-                    >
+                    <Alert variant="warning" onClose={() => setShowAlert(false)} dismissible className="custom-alert">
                         <Alert.Heading>¡Atención!</Alert.Heading>
                         <p>{alertMessage}</p>
                     </Alert>
@@ -275,7 +313,7 @@ const TableStudent = () => {
                             <div className="filter-actions">
                                 <div className="actions">
                                     <Button className="add-btn" onClick={handleShow}>Agregar Alumno</Button>
-                                    <label htmlFor="import-excel" className="btn btn-success import-btn">
+                                    <label htmlFor="import-excel" className="import-btn">
                                         <FaFileExcel style={{ marginRight: '5px' }} /> Importar Excel
                                     </label>
                                     <input
@@ -317,7 +355,15 @@ const TableStudent = () => {
                                         <td>
                                             <Button
                                                 className="action-btn ver-mas-btn"
-                                                onClick={() => navigate(`/detailstudent/${estudiante._id}`)}
+                                                onClick={() => {
+                                                    tempState.current = {
+                                                        currentPage,
+                                                        searchTerm,
+                                                        filterCategory,
+                                                        filterStatus
+                                                    };
+                                                    navigate(`/detailstudent/${estudiante._id}?page=${currentPage}`, { state: { fromDetailStudent: true } });
+                                                }}
                                             >
                                                 <span className="ver-mas-text">Ver Más</span>
                                                 <span className="ver-mas-icon">
@@ -369,6 +415,7 @@ const TableStudent = () => {
                         handleSubmit={handleSubmit}
                         handleChange={handleChange}
                         formData={formData}
+                        student={null}
                     />
                 )}
                 {isImporting && (

@@ -15,9 +15,16 @@ const shareSchema = new mongoose.Schema({
         type: Number,
         required: true,
     },
-    amount: {
+      amount: {
         type: Number,
         required: false, // Ahora es opcional, se define al registrar el pago
+        validate: {
+            validator: function(v) {
+                // Permitir null/undefined (cuando es opcional) o números >= 0 (incluyendo 0)
+                return v == null || (typeof v === 'number' && v >= 0);
+            },
+            message: 'El monto debe ser mayor o igual a 0'
+        }
     },
     paymentDate: {
         type: Date, // Fecha de pago (null si no está pagada)

@@ -19,48 +19,48 @@ transporter.verify((error, success) => {
 });
 
 export const sendEmail = async (req, res) => {
-    const { recipients, subject, message, attachment } = req.body;
+    const { recipients, subject, messages, studentsData } = req.body;
 
-    // Validar campos requeridos
-    if (!recipients || !Array.isArray(recipients) || recipients.length === 0 || !subject || !message) {
-        return res.status(400).json({ message: 'Faltan campos requeridos o recipients no es un arreglo válido' });
+    if (!recipients || !Array.isArray(recipients) || recipients.length === 0 || !subject || !messages || !Array.isArray(messages)) {
+        return res.status(400).json({ message: 'Faltan campos requeridos o recipients/messages no es un arreglo válido' });
     }
 
-    // Validar direcciones de correo
-    const invalidEmails = recipients.filter(email => !validator.isEmail(email));
-    if (invalidEmails.length > 0) {
-        return res.status(400).json({ message: 'Correos inválidos', invalidEmails });
-    }
-
-    // Validar límite de destinatarios
     if (recipients.length > 100) {
         return res.status(400).json({ message: 'Demasiados destinatarios. El límite es 100 por correo.' });
     }
 
-    try {
-        const mailOptions = {
-            from: `"Liga de Futbol Infantil" <${process.env.EMAIL_USER}>`,
-            to: recipients.join(', '),
-            subject,
-            text: message.replace(/<[^>]+>/g, ''),
-            html: message,
-        };
+    const allStudents = studentsData.map(s => s.student || s);
+    const validRecipients = [...new Set(recipients)].filter(r => allStudents.some(s => s.mail === r));
 
-        // Si hay un adjunto, agregarlo al correo
-        if (attachment) {
-            mailOptions.attachments = [
-                {
-                    filename: 'comprobante-pago.png',
-                    content: Buffer.from(attachment, 'base64'),
-                    contentType: 'image/png',
-                },
-            ];
+    if (validRecipients.length === 0) {
+        return res.status(400).json({ message: 'No hay destinatarios válidos' });
+    }
+
+    const successEmails = [];
+
+    try {
+        for (let i = 0; i < validRecipients.length; i++) {
+            const recipient = validRecipients[i];
+            const mailOptions = {
+                from: `"Liga de Futbol Infantil" <${process.env.EMAIL_USER}>`,
+                to: recipient,
+                subject,
+                text: messages[i].message.replace(/<[^>]+>/g, ''),
+                html: messages[i].message,
+            };
+
+            try {
+                const info = await transporter.sendMail(mailOptions);
+                console.log(`Correo enviado a ${recipient}:`, info.response);
+                successEmails.push(recipient);
+            } catch (sendError) {
+                console.error(`Error enviando a ${recipient}:`, sendError);
+            }
         }
 
-        await transporter.sendMail(mailOptions);
-        res.status(200).json({ message: 'Correos enviados exitosamente' });
+        res.status(200).json({ message: 'Correos enviados exitosamente', successEmails });
     } catch (error) {
-        console.error('Error enviando correos:', error);
-        res.status(500).json({ message: 'Error al enviar correos', error: error.message, code: error.code });
+        console.error('Error general enviando correos:', error);
+        res.status(500).json({ message: 'Error al enviar correos', error: error.message });
     }
 };

@@ -18,6 +18,52 @@
   margin-bottom: 30px;
 }
 
+/* ...existing code... */
+
+.editor-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 8px;
+  background-color: #f8f9fa;
+  border: 1px solid #ddd;
+  border-radius: 4px 4px 0 0;
+}
+
+.toolbar-btn {
+  background: none;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  padding: 6px 8px;
+  cursor: pointer;
+  color: #555;
+  transition: all 0.2s;
+}
+
+.toolbar-btn:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.toolbar-btn:active {
+  background-color: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.email-message-editor {
+  font-family: Arial, sans-serif;
+  line-height: 1.6;
+  outline: none;
+}
+
+.email-message-editor:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+}
+
+/* ...existing code... */
+
 .student-selection-card,
 .email-composer-card {
   background: white;

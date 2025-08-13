@@ -4,35 +4,40 @@ import { FaTimes } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import './studentModal.css';
 
-const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formData }) => {
+const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formData, student }) => {
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
 
-    // Imagen por defecto
     const defaultImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
 
-    // Inicializar archived y archivedNames cuando el modal se abre
     useEffect(() => {
-        if (show && (!formData.archived || !Array.isArray(formData.archived))) {
-            handleChange({
-                target: {
-                    name: 'archived',
-                    value: [],
-                    archivedNames: []
-                }
-            });
+        if (show) {
+            // Inicializar archived y archivedNames si no están definidos o no son arreglos
+            if (!Array.isArray(formData.archived)) {
+                handleChange({
+                    target: {
+                        name: 'archived',
+                        value: student?.archived || []
+                    }
+                });
+            }
+            if (!Array.isArray(formData.archivedNames)) {
+                handleChange({
+                    target: {
+                        name: 'archivedNames',
+                        value: student?.archivedNames || []
+                    }
+                });
+            }
         }
-    }, [show, handleChange]);
+    }, [show, formData.archived, formData.archivedNames, student, handleChange]);
 
-    // Función para transformar URLs de Cloudinary y añadir f_auto
     const getTransformedImageUrl = (url) => {
         if (!url || url === defaultImage) return defaultImage;
-
         if (typeof url === 'string' && url.startsWith('https://res.cloudinary.com')) {
             const urlParts = url.split('/upload/');
             if (urlParts.length < 2) return url;
-            const transformedUrl = `${urlParts[0]}/upload/f_auto/${urlParts[1]}`;
-            return `${transformedUrl}?t=${new Date().getTime()}`;
+            return `${urlParts[0]}/upload/f_auto/${urlParts[1]}`;
         }
         return url;
     };
@@ -66,6 +71,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
             'image/bmp', 'image/tiff'
         ];
 
+
         if (name === 'profileImage') {
             const file = files[0];
             if (file && !validImageTypes.includes(file.type)) {
@@ -80,10 +86,12 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
             handleChange({ target: { name, value: file } });
         } else if (name === 'archived') {
             const selectedFiles = Array.from(files);
-            const currentFiles = formData.archived || [];
-            const currentFileCount = currentFiles.length;
-            const newFileCount = selectedFiles.length;
 
+            const currentFiles = Array.isArray(formData.archived) ? [...formData.archived] : [];
+            const currentFileNames = Array.isArray(formData.archivedNames) ? [...formData.archivedNames] : [];
+            const currentFileCount = currentFiles.filter(item => item !== null && (item instanceof File || (typeof item === 'string' && item.startsWith('http')))).length;
+
+            // Validar formatos de archivo
             const invalidFiles = selectedFiles.filter(file => !validImageTypes.includes(file.type));
             if (invalidFiles.length > 0) {
                 Swal.fire({
@@ -95,24 +103,34 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                 return;
             }
 
-            if (currentFileCount + newFileCount > 2) {
+            // Validar límite de 2 archivos
+            if (currentFileCount + selectedFiles.length > 2) {
                 Swal.fire({
                     icon: 'error',
                     title: '¡Error!',
-                    text: 'Ya tienes 2 archivos. Elimina uno para agregar otro.',
+                    text: `Solo se permiten hasta 2 archivos adjuntos. Actualmente tienes ${currentFileCount} archivo(s).`,
                     confirmButtonText: 'Aceptar',
                 });
                 return;
             }
 
-            const updatedFiles = [...currentFiles, ...selectedFiles];
-            const updatedFileNames = updatedFiles.map(f => f.name);
+            // Combinar archivos nuevos con los existentes
+            const updatedFiles = [...currentFiles];
+            const updatedFileNames = [...currentFileNames];
 
+            selectedFiles.forEach((file, index) => {
+                // Añadir al final del arreglo o reemplazar null
+                const targetIndex = updatedFiles.length < 2 ? updatedFiles.length : updatedFiles.findIndex(item => item === null);
+                if (targetIndex !== -1) {
+                    updatedFiles[targetIndex] = file;
+                    updatedFileNames[targetIndex] = file.name || `Archivo ${targetIndex + 1}`;
+                }
+            });
             handleChange({
                 target: {
                     name: 'archived',
-                    value: updatedFiles,
-                    archivedNames: updatedFileNames
+                    value: updatedFiles.filter(item => item !== null), // Filtrar null para mantener el arreglo limpio
+                    archivedNames: updatedFileNames.filter(name => name !== null)
                 }
             });
 
@@ -123,18 +141,23 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
     };
 
     const handleRemoveFile = (index) => {
-        const updatedFiles = formData.archived.filter((_, i) => i !== index);
-        const updatedFileNames = formData.archivedNames?.filter((_, i) => i !== index);
+        const updatedFiles = Array.isArray(formData.archived) ? [...formData.archived] : [];
+        const updatedFileNames = Array.isArray(formData.archivedNames) ? [...formData.archivedNames] : [];
+
+        updatedFiles[index] = null; // Marcar como null para indicar eliminación
+        updatedFileNames[index] = null; // Mantener sincronización
+
+        // Filtrar elementos null
+        const cleanedFiles = updatedFiles.filter(item => item !== null);
+        const cleanedFileNames = updatedFileNames.filter(name => name !== null);
+
         handleChange({
             target: {
                 name: 'archived',
-                value: updatedFiles,
-                archivedNames: updatedFileNames
+                value: cleanedFiles,
+                archivedNames: cleanedFileNames
             }
         });
-        if (fileInputRef.current) {
-            fileInputRef.current.value = null;
-        }
     };
 
     const handleRemoveProfileImage = () => {
@@ -157,22 +180,17 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
         })()
         : '';
 
-    // Validaciones adicionales
     const validateForm = () => {
         if (!formData.dni || !formData.name || !formData.lastName || !formData.birthDate || !formData.address ||
-            !formData.mail || !formData.motherName || !formData.fatherName || !formData.motherPhone ||
-            !formData.fatherPhone || !formData.category || !formData.school || !formData.color ||
-            !formData.sex || !formData.status) {
-            return 'Todos los campos obligatorios deben estar completos (DNI, Nombre, Apellido, Fecha de Nacimiento, Dirección, Email, Nombre y Teléfono de los Padres, Categoría, Escuela, Color, Sexo, Estado).';
+            !formData.mail || !formData.category || !formData.school || !formData.sex) {
+            return 'Todos los campos obligatorios deben estar completos (DNI, Nombre, Apellido, Fecha de Nacimiento, Dirección, Email, Categoría, Escuela, Sexo).';
         }
 
-        // Validar formato de correo
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(formData.mail)) {
             return 'El correo electrónico no tiene un formato válido.';
         }
 
-        // Validar fecha de nacimiento
         const [day, month, year] = formData.birthDate.split('/');
         const birthDate = new Date(`${year}-${month}-${day}`);
         const today = new Date();
@@ -180,15 +198,16 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
             return 'La fecha de nacimiento no es válida o está en el futuro.';
         }
 
-        // Validar longitud del DNI
         if (formData.dni.length < 8 || formData.dni.length > 10) {
             return 'El DNI debe tener entre 8 y 10 dígitos.';
         }
 
-        // Validar números de teléfono
-        if (formData.motherPhone.length < 10 || formData.motherPhone.length > 15 ||
-            formData.fatherPhone.length < 10 || formData.fatherPhone.length > 15) {
-            return 'Los números de teléfono deben tener entre 10 y 15 dígitos.';
+        if (formData.motherPhone && formData.motherPhone.trim() !== '' && (formData.motherPhone.length < 10 || formData.motherPhone.length > 15)) {
+            return 'El número de teléfono de la madre debe tener entre 10 y 15 dígitos.';
+        }
+
+        if (formData.fatherPhone && formData.fatherPhone.trim() !== '' && (formData.fatherPhone.length < 10 || formData.fatherPhone.length > 15)) {
+            return 'El número de teléfono del padre debe tener entre 10 y 15 dígitos.';
         }
 
         return null;
@@ -197,7 +216,6 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
     const onSubmit = async (e) => {
         e.preventDefault();
 
-        // Validaciones del frontend
         const validationError = validateForm();
         if (validationError) {
             Swal.fire({
@@ -214,11 +232,9 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
             await handleSubmit(e);
             handleClose();
         } catch (error) {
-            // Procesar el mensaje de error del backend
             const rawMessage = error.response?.data?.message || 'Error al guardar el alumno. Por favor, intenta de nuevo.';
             let errorMessage = 'Ha ocurrido un error al guardar el estudiante: ';
 
-            // Mapa de traducción para nombres de campos
             const fieldTranslations = {
                 name: 'Nombre',
                 lastName: 'Apellido',
@@ -242,7 +258,6 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                 const readableField = fieldTranslations[field] || field;
                 errorMessage += `${readableField} duplicado.`;
             } else if (rawMessage.includes('validation failed')) {
-                // Extraer los errores de validación
                 const validationErrors = error.response?.data?.error?.errors || {};
                 const errorMessages = Object.entries(validationErrors).map(([field, err]) => {
                     const readableField = fieldTranslations[field] || field;
@@ -282,10 +297,10 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
     const today = new Date().toISOString().split('T')[0];
 
     return (
-        <Modal 
-            show={show} 
-            onHide={handleClose} 
-            dialogClassName="student-modal" 
+        <Modal
+            show={show}
+            onHide={handleClose}
+            dialogClassName="student-modal"
             backdrop="static"
             keyboard={false}
         >
@@ -390,63 +405,58 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                         />
                     </Form.Group>
                     <Form.Group controlId="formColor">
-                        <Form.Label>Color *</Form.Label>
+                        <Form.Label>Color</Form.Label>
                         <Form.Control
                             type="text"
                             placeholder="Color"
                             name="color"
                             value={formData.color || ''}
                             onChange={handleInputChange}
-                            required
                             maxLength={50}
                         />
                     </Form.Group>
                     <Form.Group controlId="formNombreMama">
-                        <Form.Label>Nombre Mamá *</Form.Label>
+                        <Form.Label>Nombre Mamá</Form.Label>
                         <Form.Control
                             type="text"
                             placeholder="Nombre Mamá"
                             name="motherName"
                             value={formData.motherName || ''}
                             onChange={handleInputChange}
-                            required
                             maxLength={50}
                         />
                     </Form.Group>
                     <Form.Group controlId="formCelularMama">
-                        <Form.Label>Celular Mamá *</Form.Label>
+                        <Form.Label>Celular Mamá</Form.Label>
                         <Form.Control
                             type="text"
                             placeholder="Celular Mamá"
                             name="motherPhone"
                             value={formData.motherPhone || ''}
                             onChange={handleNumberInput}
-                            required
                             pattern="\d{10,15}"
                             title="El número debe tener entre 10 y 15 dígitos."
                         />
                     </Form.Group>
                     <Form.Group controlId="formNombrePapa">
-                        <Form.Label>Nombre Papá *</Form.Label>
+                        <Form.Label>Nombre Papá</Form.Label>
                         <Form.Control
                             type="text"
                             placeholder="Nombre Papá"
                             name="fatherName"
                             value={formData.fatherName || ''}
                             onChange={handleInputChange}
-                            required
                             maxLength={50}
                         />
                     </Form.Group>
                     <Form.Group controlId="formCelularPapa">
-                        <Form.Label>Celular Papá *</Form.Label>
+                        <Form.Label>Celular Papá</Form.Label>
                         <Form.Control
                             type="text"
                             placeholder="Celular Papá"
                             name="fatherPhone"
                             value={formData.fatherPhone || ''}
                             onChange={handleNumberInput}
-                            required
                             pattern="\d{10,15}"
                             title="El número debe tener entre 10 y 15 dígitos."
                         />
@@ -465,12 +475,11 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                         </Form.Select>
                     </Form.Group>
                     <Form.Group controlId="formStatus">
-                        <Form.Label>Estado *</Form.Label>
+                        <Form.Label>Estado</Form.Label>
                         <Form.Select
                             name="status"
                             value={formData.status || 'Activo'}
                             onChange={handleChange}
-                            required
                         >
                             <option value="">Selecciona una opción</option>
                             <option value="Activo">Activo</option>
@@ -526,33 +535,38 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                             />
                             {uploading && <p className="uploading">Subiendo archivos...</p>}
                         </div>
-                        {formData.archived && formData.archived.length > 0 && (
+                        {Array.isArray(formData.archived) && formData.archived.length > 0 ? (
                             <div className="archived-preview">
                                 {formData.archived.map((file, index) => (
-                                    <div key={index} className="archived-item">
-                                        <div className="preview-container-archived">
-                                            <img
-                                                src={
-                                                    file instanceof File
-                                                        ? URL.createObjectURL(file)
-                                                        : getTransformedImageUrl(file)
-                                                }
-                                                alt={`Archivo ${index + 1}`}
-                                                className="preview-img"
-                                                onError={(e) => (e.target.src = defaultImage)}
-                                            />
-                                            <button
-                                                type="button"
-                                                className="remove-btn"
-                                                onClick={() => handleRemoveFile(index)}
-                                                title="Eliminar archivo"
-                                            >
-                                                <FaTimes />
-                                            </button>
+                                    file && (
+                                        <div key={index} className="archived-item">
+                                            <div className="preview-container-archived">
+                                                <img
+                                                    src={
+                                                        file instanceof File
+                                                            ? URL.createObjectURL(file)
+                                                            : getTransformedImageUrl(file)
+                                                    }
+                                                    alt={formData.archivedNames[index] || `Archivo ${index + 1}`}
+                                                    className="preview-img"
+                                                    onError={(e) => (e.target.src = defaultImage)}
+                                                />
+                                                <button
+                                                    type="button"
+                                                    className="remove-btn"
+                                                    onClick={() => handleRemoveFile(index)}
+                                                    title="Eliminar archivo"
+                                                >
+                                                    <FaTimes />
+                                                </button>
+                                            </div>
+                                            <span>{formData.archivedNames[index] || `Archivo ${index + 1}`}</span>
                                         </div>
-                                    </div>
+                                    )
                                 ))}
                             </div>
+                        ) : (
+                            <p className="no-files">No hay archivos adjuntos seleccionados.</p>
                         )}
                     </Form.Group>
                     <Button type="submit" className="save-btn full-width" disabled={uploading}>

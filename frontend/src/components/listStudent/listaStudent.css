@@ -38,12 +38,12 @@
     height: 50px;
     margin-right: 20px;
   }
-  
+
   .preview-header h1 {
-    font-size: 24px;
-    font-weight: bold;
+    font-size: 16px;
     text-align: center;
-  }
+    margin-bottom: 10px;
+}
   
   .preview-info {
     display: flex;
@@ -51,27 +51,35 @@
     margin-bottom: 20px;
   }
   
-  .preview-info p {
-    margin: 0;
-    font-size: 14px;
-  }
+ .preview-info p {
+    margin: 5px 0;
+}
+
+  .print-container {
+    width: 100%;
+    max-width: 1100px; /* Aproximado para A4 landscape (210mm x 297mm, ~1100px a 96dpi) */
+    margin: 0 auto;
+    padding: 20px;
+    box-sizing: border-box;
+}
   
-  .preview-table {
+.preview-table {
     width: 100%;
     border-collapse: collapse;
-  }
-  
-  .preview-table th,
-  .preview-table td {
-    border: 1px solid #000;
+    font-size: 12px; /* Ajuste para impresión */
+}
+
+.preview-table th,
+.preview-table td {
     padding: 5px;
     text-align: center;
-    font-size: 12px;
-  }
-  
-  .preview-footer {
+    border: 1px solid #000;
+}
+
+.preview-footer {
     margin-top: 20px;
-  }
+    text-align: center;
+}
   
   .preview-footer p {
     margin: 10px 0;
@@ -81,7 +89,8 @@
   .signatures {
     display: flex;
     justify-content: space-between;
-  }
+    margin-top: 10px;
+}
   
   .signatures p {
     font-size: 14px;
@@ -93,6 +102,35 @@
     color: #666;
     margin-top: 20px;
   }
+  /* Estilos para impresión */
+@media print {
+    .print-container {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 10mm; /* Márgenes de 10mm */
+        box-sizing: border-box;
+        page-break-after: always;
+    }
+
+    .preview-table {
+        font-size: 10px; /* Reducir tamaño de fuente para caber 20 filas */
+        page-break-inside: avoid;
+    }
+
+    .sidebar,
+    .sidebar-toggle,
+    .table-actions,
+    .filters,
+    .no-data-message {
+        display: none;
+    }
+
+    @page {
+        size: A4 landscape;
+        margin: 10mm;
+    }
+}
 
   @media (max-width: 576px) {
     .preview-table th:nth-child(n+5),

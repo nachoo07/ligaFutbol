@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { FaBars, FaHome, FaUsers, FaMoneyBill, FaChartBar, FaExchangeAlt, FaAddressCard, FaRegListAlt, FaUserCog, FaEnvelope, FaArrowLeft, FaAngleDown, FaAngleUp } from 'react-icons/fa';
+import { FaBars, FaHome, FaUsers, FaMoneyBill, FaChartBar, FaListUl, FaExchangeAlt, FaAddressCard, FaRegListAlt, FaUserCog, FaEnvelope, FaArrowLeft, FaAngleDown, FaAngleUp } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import { Table, Button, Form } from 'react-bootstrap';
 import { SharesContext } from '../../context/share/ShareContext';
@@ -40,6 +40,7 @@ const ReportSchool = () => {
     { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
     { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
     { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
+    { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
     { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
   ];
 

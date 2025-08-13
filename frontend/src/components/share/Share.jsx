@@ -1,21 +1,22 @@
-import { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FaBars, FaAddressCard, FaRegListAlt, FaUsers, FaMoneyBill, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice, FaSpinner } from 'react-icons/fa';
+import { FaBars, FaAddressCard, FaRegListAlt, FaUsers, FaListUl, FaMoneyBill, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice, FaSpinner } from 'react-icons/fa';
 import { MdOutlineReadMore } from "react-icons/md";
 import { LuClipboardList } from "react-icons/lu";
 import { SharesContext } from "../../context/share/ShareContext";
-
 import { StudentsContext } from "../../context/student/StudentContext";
+import { LoginContext } from "../../context/login/LoginContext";
 import { useEmail } from '../../context/email/EmailContext';
-import { Button, Table, Form } from 'react-bootstrap';
+import { Button, Table, Form, Modal } from 'react-bootstrap';
 import { MdDelete } from 'react-icons/md';
 import MassiveShareForm from "../shareMassive/MassiveShareForm";
 import Swal from 'sweetalert2';
 import "./share.css";
 
 const Share = () => {
-    const { cuotas, obtenerCuotasPorEstudiante, addCuota, updateCuota, deleteCuota, obtenerCuotas, loading: loadingCuotas } = useContext(SharesContext);
-    const { estudiantes: allStudents, obtenerEstudiantes } = useContext(StudentsContext);
+    const { cuotas, obtenerCuotas, obtenerCuotasPorEstudiante, addCuota, updateCuota, deleteCuota, getAvailableShareNames, loading: loadingCuotas } = useContext(SharesContext);
+    const { estudiantes, obtenerEstudiantes, loading: loadingStudents } = useContext(StudentsContext);
+    const { auth } = useContext(LoginContext);
     const { sendReceiptEmail } = useEmail();
     const { studentId } = useParams();
     const navigate = useNavigate();
@@ -32,7 +33,6 @@ const Share = () => {
     const [selectedCuota, setSelectedCuota] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
     const [isMenuOpen, setIsMenuOpen] = useState(true);
-    const [isCuotasLoaded, setIsCuotasLoaded] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const [statusFilter, setStatusFilter] = useState("");
     const [yearFilter, setYearFilter] = useState("");
@@ -40,68 +40,146 @@ const Share = () => {
     const [sendingReceipt, setSendingReceipt] = useState(null);
     const [hasClearedStudent, setHasClearedStudent] = useState(false);
     const [showMassiveModal, setShowMassiveModal] = useState(false);
+    const [showCuotaModal, setShowCuotaModal] = useState(false);
+    const [modalTitle, setModalTitle] = useState("Crear Cuota");
+    const [year, setYear] = useState("");
+    const [availableNames, setAvailableNames] = useState([]);
     const studentsPerPage = 15;
-    const [maxVisiblePages, setMaxVisiblePages] = useState(10); // Ahora es un estado dinámico
+    const [maxVisiblePages, setMaxVisiblePages] = useState(10);
 
+    const today = new Date().toISOString().split("T")[0];
     const years = Array.from({ length: 5 }, (_, i) => 2025 + i);
+    const initialDataLoaded = useRef(false);
+    const hasFetchedStudentCuotas = useRef(false);
 
-    // Detectar el tamaño de pantalla y ajustar maxVisiblePages
+    const adminMenuItems = [
+        { name: 'Inicio', route: '/', icon: <FaHome /> },
+        { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
+        { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
+        { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
+        { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
+        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
+        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
+        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
+        { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
+        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
+        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
+        {
+            name: 'Volver Atrás',
+            route: null,
+            action: () => navigate(-1, { state: { fromDetailStudent: true } }),
+            icon: <FaArrowLeft />
+        },
+    ];
+
+    const userMenuItems = [];
+
+    // Nuevo: función para ordenar cuotas
+    const sortCuotas = (cuotas) => {
+        const cuotaOrder = {
+            'Primera Cuota': 1,
+            'Segunda Cuota': 2,
+            'Tercera Cuota': 3,
+            // Agregar más si hay más cuotas posibles
+        };
+
+        return cuotas.sort((a, b) => {
+            const [aCuota, aSemestre, aYear] = a.paymentName?.split(' - ') || ['', '', '0'];
+            const [bCuota, bSemestre, bYear] = b.paymentName?.split(' - ') || ['', '', '0'];
+
+            // Comparar por año
+            const yearDiff = parseInt(aYear) - parseInt(bYear);
+            if (yearDiff !== 0) return yearDiff;
+
+            // Comparar por semestre
+            const semestreA = parseInt(aSemestre.replace('Semestre ', '')) || 0;
+            const semestreB = parseInt(bSemestre.replace('Semestre ', '')) || 0;
+            const semestreDiff = semestreA - semestreB;
+            if (semestreDiff !== 0) return semestreDiff;
+
+            // Comparar por número de cuota
+            const cuotaA = cuotaOrder[aCuota] || 999;
+            const cuotaB = cuotaOrder[bCuota] || 999;
+            return cuotaA - cuotaB;
+        });
+    };
+
     useEffect(() => {
         const handleResize = () => {
             if (window.innerWidth <= 576) {
-                setMaxVisiblePages(5); // Móvil: máximo 5 páginas visibles
+                setMaxVisiblePages(5);
             } else {
-                setMaxVisiblePages(10); // Computadora: máximo 10 páginas visibles
+                setMaxVisiblePages(10);
             }
         };
-
         handleResize();
         window.addEventListener('resize', handleResize);
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
     useEffect(() => {
-        if (!isCuotasLoaded) {
-            obtenerCuotas().then(() => setIsCuotasLoaded(true)).catch((error) => {
-                Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas.", "error");
-            });
-            obtenerEstudiantes();
+        if (!initialDataLoaded.current && !loadingStudents) {
+            const loadInitialData = async () => {
+                try {
+                    await Promise.all([obtenerEstudiantes(true), obtenerCuotas(true)]);
+                    initialDataLoaded.current = true;
+                } catch (error) {
+                    console.error('Error en carga inicial:', error);
+                    Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener los datos.", "error");
+                }
+            };
+            loadInitialData();
         }
-    }, [isCuotasLoaded, obtenerCuotas, obtenerEstudiantes]);
+    }, [obtenerEstudiantes, obtenerCuotas, loadingStudents]);
 
     useEffect(() => {
-        if (studentId && !hasClearedStudent) {
-            const student = allStudents.find((est) => est._id === studentId) || { _id: studentId };
-            setSelectedStudent(student);
-            obtenerCuotasPorEstudiante(studentId).then((studentCuotas) => {
-                setAllStudentCuotas(studentCuotas);
-                setFilteredStudentCuotas(studentCuotas);
-            }).catch((error) => {
-                Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas del estudiante.", "error");
-            });
-        }
-    }, [studentId, allStudents, obtenerCuotasPorEstudiante, hasClearedStudent]);
-
-    useEffect(() => {
-        if (studentId && allStudents.length > 0 && !hasClearedStudent) {
-            const student = allStudents.find((est) => est._id === studentId);
-            if (student && student._id !== selectedStudent?._id) {
+        if (studentId && !hasFetchedStudentCuotas.current && estudiantes && estudiantes.length > 0) {
+            const student = estudiantes.find((est) => est._id === studentId);
+            if (student) {
                 setSelectedStudent(student);
+                const loadStudentCuotas = async () => {
+                    try {
+                        const studentCuotas = await obtenerCuotasPorEstudiante(studentId);
+                        setAllStudentCuotas(studentCuotas);
+                        setFilteredStudentCuotas(sortCuotas([...studentCuotas])); // Modificado: ordenar cuotas
+                        hasFetchedStudentCuotas.current = true;
+                    } catch (error) {
+                        console.error('Error cargando cuotas del estudiante:', error);
+                        Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas del estudiante.", "error");
+                    }
+                };
+                loadStudentCuotas();
             }
         }
-    }, [allStudents, studentId, selectedStudent, hasClearedStudent]);
+    }, [studentId, estudiantes, obtenerCuotasPorEstudiante]);
 
+    // Modificado: aplicar ordenamiento después de filtrar
     useEffect(() => {
         if (!yearFilter) {
-            setFilteredStudentCuotas(allStudentCuotas);
+            setFilteredStudentCuotas(sortCuotas([...allStudentCuotas]));
         } else {
             const filtered = allStudentCuotas.filter((cuota) => {
-                const cuotaYear = parseInt(cuota.paymentName.split(' - ')[2]);
+                const cuotaYear = parseInt(cuota.paymentName?.split(' - ')[2] || 0);
                 return cuotaYear === parseInt(yearFilter);
             });
-            setFilteredStudentCuotas(filtered);
+            setFilteredStudentCuotas(sortCuotas([...filtered]));
         }
     }, [yearFilter, allStudentCuotas]);
+
+    useEffect(() => {
+        if (year && showCuotaModal && !isEditing) {
+            getAvailableShareNames(year).then((names) => {
+                setAvailableNames(names);
+                setPaymentName("");
+            }).catch((error) => {
+                console.error("Error al obtener nombres disponibles:", error);
+                Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener los nombres disponibles.", "error");
+            });
+        } else if (!year || !showCuotaModal || isEditing) {
+            setAvailableNames([]);
+            setPaymentName(isEditing ? paymentName : "");
+        }
+    }, [year, showCuotaModal, isEditing, getAvailableShareNames]);
 
     useEffect(() => {
         return () => {
@@ -112,6 +190,8 @@ const Share = () => {
             setPaymentType("");
             setSelectedCuota(null);
             setIsEditing(false);
+            setShowCuotaModal(false);
+            setYear("");
         };
     }, [studentId]);
 
@@ -121,8 +201,9 @@ const Share = () => {
         navigate(`/share/${student._id}`);
         obtenerCuotasPorEstudiante(student._id).then((studentCuotas) => {
             setAllStudentCuotas(studentCuotas);
-            setFilteredStudentCuotas(studentCuotas);
+            setFilteredStudentCuotas(sortCuotas([...studentCuotas])); // Modificado: ordenar cuotas
         }).catch((error) => {
+            console.error('Error en handleSelectStudent:', error);
             Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas del estudiante.", "error");
         });
     };
@@ -134,13 +215,13 @@ const Share = () => {
         return "Pagada";
     };
 
-    const filteredStudents = allStudents.filter((estudiante) => {
-        const fullName = `${estudiante.name} ${estudiante.lastName}`.toLowerCase();
-        const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || estudiante.dni?.includes(searchTerm);
+    const filteredStudents = estudiantes ? estudiantes.filter((estudiante) => {
+        const fullName = `${estudiante.name || ''} ${estudiante.lastName || ''}`.toLowerCase();
+        const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || (estudiante.dni?.includes(searchTerm) || '');
         const status = getStudentShareStatus(estudiante._id);
         const matchesStatus = statusFilter === "" || status === statusFilter;
         return matchesSearch && matchesStatus;
-    });
+    }) : [];
 
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
     const indexOfLastStudent = currentPage * studentsPerPage;
@@ -148,30 +229,6 @@ const Share = () => {
     const currentStudents = filteredStudents.slice(indexOfFirstStudent, indexOfLastStudent);
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
-
-    const handleGoBack = () => {
-        if (studentId) {
-            navigate(`/detailstudent/${studentId}`);
-        } else {
-            navigate(-1);
-        }
-    };
-
-    const menuItems = [
-        { name: 'Inicio', route: '/', icon: <FaHome /> },
-        { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
-        { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
-        { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
-        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
-        { name: 'Deudores', route: '/pendingshare', icon: <FaUserCog /> },
-        { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
-        { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
-    ];
-
-    const today = new Date().toISOString().split('T')[0];
 
     const handleBackToStudents = () => {
         setHasClearedStudent(true);
@@ -186,79 +243,69 @@ const Share = () => {
         setPaymentType("");
         setSelectedCuota(null);
         setIsEditing(false);
+        setShowCuotaModal(false);
+        setYear("");
         if (location.state?.fromStudentDetail) {
             navigate(`/detailstudent/${studentId}`);
         } else {
             navigate('/share');
         }
-        setIsCuotasLoaded(false);
     };
 
     const handleSave = async () => {
-    if (!selectedStudent || !selectedStudent._id) {
-        Swal.fire("¡Advertencia!", "No se ha seleccionado un estudiante.", "warning");
-        return;
-    }
-
-    if (!paymentName || !amount || !paymentDate || !paymentMethod || !paymentType) {
-        Swal.fire("¡Advertencia!", "Por favor completa todos los campos obligatorios.", "warning");
-        return;
-    }
-
-    const year = new Date(paymentDate).getFullYear();
-    if (isNaN(year)) {
-        Swal.fire("¡Advertencia!", "La fecha de pago ingresada no es válida.", "warning");
-        return;
-    }
-
-    const cuotaData = {
-        student: selectedStudent._id,
-        paymentName,
-        year,
-        amount: parseFloat(amount),
-        paymentDate,
-        paymentMethod,
-        paymentType,
-    };
-
-    try {
-        if (selectedCuota) {
-            await updateCuota({ ...cuotaData, _id: selectedCuota._id });
-            await Promise.all([
-                obtenerCuotasPorEstudiante(selectedStudent._id),
-                obtenerCuotas(true),
-                obtenerEstudiantes(),
-            ]).then(([studentCuotas]) => {
-                setAllStudentCuotas(studentCuotas);
-                setFilteredStudentCuotas(studentCuotas);
-                window.dispatchEvent(new Event('shareUpdated'));
-                Swal.fire("¡Éxito!", `Cuota actualizada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
-            });
-        } else {
-            await addCuota(cuotaData);
-            await Promise.all([
-                obtenerCuotasPorEstudiante(selectedStudent._id),
-                obtenerCuotas(true),
-                obtenerEstudiantes(),
-            ]).then(([studentCuotas]) => {
-                setAllStudentCuotas(studentCuotas);
-                setFilteredStudentCuotas(studentCuotas);
-                window.dispatchEvent(new Event('shareUpdated'));
-                Swal.fire("¡Éxito!", `Cuota agregada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
-            });
+        if (!selectedStudent || !selectedStudent._id) {
+            Swal.fire("¡Advertencia!", "No se ha seleccionado un estudiante.", "warning");
+            return;
         }
 
-        setPaymentName("");
-        setAmount("");
-        setPaymentDate("");
-        setPaymentMethod("");
-        setPaymentType("");
-        setSelectedCuota(null);
-        setIsEditing(false);
-    } catch (error) {
-        Swal.fire("¡Error!", `Error al ${selectedCuota ? 'actualizar' : 'agregar'} la cuota: ${error.response?.data?.message || error.message}`, "error");
-    }
-};
+        if (!paymentName || !amount || !paymentDate || !paymentMethod || !paymentType) {
+            Swal.fire("¡Advertencia!", "Por favor completa todos los campos obligatorios.", "warning");
+            return;
+        }
+
+        const year = new Date(paymentDate).getFullYear();
+        if (isNaN(year)) {
+            Swal.fire("¡Advertencia!", "La fecha de pago ingresada no es válida.", "warning");
+            return;
+        }
+
+        const cuotaData = {
+            student: selectedStudent._id,
+            paymentName,
+            year,
+            amount: parseFloat(amount),
+            paymentDate,
+            paymentMethod,
+            paymentType,
+        };
+
+        try {
+            if (selectedCuota) {
+                await updateCuota({ ...cuotaData, _id: selectedCuota._id });
+            } else {
+                await addCuota(cuotaData);
+            }
+
+            const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id);
+            setAllStudentCuotas(studentCuotas);
+            setFilteredStudentCuotas(sortCuotas([...studentCuotas])); // Modificado: ordenar cuotas tras guardar
+            window.dispatchEvent(new Event('shareUpdated'));
+            Swal.fire("¡Éxito!", `Cuota ${selectedCuota ? 'actualizada' : 'agregada'} exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
+
+            setPaymentName("");
+            setAmount("");
+            setPaymentDate("");
+            setPaymentMethod("");
+            setPaymentType("");
+            setSelectedCuota(null);
+            setIsEditing(false);
+            setShowCuotaModal(false);
+            setYear("");
+        } catch (error) {
+            console.error('Error en handleSave:', error);
+            Swal.fire("¡Error!", `Error al ${selectedCuota ? 'actualizar' : 'agregar'} la cuota: ${error.response?.data?.message || error.message}`, "error");
+        }
+    };
 
     const handleEditClick = (cuota) => {
         setSelectedCuota(cuota);
@@ -268,16 +315,9 @@ const Share = () => {
         setPaymentMethod(cuota.paymentMethod || "");
         setPaymentType(cuota.paymentType || "");
         setIsEditing(true);
-
-        if (!cuota.paymentDate) {
-            Swal.fire({
-                title: "Completar Pago",
-                text: "Por favor, completa los campos en el formulario de abajo para registrar el pago de la cuota.",
-                icon: "info",
-                timer: 3000,
-                showConfirmButton: false,
-            });
-        }
+        setModalTitle(cuota.paymentDate ? "Editar Cuota" : "Pagar Cuota");
+        setYear(cuota.paymentName ? parseInt(cuota.paymentName.split(' - ')[2] || 0).toString() : "");
+        setShowCuotaModal(true);
     };
 
     const handleCancelEdit = () => {
@@ -288,6 +328,21 @@ const Share = () => {
         setPaymentMethod("");
         setPaymentType("");
         setIsEditing(false);
+        setShowCuotaModal(false);
+        setYear("");
+    };
+
+    const handleCreateCuota = () => {
+        setSelectedCuota(null);
+        setPaymentName("");
+        setAmount("");
+        setPaymentDate("");
+        setPaymentMethod("");
+        setPaymentType("");
+        setIsEditing(false);
+        setModalTitle("Crear Cuota");
+        setYear("");
+        setShowCuotaModal(true);
     };
 
     const handleDelete = async (id) => {
@@ -305,17 +360,13 @@ const Share = () => {
         if (confirmacion.isConfirmed) {
             try {
                 await deleteCuota(id);
-                await Promise.all([
-                    obtenerCuotasPorEstudiante(selectedStudent._id),
-                    obtenerCuotas(true),
-                    obtenerEstudiantes(),
-                ]).then(([studentCuotas]) => {
-                    setAllStudentCuotas(studentCuotas);
-                    setFilteredStudentCuotas(studentCuotas);
-                    window.dispatchEvent(new Event('shareUpdated'));
-                    Swal.fire("¡Éxito!", "Cuota eliminada exitosamente.", "success");
-                });
+                const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id);
+                setAllStudentCuotas(studentCuotas);
+                setFilteredStudentCuotas(sortCuotas([...studentCuotas])); // Modificado: ordenar cuotas tras eliminar
+                window.dispatchEvent(new Event('shareUpdated'));
+                Swal.fire("¡Éxito!", "Cuota eliminada exitosamente.", "success");
             } catch (error) {
+                console.error('Error en handleDelete:', error);
                 Swal.fire("¡Error!", `Error al eliminar la cuota: ${error.response?.data?.message || error.message}`, "error");
             }
         }
@@ -331,6 +382,7 @@ const Share = () => {
             await sendReceiptEmail(cuota.student, cuota);
             Swal.fire("¡Éxito!", "Comprobante enviado exitosamente.", "success");
         } catch (error) {
+            console.error('Error en handleSendReceipt:', error);
             Swal.fire("¡Error!", `Error al enviar el comprobante: ${error.response?.data?.message || error.message}`, "error");
         } finally {
             setSendingReceipt(null);
@@ -351,11 +403,17 @@ const Share = () => {
                 <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
                     <FaBars />
                 </div>
-                {menuItems.map((item, index) => (
+                {(auth === 'admin' ? adminMenuItems : userMenuItems).map((item, index) => (
                     <div
                         key={index}
                         className="sidebar-item"
-                        onClick={() => item.action ? item.action() : navigate(item.route)}
+                        onClick={() => {
+                            if (item.action) {
+                                item.action();
+                            } else {
+                                navigate(item.route);
+                            }
+                        }}
                     >
                         <span className="icon">{item.icon}</span>
                         <span className="text">{item.name}</span>
@@ -392,7 +450,7 @@ const Share = () => {
                                 <Button className="btn-share-masive" onClick={() => setShowMassiveModal(true)}>Crear Cuota Masiva</Button>
                             </div>
                         </div>
-                        {loadingCuotas ? (
+                        {loadingStudents || loadingCuotas ? (
                             <p className="loading">Cargando datos...</p>
                         ) : (
                             <Table className="students-table">
@@ -485,6 +543,7 @@ const Share = () => {
                                     ))}
                                 </select>
                             </div>
+                            <Button className="create-cuota-btn" onClick={handleCreateCuota}>Crear Cuota</Button>
                             <Button className="back-btn" onClick={handleBackToStudents}>Volver</Button>
                         </div>
                         <Table className="cuotas-table">
@@ -504,9 +563,9 @@ const Share = () => {
                                     filteredStudentCuotas.map((cuota) => {
                                         if (!cuota || !cuota._id) return null;
                                         return (
-                                            <tr key={cuota._id} className={`state-${cuota.status.toLowerCase()}`}>
+                                            <tr key={cuota._id} className={`state-${cuota.status?.toLowerCase()}`}>
                                                 <td>{cuota.paymentName}</td>
-                                                <td>{cuota.amount ? new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 }).format(cuota.amount) : "-"}</td>
+                                                <td>{cuota.amount !== null && cuota.amount !== undefined ? new Intl.NumberFormat("es-CL", { style: "currency", currency: "CLP", minimumFractionDigits: 0 }).format(cuota.amount) : "-"}</td>
                                                 <td className="metodo-pago">{cuota.paymentMethod || "-"}</td>
                                                 <td className="tipo-de-pago">{cuota.paymentType || "-"}</td>
                                                 <td>{cuota.paymentDate ? formatDate(cuota.paymentDate) : "-"}</td>
@@ -551,55 +610,107 @@ const Share = () => {
                                 )}
                             </tbody>
                         </Table>
-                        <div className={`cuota-form ${isEditing ? 'highlight-form' : ''}`}>
-                            <div className="form-row">
-                                <input
-                                    type="text"
-                                    placeholder="Nombre de la cuota"
-                                    value={paymentName}
-                                    onChange={(e) => setPaymentName(e.target.value)}
-                                />
-                                <input
-                                    type="number"
-                                    min="0"
-                                    placeholder="Monto"
-                                    value={amount}
-                                    onChange={(e) => setAmount(e.target.value)}
-                                />
-                                <input
-                                    type="date"
-                                    max={today}
-                                    value={paymentDate}
-                                    onChange={(e) => setPaymentDate(e.target.value)}
-                                />
-                                <select
-                                    value={paymentMethod}
-                                    onChange={(e) => setPaymentMethod(e.target.value)}
-                                >
-                                    <option value="">Método de Pago</option>
-                                    <option value="Efectivo">Efectivo</option>
-                                    <option value="Transferencia">Transferencia</option>
-                                </select>
-                                <select
-                                    value={paymentType}
-                                    onChange={(e) => setPaymentType(e.target.value)}
-                                >
-                                    <option value="">Tipo de Pago</option>
-                                    <option value="Pago Total">Pago Total</option>
-                                    <option value="Pago Parcial">Pago Parcial</option>
-                                </select>
-                            </div>
-                            <div className="form-actions">
-                                <Button className="save-btn" onClick={handleSave}>
+                        <Modal show={showCuotaModal} onHide={handleCancelEdit}>
+                            <Modal.Header closeButton>
+                                <Modal.Title>{modalTitle}</Modal.Title>
+                            </Modal.Header>
+                            <Modal.Body>
+                                <Form>
+                                    {!isEditing && (
+                                        <Form.Group className="mb-3">
+                                            <Form.Label>Año</Form.Label>
+                                            <Form.Select
+                                                value={year}
+                                                onChange={(e) => setYear(e.target.value)}
+                                            >
+                                                <option value="">Selecciona un año</option>
+                                                {years.map((y) => (
+                                                    <option key={y} value={y}>{y}</option>
+                                                ))}
+                                            </Form.Select>
+                                        </Form.Group>
+                                    )}
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Nombre de la Cuota</Form.Label>
+                                        {isEditing && !selectedCuota?.paymentDate ? (
+                                            <Form.Control
+                                                type="text"
+                                                value={paymentName}
+                                                readOnly
+                                            />
+                                        ) : isEditing ? (
+                                            <Form.Control
+                                                type="text"
+                                                value={paymentName}
+                                                onChange={(e) => setPaymentName(e.target.value)}
+                                            />
+                                        ) : (
+                                            <Form.Select
+                                                value={paymentName}
+                                                onChange={(e) => setPaymentName(e.target.value)}
+                                                disabled={!year}
+                                            >
+                                                <option value="">Selecciona un nombre</option>
+                                                {availableNames.map((item) => (
+                                                    <option key={item.name} value={item.name} disabled={item.isBlocked}>
+                                                        {item.name}
+                                                    </option>
+                                                ))}
+                                            </Form.Select>
+                                        )}
+                                    </Form.Group>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Monto</Form.Label>
+                                        <Form.Control
+                                            type="number"
+                                            min="0"
+                                            placeholder="Monto"
+                                            value={amount}
+                                            onChange={(e) => setAmount(e.target.value)}
+                                        />
+                                    </Form.Group>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Fecha de Pago</Form.Label>
+                                        <Form.Control
+                                            type="date"
+                                            max={today}
+                                            value={paymentDate}
+                                            onChange={(e) => setPaymentDate(e.target.value)}
+                                        />
+                                    </Form.Group>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Método de Pago</Form.Label>
+                                        <Form.Select
+                                            value={paymentMethod}
+                                            onChange={(e) => setPaymentMethod(e.target.value)}
+                                        >
+                                            <option value="">Selecciona un método</option>
+                                            <option value="Efectivo">Efectivo</option>
+                                            <option value="Transferencia">Transferencia</option>
+                                        </Form.Select>
+                                    </Form.Group>
+                                    <Form.Group className="mb-3">
+                                        <Form.Label>Tipo de Pago</Form.Label>
+                                        <Form.Select
+                                            value={paymentType}
+                                            onChange={(e) => setPaymentType(e.target.value)}
+                                        >
+                                            <option value="">Selecciona un tipo</option>
+                                            <option value="Pago Total">Pago Total</option>
+                                            <option value="Pago Parcial">Pago Parcial</option>
+                                        </Form.Select>
+                                    </Form.Group>
+                                </Form>
+                            </Modal.Body>
+                            <Modal.Footer>
+                                <Button variant="secondary" onClick={handleCancelEdit}>
+                                    Cancelar
+                                </Button>
+                                <Button variant="primary" onClick={handleSave}>
                                     Guardar
                                 </Button>
-                                {isEditing && (
-                                    <Button className="cancel-btn" onClick={handleCancelEdit}>
-                                        Cancelar
-                                    </Button>
-                                )}
-                            </div>
-                        </div>
+                            </Modal.Footer>
+                        </Modal>
                         {loadingCuotas && <p className="loading">Cargando cuotas...</p>}
                     </div>
                 )}

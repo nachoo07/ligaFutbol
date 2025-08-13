@@ -1,9 +1,10 @@
 :root {
-  --primary-color: #2c3e50;
-  --secondary-color: #0163a9 !important;
+  --primary-color: #0163a9;
+  --secondary-color: #0180d4;
+  --accent-color: #ff9500;
   --background-color: #f5f6fa;
   --text-color: #2c3e50;
-  --sidebar-width: 250px;
+  --sidebar-width: 240px;
   --transition-speed: 0.3s;
 }
 
@@ -24,7 +25,7 @@ html, body {
 .content-home {
   flex-grow: 1;
   padding: 20px;
-  margin-left: 30px;
+  margin-left: 20px;
   display: flex;
   flex-direction: column;
   flex-wrap: nowrap;
@@ -32,49 +33,152 @@ html, body {
 }
 
 .sidebar {
-  background-color: var(--primary-color);
+  background: linear-gradient(145deg, var(--primary-color) 0%, var(--secondary-color) 100%);
   width: var(--sidebar-width);
-  padding: 1rem;
+  padding: 1.2rem 1rem;
   color: white;
-  transition: all var(--transition-speed) ease;
+  transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
   height: 100vh;
   overflow: hidden;
+  position: relative;
+  box-shadow: 
+    0 10px 30px rgba(1, 99, 169, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+.sidebar::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(145deg, 
+    rgba(255, 255, 255, 0.1) 0%, 
+    rgba(255, 255, 255, 0.05) 50%, 
+    rgba(0, 0, 0, 0.1) 100%);
+  pointer-events: none;
 }
 
 .sidebar.closed {
   width: 80px !important;
-  text-align: center;
- 
 }
 
 .sidebar-toggle {
   font-size: 1.5rem;
   cursor: pointer;
+  padding: 0.8rem;
+  margin-bottom: 1.2rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  transition: all var(--transition-speed) ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 2;
+}
+
+.sidebar-toggle:hover {
+  background: var(--accent-color);
+  transform: scale(1.05);
+  box-shadow: 0 5px 15px rgba(255, 149, 0, 0.4);
+}
+
+.sidebar-toggle:active {
+  transform: scale(0.95);
 }
 
 
 .sidebar-item {
   display: flex;
   align-items: center;
-  padding: 0.5rem 0.5rem;
-  margin: 0.3rem 0;
+  padding: 0.4rem 1rem;
+  margin: 0.4rem 0;
   cursor: pointer;
-  border-radius: 8px;
-  transition: background-color var(--transition-speed);
-  text-align: center !important;
+  border-radius: 12px;
+  transition: all var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  z-index: 2;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  overflow: hidden;
+}
+
+.sidebar-item::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, 
+    transparent, 
+    rgba(255, 149, 0, 0.3), 
+    transparent);
+  transition: left 0.6s ease;
+}
+
+.sidebar-item:hover::before {
+  left: 100%;
 }
 
 .sidebar-item:hover {
-  background-color: var(--secondary-color);
+  background: var(--accent-color);
+  transform: translateX(5px) scale(1.02);
+  box-shadow: 
+    0 8px 20px rgba(255, 149, 0, 0.3),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+.sidebar-item:active {
+  transform: translateX(3px) scale(0.99);
 }
 
 .sidebar-item .icon {
   font-size: 1.2rem;
   margin-right: 1rem;
+  color: rgba(255, 255, 255, 0.9);
+  transition: all var(--transition-speed) ease;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
+.sidebar-item:hover .icon {
+  color: white;
+  transform: scale(1.1);
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4));
+}
+
+.sidebar-item .text {
+  font-weight: 500;
+  font-size: 0.9rem;
+  letter-spacing: 0.3px;
+  color: rgba(255, 255, 255, 0.9);
+  transition: all var(--transition-speed) ease;
+}
+
+.sidebar-item:hover .text {
+  color: white;
+  font-weight: 600;
 }
 
 .sidebar.closed .text {
   display: none;
+}
+
+.sidebar.closed .sidebar-item {
+  justify-content: center;
+  padding: 0.3rem;
+}
+
+.sidebar.closed .sidebar-item .icon {
+  margin-right: 0;
+  font-size: 1.4rem;
 }
 
 .main-content {
@@ -107,14 +211,15 @@ html, body {
   text-align: center;
 }
 
-.card:hover {
-  transform: translateY(-5px);
-}
-
 .card-icon {
   font-size: 2rem;
-  color: var(--secondary-color);
+  color: var(--accent-color);
   margin-bottom: 1rem;
+}
+
+.card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(1, 128, 212, 0.2);
 }
 
 .card h3 {
@@ -161,4 +266,19 @@ html, body {
   html, body {
     overflow: auto;
   }
+}
+
+/* Efecto de brillo en los bordes del sidebar */
+.sidebar::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 2px;
+  height: 100%;
+  background: linear-gradient(180deg, 
+    transparent 0%, 
+    var(--accent-color) 50%, 
+    transparent 100%);
+  opacity: 0.6;
 }
