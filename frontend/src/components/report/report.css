@@ -1,6 +1,9 @@
 /* General Layout */
 .dashboard-container-report {
-  display: flex;
+   display: flex;
+  min-height: 100vh; /* Cambia a 100vh para ocupar todo el alto de la ventana */
+  height: auto; /* Elimina el height fijo de 670px */
+  width: 100%;
 }
 
 .content-report {
@@ -71,6 +74,8 @@
   background-color: #e6f3ff;
   border: 2px solid #013d61;
 }
+
+
 
 .card-student h2 {
   font-size: 20px;

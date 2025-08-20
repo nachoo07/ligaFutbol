@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, useMemo } from "react";
+import React, { useState, useEffect, useContext, useMemo, useCallback, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSearch, FaAngleDown, FaAngleUp, FaBars, FaUsers, FaListUl, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from "react-icons/fa";
 import { LuClipboardList } from "react-icons/lu";
@@ -18,7 +18,7 @@ ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend)
 const Report = () => {
   const navigate = useNavigate();
   const { estudiantes, obtenerEstudiantes } = useContext(StudentsContext);
-  const { cuotas, semesterStats, obtenerCuotasPorSemestre, selectedSemester, setSelectedSemester, setSemesterStats } = useContext(SharesContext);
+  const { cuotas, semesterStats, obtenerCuotasPorSemestre, selectedSemester, setSelectedSemester } = useContext(SharesContext);
   const { motions } = useContext(MotionContext);
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [selectedMonth, setSelectedMonth] = useState(new Date());
@@ -27,7 +27,8 @@ const Report = () => {
   const [selectedDate3, setSelectedDate3] = useState(new Date());
   const [selectedDate4, setSelectedDate4] = useState(new Date());
   const [isReportsOpen, setIsReportsOpen] = useState(false);
-  const [isDataLoaded, setIsDataLoaded] = useState(false); // Nueva bandera para controlar la carga inicial
+  const [isDataLoaded, setIsDataLoaded] = useState(false);
+  const isFetchingRef = useRef(false); // Control de peticiones en curso
 
   // Carga inicial de datos
   useEffect(() => {
@@ -37,28 +38,46 @@ const Report = () => {
     }
   }, [obtenerEstudiantes, isDataLoaded]);
 
-  // Escuchar evento shareUpdated para recargar datos
-  useEffect(() => {
-  const handleShareUpdated = () => {
-    if (selectedSemester) {
-      obtenerCuotasPorSemestre(selectedSemester)
+  // Manejo de cambio de semestre con control de duplicados
+  const handleSemesterChange = useCallback((e) => {
+    const newSemester = e.target.value;
+    if (newSemester && newSemester !== selectedSemester && !isFetchingRef.current) {
+      isFetchingRef.current = true;
+      setSelectedSemester(newSemester);
+      obtenerCuotasPorSemestre(newSemester)
         .then(() => {
-          console.log("Datos actualizados tras shareUpdated");
+     
         })
         .catch((error) => {
           console.error("Error al actualizar datos:", error);
-          Swal.fire(
-            "¡Error!",
-            error.response?.data?.message || "No se pudieron actualizar los datos.",
-            "error"
-          );
+        })
+        .finally(() => {
+          isFetchingRef.current = false;
         });
     }
-  };
+  }, [selectedSemester, obtenerCuotasPorSemestre]);
 
-  window.addEventListener("shareUpdated", handleShareUpdated);
-  return () => window.removeEventListener("shareUpdated", handleShareUpdated);
-}, [selectedSemester, obtenerCuotasPorSemestre]);
+  // Escuchar evento shareUpdated con control
+  useEffect(() => {
+    const handleShareUpdated = () => {
+      if (selectedSemester && !isFetchingRef.current) {
+        isFetchingRef.current = true;
+        obtenerCuotasPorSemestre(selectedSemester)
+          .then(() => {
+ 
+          })
+          .catch((error) => {
+            console.error("Error al actualizar datos:", error);
+          })
+          .finally(() => {
+            isFetchingRef.current = false;
+          });
+      }
+    };
+
+    window.addEventListener("shareUpdated", handleShareUpdated);
+    return () => window.removeEventListener("shareUpdated", handleShareUpdated);
+  }, [selectedSemester, obtenerCuotasPorSemestre]);
 
   const semesterOptions = useMemo(() => {
     const years = Array.from({ length: 3 }, (_, i) => 2025 + i);
@@ -69,11 +88,6 @@ const Report = () => {
     const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
     return localDate.toISOString().split("T")[0];
   };
-
-  const handleSemesterChange = (e) => {
-  const newSemester = e.target.value;
-  setSelectedSemester(newSemester);
-};
 
   const calculateCardData = (selectedDate, type) => {
     const selectedDateStr = formatDate(selectedDate);
@@ -264,7 +278,6 @@ const Report = () => {
     { name: "Lista buena fe", route: "/list", icon: <FaRegListAlt /> },
     { name: "Deudores", route: "/pendingshare", icon: <LuClipboardList /> },
     { name: "Usuarios", route: "/user", icon: <FaUserCog /> },
-    { name: "Envios de Mail", route: "/email", icon: <FaEnvelope /> },
     { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
     { name: "Volver Atrás", route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
   ];
@@ -365,7 +378,7 @@ const Report = () => {
           </div>
         </div>
 
-        <div className="semester-selector">
+        {/*<div className="semester-selector">
           <label htmlFor="semester-select">Seleccionar Semestre:</label>
           <select
             id="semester-select"
@@ -381,6 +394,7 @@ const Report = () => {
             ))}
           </select>
         </div>
+        */}
 
         <div className="export-button">
           <button

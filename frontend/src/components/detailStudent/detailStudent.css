@@ -9,22 +9,19 @@
 
 .student-detail-container {
   display: flex;
-  justify-content: center;
-  height: 100vh;
-  background-color: var(--background-color);
+  min-height: 100vh; /* Cambia a 100vh para ocupar todo el alto de la ventana */
+  height: auto; /* Elimina el height fijo de 670px */
+  width: 100%;
 }
 
 .content-detail {
   flex-grow: 1;
   padding: 20px;
+  overflow-y: auto; /* Mantiene el scroll si el contenido excede el alto */
+  background: #f9f9f9;
+  min-height: 100%; /* Asegura que ocupe al menos el 100% del contenedor padre */
   display: flex;
-  align-items: flex-start;
-  flex-direction: column;
-  flex-wrap: nowrap;
-  height: 100vh;
-  width: calc(100% - 50px);
-  background: linear-gradient(135deg, var(--background-color) 0%, #e9ecef 100%);
-  overflow-y: auto;
+  flex-direction: column; /* Apila los hijos verticalmente */
 }
 
 .dashboard-container-detail {
@@ -39,7 +36,7 @@
 .perfil-container {
   width: 100%;
   max-width: 100%;
-  margin: 0;
+  margin-bottom: 10px;
   padding: 20px;
   background: linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%);
   border-radius: 15px;
@@ -178,6 +175,7 @@
 .perfil-actions-header {
   display: flex;
   gap: 10px;
+
 }
 
 .btn-ver-cuotas {
@@ -187,7 +185,7 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 20px !important;
   font-weight: 600;
   box-shadow: 0 4px 15px rgba(1, 99, 169, 0.3);
   transition: all 0.3s ease;
@@ -207,10 +205,11 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
+  font-size: 20px !important;
   font-weight: 600;
   box-shadow: 0 4px 15px rgba(44, 62, 80, 0.3);
   transition: all 0.3s ease;
+  margin-top: 50px;
 }
 
 .btn-volver-atras:hover {
@@ -226,7 +225,7 @@
   height: auto;
   flex: 1;
   padding: 15px 0;
-  min-height: 0;
+  margin-bottom: 25px;
 }
 
 .perfil-row {
@@ -329,15 +328,7 @@
   transform: translateY(-1px);
 }
 
-label {
-  font-size: 14px;
-  color: var(--text-color);
-  margin-bottom: 6px;
-  display: block;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
+
 
 input,
 textarea {
@@ -382,37 +373,37 @@ textarea {
   
 }
 
-.btn-editar,
-.btn-eliminar {
+.btn-editar-detail,
+.btn-eliminar-detail {
   padding: 14px 30px;
   border: none;
   border-radius: 10px;
   cursor: pointer;
-  width: 180px;
-  font-size: 16px;
+  width: 220px;
+  font-size: 20px;
   font-weight: 600;
   transition: all 0.3s ease;
   box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
   text-align: center;
 }
 
-.btn-editar {
+.btn-editar-detail {
   background: linear-gradient(135deg, var(--accent-color) 0%, #ffb84d 100%);
   color: white;
 }
 
-.btn-editar:hover {
+.btn-editar-detail:hover {
   background: linear-gradient(135deg, #e6850e 0%, var(--accent-color) 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(255, 149, 0, 0.3);
 }
 
-.btn-eliminar {
+.btn-eliminar-detail {
   background: linear-gradient(135deg, #dc3545 0%, #e85d75 100%);
   color: white;
 }
 
-.btn-eliminar:hover {
+.btn-eliminar-detail:hover {
   background: linear-gradient(135deg, #c82333 0%, #dc3545 100%);
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(220, 53, 69, 0.3);
@@ -649,10 +640,7 @@ textarea {
     font-size: 14px;
   }
 
-  .btn-volver-atras-large {
-    font-size: 14px;
-    margin-top: 20px;
-  }
+
 }
 
 @media (min-width: 577px) {
@@ -665,9 +653,7 @@ textarea {
     width: 230px;
   }
 
-  .btn-volver-atras-large {
-    margin-top: 40px;
-  }
+ 
 
   .archived-section-mobile {
     display: none;

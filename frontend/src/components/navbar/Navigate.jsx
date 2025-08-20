@@ -42,9 +42,7 @@ const Navigate = () => {
     { path: '/list', label: 'Lista buena fe', icon: <FaRegListAlt /> },
     { path: '/pendingshare', label: 'Deudores', icon: <LuClipboardList /> },
     { path: '/motion', label: 'Movimientos', icon: <FaExchangeAlt /> },
-
     { path: '/user', label: 'Usuarios', icon: <FaUserCog /> },
-    { path: '/email', label: 'Envios de Mail', icon: <FaEnvelope /> },
   ];
 
   const userMenu = fullMenu.filter(item =>

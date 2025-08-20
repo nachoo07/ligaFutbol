@@ -4,7 +4,7 @@ import logger from '../../winston/logger.js'; // Asegúrate de tener un logger c
 
 export const protect = (req, res, next) => {
     const token = req.cookies.token;
-    logger.info('Token recibido:', { token });
+    
     if (!token) {
         return res.status(401).json({ message: 'Sin token, autorización denegada' });
     }

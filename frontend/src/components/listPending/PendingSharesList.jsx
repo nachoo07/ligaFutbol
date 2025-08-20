@@ -33,7 +33,6 @@ const PendingSharesList = () => {
     { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
     { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
     { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-    { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
     { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
     { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
   ];
@@ -43,7 +42,7 @@ const PendingSharesList = () => {
   }, [obtenerCuotas]);
 
   useEffect(() => {
-    console.log('Cuotas recibidas:', cuotas);
+    
     if (cuotas && Array.isArray(cuotas)) {
       const uniqueSchools = [...new Set(cuotas.map(share => share.student.school))]
         .filter(school => school)
@@ -95,7 +94,6 @@ const PendingSharesList = () => {
   }, [cuotas]);
 
   useEffect(() => {
-    console.log('Filtros aplicados:', filters);
     if (!cuotas || !Array.isArray(cuotas)) {
       setStudentShares([]);
       return;
@@ -110,19 +108,19 @@ const PendingSharesList = () => {
 
     let filtered = [...cuotas];
     if (filters.school) {
-      console.log('Filtrando por escuela:', filters.school);
+   
       filtered = filtered.filter(share => share.student.school === filters.school);
     }
     if (filters.category) {
-      console.log('Filtrando por categoría:', filters.category);
+     
       filtered = filtered.filter(share => share.student.category === filters.category);
     }
     if (filters.color) {
-      console.log('Filtrando por color:', filters.color);
+    
       filtered = filtered.filter(share => share.student.color === filters.color);
     }
     if (filters.semester) {
-      console.log('Filtrando por semestre:', filters.semester);
+    
       filtered = filtered.filter(share => {
         const match = share.paymentName.match(/Semestre (\d+)/i);
         const semester = match ? `Semestre ${match[1]}` : null;
@@ -130,15 +128,15 @@ const PendingSharesList = () => {
       });
     }
     if (filters.year) {
-      console.log('Filtrando por año:', filters.year);
+
       filtered = filtered.filter(share => share.paymentName.includes(filters.year));
     }
     if (filters.status && filters.status !== 'all') {
-      console.log('Filtrando por estado:', filters.status);
+
       filtered = filtered.filter(share => share.status === filters.status);
     }
 
-    console.log('Datos filtrados:', filtered);
+
 
     // Agrupar cuotas por estudiante
     const groupedByStudent = filtered.reduce((acc, share) => {
@@ -154,7 +152,7 @@ const PendingSharesList = () => {
     }, {});
 
     const studentArray = Object.values(groupedByStudent);
-    console.log('Estudiantes agrupados:', studentArray);
+  
 
     // Determinar el número máximo de cuotas para definir columnas
     const maxSharesPerStudent = Math.max(...studentArray.map(student => student.shares.length), 1);

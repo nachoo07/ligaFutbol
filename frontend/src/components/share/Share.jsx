@@ -62,7 +62,6 @@ const Share = () => {
         { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
         { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
         {
             name: 'Volver Atrás',
@@ -434,8 +433,8 @@ const Share = () => {
                                 />
                                 <FaSearch className="search-icon" />
                             </div>
-                            <div className="filter-actions">
-                                <div className="state-filter">
+                            <div className="filter-actions-share">
+                                <div className="state-filter-share">
                                     <label className="estado">Estado de Cuota:</label>
                                     <select
                                         value={statusFilter}
@@ -530,8 +529,8 @@ const Share = () => {
                 ) : (
                     <div className="cuotas-view">
                         <h1 className="title">Cuotas de {selectedStudent.name} {selectedStudent.lastName}</h1>
-                        <div className="filter-actions">
-                            <div className="state-filter">
+                        <div className="filter-actions-share">
+                            <div className="state-filter-share">
                                 <label className="estado">Año:</label>
                                 <select
                                     value={yearFilter}
@@ -543,8 +542,11 @@ const Share = () => {
                                     ))}
                                 </select>
                             </div>
-                            <Button className="create-cuota-btn" onClick={handleCreateCuota}>Crear Cuota</Button>
-                            <Button className="back-btn" onClick={handleBackToStudents}>Volver</Button>
+                            <div className="actions-individuales">
+                                <Button className="create-cuota-btn" onClick={handleCreateCuota}>Crear Cuota</Button>
+                                <Button className="back-btn" onClick={handleBackToStudents}>Volver</Button>
+                            </div>
+
                         </div>
                         <Table className="cuotas-table">
                             <thead>

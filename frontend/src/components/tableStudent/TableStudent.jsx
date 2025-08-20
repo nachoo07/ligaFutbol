@@ -55,7 +55,7 @@ const TableStudent = () => {
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
     const [isImporting, setIsImporting] = useState(false);
-    const studentsPerPage = 5;
+    const studentsPerPage = 15;
     const [maxVisiblePages, setMaxVisiblePages] = useState(10);
     const [isMenuOpen, setIsMenuOpen] = useState(true);
     const isMounted = useRef(false);
@@ -72,8 +72,6 @@ const TableStudent = () => {
     useEffect(() => {
         if (isMounted.current) return;
         isMounted.current = true;
-
-        console.log('[DEBUG] TableStudent - Inicializando, location.search:', location.search);
         const queryParams = new URLSearchParams(location.search);
         const page = parseInt(queryParams.get('page')) || 1;
         setCurrentPage(page);
@@ -82,15 +80,15 @@ const TableStudent = () => {
 
     // Manejar paginación según la ruta
     useEffect(() => {
-        console.log('[DEBUG] TableStudent - location:', location.pathname, location.state);
+        
         if (location.pathname !== '/student' && !location.state?.fromDetailStudent) {
-            console.log('[DEBUG] Reiniciando paginación');
+           
             setCurrentPage(1);
             setSearchTerm('');
             setFilterCategory('');
             setFilterStatus('');
         } else if (location.pathname === '/student' && location.state?.fromDetailStudent) {
-            console.log('[DEBUG] Restaurando estado:', tempState.current);
+          
             setCurrentPage(tempState.current.currentPage);
             setSearchTerm(tempState.current.searchTerm);
             setFilterCategory(tempState.current.filterCategory);
@@ -118,7 +116,6 @@ const TableStudent = () => {
         { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
         { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
         {
             name: 'Volver Atrás',
@@ -312,7 +309,7 @@ const TableStudent = () => {
                         {auth === 'admin' && (
                             <div className="filter-actions">
                                 <div className="actions">
-                                    <Button className="add-btn" onClick={handleShow}>Agregar Alumno</Button>
+                                    <Button className="add-btn-student" onClick={handleShow}>Agregar Alumno</Button>
                                     <label htmlFor="import-excel" className="import-btn">
                                         <FaFileExcel style={{ marginRight: '5px' }} /> Importar Excel
                                     </label>

@@ -9,8 +9,8 @@ const SharesProvider = ({ children }) => {
     const [cuotas, setCuotas] = useState([]);
     const [loading, setLoading] = useState(false);
 
-    const [semesterStats, setSemesterStats] = useState(null); // Estadísticas por semestre
-    const [selectedSemester, setSelectedSemester] = useState(""); // Semestre por defecto
+    const [semesterStats, setSemesterStats] = useState(null);
+    const [selectedSemester, setSelectedSemester] = useState("");
     const { auth, authLoading } = useContext(LoginContext);
     const location = useLocation();
     const hasFetchedCuotas = useRef(false);
@@ -18,7 +18,7 @@ const SharesProvider = ({ children }) => {
 
     const obtenerCuotas = useCallback(async (force = false) => {
         if (loading || (hasFetchedCuotas.current && !force && cuotas.length > 0)) return;
-        if (authLoading || !auth || !(location.pathname === '/share' || location.pathname === '/pendingshare' || location.pathname === '/report')) return;
+        if (authLoading || !auth) return; // Solo verifica autenticación, no rutas
 
         setLoading(true);
         try {
@@ -32,26 +32,26 @@ const SharesProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    }, [loading, hasFetchedCuotas, authLoading, auth, location.pathname, cuotas.length]);
+    }, [loading, hasFetchedCuotas, authLoading, auth, cuotas.length]);
 
-    const obtenerCuotasPorSemestre = useCallback(async (semester) => {
-  if (!semester) return;
-  try {
-    setLoading(true);
-    const response = await axios.get("/api/shares/by-semester", {
-      params: { semester },
-      withCredentials: true,
-    });
-    setSemesterStats(response.data);
-  } catch (error) {
-    console.error(`Error obteniendo estadísticas para ${semester}:`, error);
-    setSemesterStats(null);
-    throw error;
-  } finally {
-    setLoading(false);
-  }
-}, []);
-
+    /*const obtenerCuotasPorSemestre = useCallback(async (semester) => {
+        if (!semester) return;
+        try {
+            setLoading(true);
+            const response = await axios.get("http://localhost:4002/api/shares/by-semester", {
+                params: { semester },
+                withCredentials: true,
+            });
+            setSemesterStats(response.data);
+        } catch (error) {
+            console.error(`Error obteniendo estadísticas para ${semester}:`, error);
+            setSemesterStats(null);
+            throw error;
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+*/
     const obtenerCuotasPorEstudiante = useCallback(async (studentId) => {
         try {
             const response = await axios.get(`/api/shares/${studentId}`, {
@@ -79,33 +79,24 @@ const SharesProvider = ({ children }) => {
         }
     }, []);
 
+    // Carga inicial de cuotas solo si hay autenticación, sin restricción de ruta
     useEffect(() => {
-  if (
-    authLoading ||
-    !auth ||
-    !(
-      location.pathname === "/share" ||
-      location.pathname === "/pendingshare" ||
-      location.pathname === "/report"
-    )
-  ) {
-    return;
-  }
+        if (authLoading || !auth) return;
 
-  if (!hasFetchedCuotas.current) {
-    obtenerCuotas().catch((error) => {
-      console.error("Error en useEffect de SharesContext al obtener cuotas:", error);
-    });
-  }
+        if (!hasFetchedCuotas.current) {
+            obtenerCuotas().catch((error) => {
+                console.error("Error en useEffect de SharesContext al obtener cuotas:", error);
+            });
+        }
 
-  if (selectedSemester) {
-    obtenerCuotasPorSemestre(selectedSemester).catch((error) => {
-      console.error("Error al cargar estadísticas iniciales:", error);
-    });
-  } else {
-    setSemesterStats(null); // Limpia las estadísticas si no hay semestre seleccionado
-  }
-}, [auth, authLoading, location.pathname, obtenerCuotas, obtenerCuotasPorSemestre, selectedSemester]);
+        if (selectedSemester) {
+            obtenerCuotasPorSemestre(selectedSemester).catch((error) => {
+                console.error("Error al cargar estadísticas iniciales:", error);
+            });
+        } else {
+            setSemesterStats(null);
+        }
+    }, [auth, authLoading, obtenerCuotas, /*obtenerCuotasPorSemestre,*/ selectedSemester]);
 
     const addCuota = useCallback(async (cuota) => {
         if (!auth || auth !== "admin") return Promise.reject("No autorizado");
@@ -172,19 +163,13 @@ const SharesProvider = ({ children }) => {
         }
     }, [auth]);
 
-    useEffect(() => {
-    if (!hasFetchedCuotas.current && auth && !authLoading && (location.pathname === '/share' || location.pathname === '/pendingshare' || location.pathname === '/report')) {
-      obtenerCuotas().catch((error) => console.error('Error en useEffect de SharesContext:', error));
-    }
-  }, [auth, authLoading, location.pathname, obtenerCuotas]);
-  
     return (
         <SharesContext.Provider
             value={{
                 cuotas,
                 loading,
                 obtenerCuotas,
-                obtenerCuotasPorSemestre,
+                //obtenerCuotasPorSemestre,
                 obtenerCuotasPorEstudiante,
                 addCuota,
                 deleteCuota,

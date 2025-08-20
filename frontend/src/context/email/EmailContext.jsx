@@ -2,6 +2,7 @@ import { createContext, useContext, useState } from 'react';
 import axios from 'axios';
 import Swal from 'sweetalert2';
 import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import validator from 'validator';
 
 export const EmailContext = createContext();
@@ -100,7 +101,7 @@ export const EmailProvider = ({ children }) => {
             const studentShares = studentsData.find(s => s._id === student._id)?.shares || [];
             const pendingShare = studentShares.find(share => share.status === 'Pendiente');
             const partialShare = studentShares.find(share => share.status === 'Pagado' && share.paymentType === 'Pago Parcial');
-            let owed = parseFloat(message.match(/\$\d+(?:\.\d{2})?/)?.[0].replace('$', '')) || 0; // Extraer monto base del mensaje
+            let owed = parseFloat(message.match(/\$\d+(?:\.\d{2})?/)?.[0].replace('$', '')) || 0;
 
             if (partialShare && partialShare.amount) {
               owed = owed - partialShare.amount;
@@ -112,7 +113,7 @@ export const EmailProvider = ({ children }) => {
               recipient,
               message: `
                 <div style="font-family: Arial, sans-serif; color: #333;">
-                  <img src="https://res.cloudinary.com/dmjjwnvq8/image/upload/v1753137918/vo3rj04kyhxnustqzowe.png" alt="Liga de Fútbol Infantil" style="width: 150px;" />
+                  <img src="https://res.cloudinary.com/dmjjwnvq8/image/upload/v1755546051/logo_kdmipc.png" alt="Liga de Fútbol Infantil" style="width: 150px;" />
                   <h2>Estimado/a ${student.name},</h2>
                   <p>Le recordamos que tiene una deuda pendiente de $${owed.toLocaleString('es-AR')}.</p>
                   <p>Por favor, regularice su situación antes del ${formatDate(new Date(Date.now() + 3 * 24 * 60 * 60 * 1000))}.</p>
@@ -176,42 +177,62 @@ export const EmailProvider = ({ children }) => {
     }
 
     try {
+      // Crear un contenedor temporal y añadirlo al DOM
       const div = document.createElement('div');
       div.style.position = 'absolute';
       div.style.left = '-9999px';
+      div.style.width = '370px'; // Ajustado para A5 horizontal
+      div.style.padding = '0';
+      div.style.height = 'auto'; // Asegurar que el contenedor se ajuste al contenido
+      div.style.overflow = 'hidden'; // Evitar que capture más allá del contenido
       document.body.appendChild(div);
 
-      const logoUrl = 'https://res.cloudinary.com/dmjjwnvq8/image/upload/v1753137918/vo3rj04kyhxnustqzowe.png';
-      await new Promise((resolve, reject) => {
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = logoUrl;
-        img.onload = resolve;
-        img.onerror = () => {
-          console.error('Error al cargar el logo:', logoUrl);
-          reject(new Error('No se pudo cargar el logo'));
-        };
-      });
-
+      // Renderizar el componente Receipt
       const { default: Receipt } = await import('../../components/voucher/Receipt');
       const { renderToString } = await import('react-dom/server');
-      div.innerHTML = renderToString(<Receipt student={student} share={share} contactEmail="ligafutbolinfantil01@gmail.com" />);
+      div.innerHTML = renderToString(
+        <Receipt student={student} share={share} logoUrl="https://res.cloudinary.com/dmjjwnvq8/image/upload/v1755546051/logo_kdmipc.png" contactEmail="ligafutbolinfantil01@gmail.com" />
+      );
 
+      // Capturar el contenido con html2canvas ajustando la altura
+      await new Promise(resolve => setTimeout(resolve, 50));
       const canvas = await html2canvas(div, {
         scale: 3,
         useCORS: true,
+        logging: false,
+        height: div.scrollHeight, // Usar solo la altura real del contenido
+        windowHeight: div.scrollHeight, // Asegurar que no capture más
+        y: 0, // Comenzar desde el inicio
       });
-      const imageData = canvas.toDataURL('image/png', 1.0);
-      const base64Data = imageData.split(',')[1];
+
+      if (!canvas || canvas.width === 0 || canvas.height === 0) {
+        throw new Error('No se pudo capturar el contenido con html2canvas');
+      }
+
+      // Crear PDF con jsPDF ajustando la altura
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a5',
+      });
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      const imgProps = pdf.getImageProperties(imgData);
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = Math.min((imgProps.height * pdfWidth) / imgProps.width, pdf.internal.pageSize.getHeight()); // Limitar a la altura de A5
+      pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+
+      // Convertir PDF a base64
+      const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
       document.body.removeChild(div);
 
+      // Enviar el correo con el PDF adjunto
       const subject = `Comprobante de Pago - ${student.name} ${student.lastName}`;
       const message = `
         <p>Hola ${student.name},</p>
-        <p>Adjuntamos el comprobante de tu pago por la cuota de ${formatDate(share.paymentDate)}.</p>
+        <p>Adjuntamos el comprobante de tu pago por la cuota de ${formatDate(share.paymentDate || share.updatedAt)}.</p>
         <p>Monto pagado: $${share.amount.toLocaleString('es-ES')}</p>
-        <p>Gracias por tu pago.</p>
+        <p>Gracias por tu pago. Para consultas, contáctenos a ligafutbolinfantil01@gmail.com</p>
         <p>Saludos cordiales,<br>Liga de Fútbol Infantil</p>
       `;
 
@@ -220,18 +241,24 @@ export const EmailProvider = ({ children }) => {
         {
           recipients: [student.mail],
           subject,
-          message,
-          attachment: base64Data,
+          messages: [{ recipient: student.mail, message }],
+          studentsData: [student],
+          attachment: {
+            filename: `comprobante_${student.dni || 'unknown'}_${formatDate(share.paymentDate || share.updatedAt)}.pdf`,
+            content: pdfBase64,
+            encoding: 'base64',
+          },
         },
         { withCredentials: true }
       );
+
       Swal.fire('¡Éxito!', 'Comprobante enviado exitosamente', 'success');
       if (onSuccess) onSuccess();
       return true;
     } catch (error) {
       console.error('Error al enviar el comprobante:', error);
-      console.error('Detalles del error:', error.response?.data);
-      Swal.fire('Error', error.response?.data?.message || 'No se pudo enviar el comprobante', 'error');
+      console.error('Detalles del error:', error.response?.data || error.message);
+      Swal.fire('Error', error.message || 'No se pudo enviar el comprobante', 'error');
       return false;
     }
   };

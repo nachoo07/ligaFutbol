@@ -9,8 +9,8 @@ import 'react-datepicker/dist/react-datepicker.css';
 import { useNavigate } from 'react-router-dom';
 import { FaSearch, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaListUl, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
-import { jsPDF } from 'jspdf'; // Nuevo: importar jsPDF
-import autoTable from 'jspdf-autotable'; // Nuevo: importar autoTable
+import { jsPDF } from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import './shareDetail.css';
 
 const ShareDetail = () => {
@@ -24,45 +24,44 @@ const ShareDetail = () => {
     const [selectedDate, setSelectedDate] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [isMenuOpen, setIsMenuOpen] = useState(true);
-    const [isDataLoaded, setIsDataLoaded] = useState(false);
 
+    // Cargar usuarios al montar el componente
     useEffect(() => {
         if (usuarios.length === 0) {
             obtenerUsuarios();
         }
     }, []);
 
+    // Filtrar y cargar cuotas automáticamente al cambiar usuario o fecha
     useEffect(() => {
-        if (selectedUser && selectedDate && !isDataLoaded) {
-            fetchCuotas();
-        }
-    }, [selectedUser, selectedDate, isDataLoaded]);
+        const applyFilters = async () => {
+            if (selectedUser && selectedDate) {
+                try {
+                    await obtenerCuotas(); // Carga todas las cuotas
+                    let filtered = [...cuotas].filter(cuota => cuota.status === 'Pagado');
+                    filtered = filtered.filter(cuota => cuota.registeredBy === selectedUser.label);
+                    const dateStr = selectedDate.toISOString().split('T')[0];
+                    filtered = filtered.filter(cuota => cuota.paymentDate && new Date(cuota.paymentDate).toISOString().split('T')[0] === dateStr);
 
-    useEffect(() => {
-        if (!isDataLoaded) return;
+                    if (searchTerm) {
+                        const searchLower = searchTerm.toLowerCase();
+                        filtered = filtered.filter(cuota => {
+                            const studentName = `${cuota.student?.name || ''} ${cuota.student?.lastName || ''}`.toLowerCase();
+                            return studentName.includes(searchLower);
+                        });
+                    }
 
-        let filtered = [...cuotas].filter(cuota => cuota.status === 'Pagado');
-
-        if (selectedUser && selectedDate) {
-            filtered = filtered.filter(cuota => cuota.registeredBy === selectedUser.label);
-            const dateStr = selectedDate.toISOString().split('T')[0];
-            filtered = filtered.filter(cuota => cuota.paymentDate && new Date(cuota.paymentDate).toISOString().split('T')[0] === dateStr);
-
-            if (searchTerm) {
-                const searchLower = searchTerm.toLowerCase();
-                filtered = filtered.filter(cuota => {
-                    const studentName = `${cuota.student?.name || ''} ${cuota.student?.lastName || ''}`.toLowerCase();
-                    return studentName.includes(searchLower);
-                });
+                    setFilteredCuotas(filtered);
+                } catch (error) {
+                    console.error('Error al obtener o filtrar cuotas:', error);
+                    setFilteredCuotas([]);
+                }
+            } else {
+                setFilteredCuotas([]);
             }
-
-            setFilteredCuotas(filtered);
-        } else {
-            setFilteredCuotas([]);
-        }
-    },
-
-    [cuotas, selectedUser, selectedDate, searchTerm, isDataLoaded]);
+        };
+        applyFilters();
+    }, [selectedUser, selectedDate, searchTerm]);
 
     const userOptions = usuarios.map(user => ({
         value: user._id,
@@ -71,7 +70,6 @@ const ShareDetail = () => {
 
     const formatDate = (dateString) => dateString ? new Date(dateString).toISOString().split('T')[0] : '-';
 
-    // Nuevo: función para exportar a PDF
     const exportToPDF = () => {
         const doc = new jsPDF();
         doc.text('Registro de Pagos', 14, 16);
@@ -88,7 +86,6 @@ const ShareDetail = () => {
             cuota.registeredBy || '-'
         ]);
 
-        // Agregar totales al final de la tabla
         const { total, efectivo, transferencia } = calculateTotals();
         tableData.push([
             { content: 'Total:', colSpan: 3, styles: { halign: 'right', fontStyle: 'bold' } },
@@ -124,7 +121,6 @@ const ShareDetail = () => {
         { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
         { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
         { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
     ];
@@ -135,21 +131,11 @@ const ShareDetail = () => {
 
     const handleSearchChange = (e) => setSearchTerm(e.target.value);
 
-    const fetchCuotas = async () => {
-        try {
-            await obtenerCuotas();
-            setIsDataLoaded(true);
-        } catch (error) {
-            console.error('Error al obtener cuotas:', error);
-        }
-    };
-
     const clearFilters = () => {
         setSelectedUser(null);
         setSelectedDate(null);
         setSearchTerm('');
         setFilteredCuotas([]);
-        setIsDataLoaded(false);
     };
 
     const calculateTotals = () => {
@@ -172,9 +158,7 @@ const ShareDetail = () => {
                 <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
                     <FaBars />
                 </div>
-                {(auth === 'admin' ? adminMenuItems : userMenuItems).map((item
-
-, index) => (
+                {(auth === 'admin' ? adminMenuItems : userMenuItems).map((item, index) => (
                     <div
                         key={index}
                         className="sidebar-item"
@@ -203,7 +187,13 @@ const ShareDetail = () => {
                                 <label>Usuario que registró:</label>
                                 <Select
                                     options={userOptions}
-                                    onChange={setSelectedUser}
+                                    onChange={(user) => {
+                                        setSelectedUser(user);
+                                        // Aplicar filtros automáticamente al cambiar el usuario
+                                        if (selectedDate) {
+                                            applyFilters();
+                                        }
+                                    }}
                                     placeholder="Selecciona un usuario"
                                     isClearable
                                     value={selectedUser}
@@ -213,7 +203,13 @@ const ShareDetail = () => {
                                 <label>Fecha:</label>
                                 <DatePicker
                                     selected={selectedDate}
-                                    onChange={setSelectedDate}
+                                    onChange={(date) => {
+                                        setSelectedDate(date);
+                                        // Aplicar filtros automáticamente al cambiar la fecha
+                                        if (selectedUser) {
+                                            applyFilters();
+                                        }
+                                    }}
                                     dateFormat="yyyy-MM-dd"
                                     placeholderText="Selecciona una fecha"
                                     className="form-control"
@@ -224,7 +220,6 @@ const ShareDetail = () => {
                             </Button>
                         </div>
                     </div>
-                    {/* Nuevo: sección para el botón de exportar a PDF */}
                     <div className="table-actions">
                         <Button onClick={exportToPDF} variant="primary" disabled={filteredCuotas.length === 0}>
                             Exportar a PDF
@@ -264,11 +259,9 @@ const ShareDetail = () => {
                             ) : (
                                 <tr>
                                     <td colSpan="6" className="text-center">
-                                        {isDataLoaded && !searchTerm && (!selectedUser || !selectedDate)
+                                        {(!selectedUser || !selectedDate)
                                             ? "Por favor, selecciona un usuario y una fecha para ver los pagos."
-                                            : searchTerm && !filteredCuotas.length
-                                                ? "No hay datos según tu búsqueda."
-                                                : "Por favor, selecciona un usuario y una fecha para ver los pagos."}
+                                            : "No hay datos para los filtros seleccionados."}
                                     </td>
                                 </tr>
                             )}

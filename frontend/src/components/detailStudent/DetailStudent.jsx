@@ -95,7 +95,7 @@ const StudentDetail = () => {
             isMounted.current = true;
             setLoading(true);
             try {
-                console.log('[DEBUG] StudentDetail - Obteniendo estudiante:', id);
+               
                 await obtenerEstudiante(id);
                 if (student?.profileImage) {
                     await preloadImage(student.profileImage);
@@ -132,7 +132,7 @@ const StudentDetail = () => {
 
     useEffect(() => {
         const handleShareUpdate = () => {
-            console.log('[DEBUG] StudentDetail - Detectado shareUpdated, actualizando estudiante');
+            
             obtenerEstudiante(id);
         };
         window.addEventListener('shareUpdated', handleShareUpdate);
@@ -228,64 +228,63 @@ const StudentDetail = () => {
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        const formDataToSend = new FormData();
-        Object.keys(formData).forEach(key => {
-            if (key === 'profileImage' && formData[key] instanceof File) {
-                formDataToSend.append('profileImage', formData[key]);
-            } else if (key === 'archived' && Array.isArray(formData[key])) {
-                formData[key].forEach((item, index) => {
-                    if (item instanceof File) {
-                        formDataToSend.append('archived', item);
-                    } else if (typeof item === 'string' && item.startsWith('http')) {
-                        formDataToSend.append('existingArchived', item);
-                    }
-                });
-            } else if (key !== 'archivedNames' && key !== 'profileImage' && key !== 'archived' && key !== 'isEnabled') {
-                formDataToSend.append(key, formData[key] || '');
-            }
-        });
-        const archivedNames = Array.isArray(formData.archivedNames) ? formData.archivedNames : [];
-        const existingNames = Array.isArray(student.archivedNames) ? student.archivedNames : [];
-        const combinedNames = formData.archived.map((item, index) => {
-            if (item instanceof File) {
-                return archivedNames[index] || item.name || `Archivo ${index + 1}`;
-            } else if (typeof item === 'string' && item.startsWith('http')) {
-                return existingNames[index] || archivedNames[index] || `Archivo ${index + 1}`;
-            }
-            return null;
-        }).filter(name => name !== null);
-        formDataToSend.append('archivedNames', JSON.stringify(combinedNames));
-        if (!formData.archived || formData.archived.length === 0) {
-            formDataToSend.append('archived', JSON.stringify([]));
+    e.preventDefault();
+    const formDataToSend = new FormData();
+    Object.keys(formData).forEach(key => {
+        if (key === 'profileImage' && formData[key] instanceof File) {
+            formDataToSend.append('profileImage', formData[key]);
+        } else if (key === 'archived' && Array.isArray(formData[key])) {
+            formData[key].forEach((item, index) => {
+                if (item instanceof File) {
+                    formDataToSend.append('archived', item);
+                } else if (typeof item === 'string' && item.startsWith('http')) {
+                    formDataToSend.append('existingArchived', item);
+                }
+            });
+        } else if (key !== 'archivedNames' && key !== 'profileImage' && key !== 'archived' && key !== 'isEnabled') {
+            formDataToSend.append(key, formData[key] || '');
         }
-        try {
-            const response = await updateEstudiante(student._id, formDataToSend);
-            if (response && (response.data.success || response.status === 200)) {
-                const updatedStudent = response.data.student || response.data;
-                const updatedData = {
-                    ...updatedStudent,
-                    birthDate: updatedStudent.birthDate.includes('/')
-                        ? updatedStudent.birthDate
-                        : new Date(updatedStudent.birthDate + 'T00:00:00Z').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').reverse().join('/'),
-                    profileImage: updatedStudent.profileImage || formData.profileImage,
-                    archived: updatedStudent.archived || [],
-                    archivedNames: updatedStudent.archivedNames || []
-                };
-                setFormData(updatedData);
-                setInitialFormData(updatedData);
-                await obtenerEstudiante(student._id);
-                await Swal.fire("¡Éxito!", "El perfil ha sido actualizado.", "success");
-                handleClose();
-                window.dispatchEvent(new Event('shareUpdated'));
-            } else {
-                await Swal.fire("¡Error!", response?.data?.message || "No se pudo actualizar el perfil.", "error");
-            }
-        } catch (error) {
-            console.error("[DEBUG] Error al actualizar estudiante:", error);
-            await Swal.fire("¡Error!", error.response?.data?.message || "Ha ocurrido un error al actualizar el perfil.", "error");
+    });
+    const archivedNames = Array.isArray(formData.archivedNames) ? formData.archivedNames : [];
+    const existingNames = Array.isArray(student.archivedNames) ? student.archivedNames : [];
+    const combinedNames = formData.archived.map((item, index) => {
+        if (item instanceof File) {
+            return archivedNames[index] || item.name || `Archivo ${index + 1}`;
+        } else if (typeof item === 'string' && item.startsWith('http')) {
+            return existingNames[index] || archivedNames[index] || `Archivo ${index + 1}`;
         }
-    };
+        return null;
+    }).filter(name => name !== null);
+    formDataToSend.append('archivedNames', JSON.stringify(combinedNames));
+    if (!formData.archived || formData.archived.length === 0) {
+        formDataToSend.append('archived', JSON.stringify([]));
+    }
+    try {
+        const response = await updateEstudiante(student._id, formDataToSend);
+        if (response && (response.data.success || response.status === 200)) {
+            const updatedStudent = response.data.student || response.data;
+            const updatedData = {
+                ...updatedStudent,
+                birthDate: updatedStudent.birthDate.includes('/')
+                    ? updatedStudent.birthDate
+                    : new Date(updatedStudent.birthDate + 'T00:00:00Z').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').reverse().join('/'),
+                profileImage: updatedStudent.profileImage || formData.profileImage,
+                archived: updatedStudent.archived || [],
+                archivedNames: updatedStudent.archivedNames || []
+            };
+            setFormData(updatedData);
+            setInitialFormData(updatedData);
+            await obtenerEstudiante(student._id);
+            handleClose(); // Cerrar el modal después de la actualización
+            window.dispatchEvent(new Event('shareUpdated'));
+        } else {
+            await Swal.fire("¡Error!", response?.data?.message || "No se pudo actualizar el perfil.", "error");
+        }
+    } catch (error) {
+        console.error("[DEBUG] Error al actualizar estudiante:", error);
+        await Swal.fire("¡Error!", error.response?.data?.message || "Ha ocurrido un error al actualizar el perfil.", "error");
+    }
+};
 
     const handleDelete = async () => {
         try {
@@ -354,7 +353,7 @@ const StudentDetail = () => {
                             </div>
                             <div className="perfil-actions-header">
                                 <button
-                                    className="btn-volver-atras btn-volver-atras-large"
+                                    className="btn-volver-atras"
                                     onClick={() => {
                                         const queryParams = new URLSearchParams(location.search);
                                         const page = queryParams.get('page') || 1;
@@ -367,12 +366,12 @@ const StudentDetail = () => {
                         </div>
                         <div className="perfil-actions-mobile">
                             {auth === 'admin' && (
-                                <button className="btn-ver-cuotas btn-ver-cuotas-mobile" onClick={handleViewShares}>
+                                <button className="btn-ver-cuotas " onClick={handleViewShares}>
                                     Ver Cuotas
                                 </button>
                             )}
                             <button
-                                className="btn-volver-atras btn-volver-atras-mobile"
+                                className="btn-volver-atras"
                                 onClick={() => {
                                     const queryParams = new URLSearchParams(location.search);
                                     const page = queryParams.get('page') || 1;
@@ -518,8 +517,8 @@ const StudentDetail = () => {
                                               {/* Botones de acción MOVIDOS al final del contenedor */}
                     {auth === 'admin' && (
                         <div className="perfil-actions">
-                            <button type="button" className="btn-editar" onClick={handleShow}>Editar Perfil</button>
-                            <button type="button" className="btn-eliminar" onClick={handleDelete}>Eliminar Perfil</button>
+                            <button type="button" className="btn-editar-detail" onClick={handleShow}>Editar Perfil</button>
+                            <button type="button" className="btn-eliminar-detail" onClick={handleDelete}>Eliminar Perfil</button>
                         </div>
                     )}
                     </form>
