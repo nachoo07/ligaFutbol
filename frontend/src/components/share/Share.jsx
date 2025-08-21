@@ -498,7 +498,7 @@ const Share = () => {
                             </Table>
                         )}
                         {filteredStudents.length > 0 && (
-                            <div className="pagination">
+                            <div className="pagination-share">
                                 <Button
                                     disabled={currentPage === 1}
                                     onClick={() => paginate(currentPage - 1)}
