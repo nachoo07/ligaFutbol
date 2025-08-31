@@ -28,16 +28,7 @@ const Navigate = () => {
     { path: '/', label: 'Inicio', icon: <FaHome /> },
     { path: '/student', label: 'Alumnos', icon: <FaUsers /> },
     { path: '/share', label: 'Cuotas', icon: <FaMoneyBill /> },
-    {
-      label: 'Reportes',
-      icon: <FaChartBar />,
-      hasSubmenu: true,
-      submenu: [
-        { path: '/report/canada', label: 'Sede El Palmar' },
-        { path: '/report/valladares', label: 'Sede Valladares' },
-        { path: '/report/sirga', label: 'Sede Sirga' },
-      ]
-    },
+    { path: '/report', label: 'Reportes', icon: <FaChartBar /> },
     { path: '/carnet', label: 'Carnet', icon: <FaAddressCard /> },
     { path: '/list', label: 'Lista buena fe', icon: <FaRegListAlt /> },
     { path: '/pendingshare', label: 'Deudores', icon: <LuClipboardList /> },

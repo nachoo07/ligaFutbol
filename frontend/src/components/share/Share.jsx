@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FaBars, FaAddressCard, FaRegListAlt, FaUsers, FaListUl, FaMoneyBill, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice, FaSpinner } from 'react-icons/fa';
+import { FaBars, FaAddressCard, FaRegListAlt, FaUsers, FaListUl, FaMoneyBill, FaChartBar, FaExchangeAlt, FaUserCog, FaHome, FaArrowLeft, FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice, FaSpinner } from 'react-icons/fa';
 import { MdOutlineReadMore } from "react-icons/md";
 import { LuClipboardList } from "react-icons/lu";
 import { SharesContext } from "../../context/share/ShareContext";
@@ -73,30 +73,25 @@ const Share = () => {
 
     const userMenuItems = [];
 
-    // Nuevo: función para ordenar cuotas
     const sortCuotas = (cuotas) => {
         const cuotaOrder = {
             'Primera Cuota': 1,
             'Segunda Cuota': 2,
             'Tercera Cuota': 3,
-            // Agregar más si hay más cuotas posibles
         };
 
         return cuotas.sort((a, b) => {
             const [aCuota, aSemestre, aYear] = a.paymentName?.split(' - ') || ['', '', '0'];
             const [bCuota, bSemestre, bYear] = b.paymentName?.split(' - ') || ['', '', '0'];
 
-            // Comparar por año
             const yearDiff = parseInt(aYear) - parseInt(bYear);
             if (yearDiff !== 0) return yearDiff;
 
-            // Comparar por semestre
             const semestreA = parseInt(aSemestre.replace('Semestre ', '')) || 0;
             const semestreB = parseInt(bSemestre.replace('Semestre ', '')) || 0;
             const semestreDiff = semestreA - semestreB;
             if (semestreDiff !== 0) return semestreDiff;
 
-            // Comparar por número de cuota
             const cuotaA = cuotaOrder[aCuota] || 999;
             const cuotaB = cuotaOrder[bCuota] || 999;
             return cuotaA - cuotaB;
@@ -132,27 +127,26 @@ const Share = () => {
     }, [obtenerEstudiantes, obtenerCuotas, loadingStudents]);
 
     useEffect(() => {
-        if (studentId && !hasFetchedStudentCuotas.current && estudiantes && estudiantes.length > 0) {
-            const student = estudiantes.find((est) => est._id === studentId);
-            if (student) {
-                setSelectedStudent(student);
-                const loadStudentCuotas = async () => {
-                    try {
-                        const studentCuotas = await obtenerCuotasPorEstudiante(studentId);
-                        setAllStudentCuotas(studentCuotas);
-                        setFilteredStudentCuotas(sortCuotas([...studentCuotas])); // Modificado: ordenar cuotas
-                        hasFetchedStudentCuotas.current = true;
-                    } catch (error) {
-                        console.error('Error cargando cuotas del estudiante:', error);
-                        Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas del estudiante.", "error");
+        if (studentId && !hasFetchedStudentCuotas.current) {
+            const loadStudentCuotas = async () => {
+                try {
+                    const studentCuotas = await obtenerCuotasPorEstudiante(studentId);
+                    setAllStudentCuotas(studentCuotas);
+                    setFilteredStudentCuotas(sortCuotas([...studentCuotas]));
+                    const student = estudiantes.find((est) => est._id === studentId);
+                    if (student) {
+                        setSelectedStudent(student);
                     }
-                };
-                loadStudentCuotas();
-            }
+                    hasFetchedStudentCuotas.current = true;
+                } catch (error) {
+                    console.error('Error cargando cuotas del estudiante:', error);
+                    Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas del estudiante.", "error");
+                }
+            };
+            loadStudentCuotas();
         }
-    }, [studentId, estudiantes, obtenerCuotasPorEstudiante]);
+    }, [studentId, obtenerCuotasPorEstudiante]);
 
-    // Modificado: aplicar ordenamiento después de filtrar
     useEffect(() => {
         if (!yearFilter) {
             setFilteredStudentCuotas(sortCuotas([...allStudentCuotas]));
@@ -198,13 +192,7 @@ const Share = () => {
         setHasClearedStudent(false);
         setSelectedStudent(student);
         navigate(`/share/${student._id}`);
-        obtenerCuotasPorEstudiante(student._id).then((studentCuotas) => {
-            setAllStudentCuotas(studentCuotas);
-            setFilteredStudentCuotas(sortCuotas([...studentCuotas])); // Modificado: ordenar cuotas
-        }).catch((error) => {
-            console.error('Error en handleSelectStudent:', error);
-            Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas del estudiante.", "error");
-        });
+        hasFetchedStudentCuotas.current = false; // Resetear para permitir recarga de cuotas
     };
 
     const getStudentShareStatus = (studentId) => {
@@ -244,6 +232,7 @@ const Share = () => {
         setIsEditing(false);
         setShowCuotaModal(false);
         setYear("");
+        hasFetchedStudentCuotas.current = false; // Resetear para nueva selección
         if (location.state?.fromStudentDetail) {
             navigate(`/detailstudent/${studentId}`);
         } else {
@@ -287,8 +276,7 @@ const Share = () => {
 
             const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id);
             setAllStudentCuotas(studentCuotas);
-            setFilteredStudentCuotas(sortCuotas([...studentCuotas])); // Modificado: ordenar cuotas tras guardar
-            window.dispatchEvent(new Event('shareUpdated'));
+            setFilteredStudentCuotas(sortCuotas([...studentCuotas]));
             Swal.fire("¡Éxito!", `Cuota ${selectedCuota ? 'actualizada' : 'agregada'} exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
 
             setPaymentName("");
@@ -361,8 +349,7 @@ const Share = () => {
                 await deleteCuota(id);
                 const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id);
                 setAllStudentCuotas(studentCuotas);
-                setFilteredStudentCuotas(sortCuotas([...studentCuotas])); // Modificado: ordenar cuotas tras eliminar
-                window.dispatchEvent(new Event('shareUpdated'));
+                setFilteredStudentCuotas(sortCuotas([...studentCuotas]));
                 Swal.fire("¡Éxito!", "Cuota eliminada exitosamente.", "success");
             } catch (error) {
                 console.error('Error en handleDelete:', error);
@@ -546,7 +533,6 @@ const Share = () => {
                                 <Button className="create-cuota-btn" onClick={handleCreateCuota}>Crear Cuota</Button>
                                 <Button className="back-btn" onClick={handleBackToStudents}>Volver</Button>
                             </div>
-
                         </div>
                         <Table className="cuotas-table">
                             <thead>

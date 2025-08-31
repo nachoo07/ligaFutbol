@@ -164,17 +164,7 @@ const Income = () => {
                 <option value="ingreso">Ingreso</option>
                 <option value="egreso">Egreso</option>
               </select>
-              <select
-                name="location"
-                value={formData.location}
-                onChange={handleInputChange}
-                required
-              >
-                <option value="">Sede</option>
-                <option value="Sede El Palmar">Sede El Palmar</option>
-                <option value="Sede Valladares">Sede Valladares</option>
-                <option value="Sede Sirga">Sede Sirga</option>
-              </select>
+              
             </div>
             <div className="motion-form-actions">
               <Button type="submit" className="motion-save-btn">
@@ -219,18 +209,7 @@ const Income = () => {
               <option value="egreso">Egreso</option>
             </select>
           </div>
-          <div className="motion-filter-item">
-            <label>Sede:</label>
-            <select
-              value={filters.location}
-              onChange={(e) => setFilters((prev) => ({ ...prev, location: e.target.value }))}
-            >
-              <option value="">Todas</option>
-              <option value="Sede El Palmar">Sede El Palmar</option>
-              <option value="Sede Valladares">Sede Valladares</option>
-              <option value="Sede Sirga">Sede Sirga</option>
-            </select>
-          </div>
+        
         </div>
 
         <Table className="motion-table">
@@ -241,7 +220,6 @@ const Income = () => {
               <th>Monto</th>
               <th className="metodo-pago-motion">Método</th>
               <th>Tipo</th>
-              <th>Sede</th>
               <th>Acciones</th>
             </tr>
           </thead>
@@ -254,7 +232,6 @@ const Income = () => {
                   <td data-label="Monto">{`$ ${item.amount.toLocaleString('es')}`}</td>
                   <td data-label="Método" className="metodo-pago-motion">{item.paymentMethod}</td>
                   <td data-label="Tipo">{item.incomeType}</td>
-                  <td data-label="Sede">{item.location}</td>
                   <td data-label="Acciones" className="motion-actions">
                     <Button className="motion-edit-btn" onClick={() => handleEdit(index)}>
                       <span className="text-btn">Editar</span>

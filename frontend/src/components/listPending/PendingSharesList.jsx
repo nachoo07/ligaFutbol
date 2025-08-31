@@ -42,7 +42,6 @@ const PendingSharesList = () => {
   }, [obtenerCuotas]);
 
   useEffect(() => {
-    
     if (cuotas && Array.isArray(cuotas)) {
       const uniqueSchools = [...new Set(cuotas.map(share => share.student.school))]
         .filter(school => school)
@@ -56,13 +55,6 @@ const PendingSharesList = () => {
         .map(category => ({
           value: category,
           label: category,
-        }));
-
-      const uniqueColors = [...new Set(cuotas.map(share => share.student.color))]
-        .filter(color => color)
-        .map(color => ({
-          value: color,
-          label: color,
         }));
 
       const uniqueSemesters = [...new Set(cuotas.map(share => {
@@ -87,7 +79,6 @@ const PendingSharesList = () => {
 
       setSchools(uniqueSchools);
       setCategories(uniqueCategories);
-      setColors(uniqueColors);
       setSemesters(uniqueSemesters);
       setYears(uniqueYears);
     }
@@ -99,7 +90,6 @@ const PendingSharesList = () => {
       return;
     }
 
-    // Modificado: requerir que school, semester y year estén seleccionados
     const hasRequiredFilters = filters.school && filters.semester && filters.year;
     if (!hasRequiredFilters) {
       setStudentShares([]);
@@ -108,19 +98,9 @@ const PendingSharesList = () => {
 
     let filtered = [...cuotas];
     if (filters.school) {
-   
       filtered = filtered.filter(share => share.student.school === filters.school);
     }
-    if (filters.category) {
-     
-      filtered = filtered.filter(share => share.student.category === filters.category);
-    }
-    if (filters.color) {
-    
-      filtered = filtered.filter(share => share.student.color === filters.color);
-    }
     if (filters.semester) {
-    
       filtered = filtered.filter(share => {
         const match = share.paymentName.match(/Semestre (\d+)/i);
         const semester = match ? `Semestre ${match[1]}` : null;
@@ -128,17 +108,12 @@ const PendingSharesList = () => {
       });
     }
     if (filters.year) {
-
       filtered = filtered.filter(share => share.paymentName.includes(filters.year));
     }
     if (filters.status && filters.status !== 'all') {
-
       filtered = filtered.filter(share => share.status === filters.status);
     }
 
-
-
-    // Agrupar cuotas por estudiante
     const groupedByStudent = filtered.reduce((acc, share) => {
       const studentId = share.student._id;
       if (!acc[studentId]) {
@@ -152,9 +127,7 @@ const PendingSharesList = () => {
     }, {});
 
     const studentArray = Object.values(groupedByStudent);
-  
 
-    // Determinar el número máximo de cuotas para definir columnas
     const maxSharesPerStudent = Math.max(...studentArray.map(student => student.shares.length), 1);
     setMaxShares(maxSharesPerStudent);
 
@@ -181,6 +154,11 @@ const PendingSharesList = () => {
     return `${day}/${month}/${year}`;
   };
 
+  const getSimplifiedPaymentName = (paymentName) => {
+    const match = paymentName.match(/^(Primera|Segunda) Cuota/i) || paymentName.match(/^Cuota \d+/i);
+    return match ? match[0] : paymentName;
+  };
+
   const exportToPDF = () => {
     const doc = new jsPDF();
     doc.text('Lista de Cuotas Pendientes', 14, 16);
@@ -198,7 +176,7 @@ const PendingSharesList = () => {
       for (let i = 0; i < maxShares; i++) {
         if (i < student.shares.length) {
           row.push(
-            student.shares[i].paymentName,
+            getSimplifiedPaymentName(student.shares[i].paymentName),
             student.shares[i].amount ? student.shares[i].amount.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }) : '-',
             student.shares[i].status
           );
@@ -219,7 +197,7 @@ const PendingSharesList = () => {
   };
 
   return (
-    <div className="dashboard-container-student">
+    <div className="dashboard-container-pending">
       <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
           <FaBars />
@@ -236,8 +214,8 @@ const PendingSharesList = () => {
         ))}
       </div>
 
-      <div className="content-student">
-        <div className="students-view">
+      <div className="content-student-pending">
+        <div className="students-view-pending">
           <h1 className="title">Cuotas Pendientes</h1>
           <div className="filters">
             <div className="filter-group">
@@ -249,7 +227,7 @@ const PendingSharesList = () => {
                 isClearable
               />
             </div>
-              <div className="filter-group">
+            <div className="filter-group">
               <label>Semestre:</label>
               <Select
                 options={semesters}
@@ -268,17 +246,6 @@ const PendingSharesList = () => {
               />
             </div>
             <div className="filter-group">
-              <label>Categoría:</label>
-              <Select
-                options={categories}
-                onChange={(option) => handleFilterChange('category', option)}
-                placeholder="Selecciona una categoría"
-                isClearable
-              />
-            </div>
-          
-          
-            <div className="filter-group">
               <label>Estado:</label>
               <Select
                 options={[
@@ -291,57 +258,57 @@ const PendingSharesList = () => {
                 isClearable
               />
             </div>
-          </div>
-
-          <div className="table-actions">
-            <Button onClick={exportToPDF} variant="primary" disabled={studentShares.length === 0}>
-              Exportar a PDF
-            </Button>
+            <div className="table-action-pending">
+              <Button onClick={exportToPDF} disabled={studentShares.length === 0}>
+                Exportar a PDF
+              </Button>
+            </div>
           </div>
 
           {studentShares.length > 0 ? (
-            <Table className="students-table">
-              <thead>
-                <tr>
-                  <th>#</th>
-                  <th>Nombre y Apellido</th>
-                  <th>Escuela</th>
-                  {Array.from({ length: maxShares }, (_, i) => (
-                    <React.Fragment key={i}>
-                      <th>Concepto </th>
-                      <th>Monto</th>
-                      <th>Estado</th>
-                    </React.Fragment>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {studentShares.map((student, index) => (
-                  <tr
-                    key={student.student._id}
-                    className={student.shares.some(share => share.status === 'Pendiente') ? 'state-inactivo' : 'state-activo'}
-                  >
-                    <td>{index + 1}</td>
-                    <td>{getFullName(student.student.name, student.student.lastName)}</td>
-                    <td>{student.student.school}</td>
+            <div className="table-container-pending">
+              <Table className="students-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Nombre y Apellido</th>
+                    <th>Escuela</th>
                     {Array.from({ length: maxShares }, (_, i) => (
                       <React.Fragment key={i}>
-                        <td>{i < student.shares.length ? student.shares[i].paymentName : '-'}</td>
-                        <td>
-                          {i < student.shares.length && student.shares[i].amount
-                            ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(student.shares[i].amount)
-                            : '-'}
-                        </td>
-                        <td>{i < student.shares.length ? student.shares[i].status : '-'}</td>
+                        <th>Concepto </th>
+                        <th>Monto</th>
+                        <th>Estado</th>
                       </React.Fragment>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </Table>
+                </thead>
+                <tbody>
+                  {studentShares.map((student, index) => (
+                    <tr
+                      key={student.student._id}
+                      className={student.shares.some(share => share.status === 'Pendiente') ? 'state-inactivo' : 'state-activo'}
+                    >
+                      <td>{index + 1}</td>
+                      <td>{getFullName(student.student.name, student.student.lastName)}</td>
+                      <td>{student.student.school}</td>
+                      {Array.from({ length: maxShares }, (_, i) => (
+                        <React.Fragment key={i}>
+                          <td>{i < student.shares.length ? getSimplifiedPaymentName(student.shares[i].paymentName) : '-'}</td>
+                          <td>
+                            {i < student.shares.length && student.shares[i].amount
+                              ? new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP', minimumFractionDigits: 0 }).format(student.shares[i].amount)
+                              : '-'}
+                          </td>
+                          <td>{i < student.shares.length ? student.shares[i].status : '-'}</td>
+                        </React.Fragment>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </div>
           ) : (
             <div className="no-data-message">
-              {/* Modificado: mensaje específico para indicar filtros obligatorios */}
               Por favor, selecciona una escuelita, un semestre y un año para ver las cuotas pendientes.
             </div>
           )}

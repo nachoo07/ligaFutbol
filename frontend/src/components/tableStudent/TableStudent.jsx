@@ -1,12 +1,13 @@
 import React, { useState, useContext, useEffect, useMemo, useRef } from 'react';
 import { Table, Button, Alert, Spinner } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaSearch, FaBars, FaUsers, FaAddressCard, FaListUl, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
-import { LuClipboardList } from "react-icons/lu";
+import { FaSearch, FaFileExcel } from 'react-icons/fa';
 import { MdOutlineReadMore } from "react-icons/md";
 import { StudentsContext } from '../../context/student/StudentContext';
 import { LoginContext } from '../../context/login/LoginContext';
 import StudentFormModal from '../modal/StudentFormModal';
+import Sidebar from '../sidebar/Sidebar';
+import Swal from 'sweetalert2';
 import './tableStudent.css';
 
 // Hook personalizado para debounce
@@ -24,12 +25,11 @@ function useDebounce(value, delay) {
 const TableStudent = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { estudiantes, obtenerEstudiantes, addEstudiante, importStudents } = useContext(StudentsContext);
+    const { estudiantes, obtenerEstudiantes, addEstudiante, importStudents, loading } = useContext(StudentsContext);
     const { auth } = useContext(LoginContext);
 
     const [show, setShow] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterCategory, setFilterCategory] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     const [formData, setFormData] = useState({
@@ -54,49 +54,32 @@ const TableStudent = () => {
     });
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
+    const [alertVariant, setAlertVariant] = useState('warning');
     const [isImporting, setIsImporting] = useState(false);
     const studentsPerPage = 15;
     const [maxVisiblePages, setMaxVisiblePages] = useState(10);
     const [isMenuOpen, setIsMenuOpen] = useState(true);
     const isMounted = useRef(false);
 
-    // Estado temporal para paginación
-    const tempState = useRef({
-        currentPage: 1,
-        searchTerm: '',
-        filterCategory: '',
-        filterStatus: ''
-    });
-
-    // Obtener estudiantes y manejar query params
+    // Carga inicial de estudiantes y restauración de página
     useEffect(() => {
-        if (isMounted.current) return;
+        if (isMounted.current || loading) return;
         isMounted.current = true;
         const queryParams = new URLSearchParams(location.search);
-        const page = parseInt(queryParams.get('page')) || 1;
-        setCurrentPage(page);
-        obtenerEstudiantes();
-    }, [obtenerEstudiantes]);
-
-    // Manejar paginación según la ruta
-    useEffect(() => {
-        
-        if (location.pathname !== '/student' && !location.state?.fromDetailStudent) {
-           
-            setCurrentPage(1);
-            setSearchTerm('');
-            setFilterCategory('');
-            setFilterStatus('');
-        } else if (location.pathname === '/student' && location.state?.fromDetailStudent) {
-          
-            setCurrentPage(tempState.current.currentPage);
-            setSearchTerm(tempState.current.searchTerm);
-            setFilterCategory(tempState.current.filterCategory);
-            setFilterStatus(tempState.current.filterStatus);
+        let page = parseInt(queryParams.get('page')) || 1;
+        if (location.pathname === '/student' && location.state?.fromDetailStudent) {
+            page = location.state.currentPage || page;
+            setSearchTerm(location.state.searchTerm || '');
+            setFilterStatus(location.state.filterStatus || '');
         }
-    }, [location]);
+        setCurrentPage(page);
+        obtenerEstudiantes().catch((error) => {
+            console.error('[DEBUG] Error al cargar estudiantes:', error);
+            Swal.fire('¡Error!', 'No se pudieron cargar los estudiantes.', 'error');
+        });
+    }, [obtenerEstudiantes, loading, location]);
 
-    // Manejar resize para paginación visible
+    // Ajustar paginación responsiva
     useEffect(() => {
         const handleResize = () => {
             setMaxVisiblePages(window.innerWidth <= 576 ? 5 : 10);
@@ -106,47 +89,27 @@ const TableStudent = () => {
         return () => window.removeEventListener('resize', handleResize);
     }, []);
 
-    const adminMenuItems = [
-        { name: 'Inicio', route: '/', icon: <FaHome /> },
-        { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
-        { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
-        { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
-        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
-        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
-        { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
-        {
-            name: 'Volver Atrás',
-            route: null,
-            action: () => navigate(-1, { state: { fromDetailStudent: true } }),
-            icon: <FaArrowLeft />
-        },
-    ];
-
-    const userMenuItems = [{ name: 'Inicio', route: '/', icon: <FaHome /> }];
-
     const removeAccents = (str) => {
         return str.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     };
 
     const debouncedSearchTerm = useDebounce(searchTerm, 300);
 
+    // Filtrado optimizado
     const filteredStudents = useMemo(() => {
         return estudiantes.filter((estudiante) => {
             const fullName = removeAccents(`${estudiante.name} ${estudiante.lastName}`);
             const dni = removeAccents(estudiante.dni || '');
             const search = removeAccents(debouncedSearchTerm);
             const matchesSearch = fullName.includes(search) || dni.includes(search);
-            const matchesCategory = filterCategory === '' || estudiante.category === filterCategory;
             const matchesStatus = filterStatus === '' || estudiante.status === filterStatus;
-            return matchesSearch && matchesCategory && matchesStatus;
+            return matchesSearch && matchesStatus;
         });
-    }, [estudiantes, debouncedSearchTerm, filterCategory, filterStatus]);
+    }, [estudiantes, debouncedSearchTerm, filterStatus]);
 
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
 
+    // Ajustar página actual si excede el total
     useEffect(() => {
         if (currentPage > totalPages) {
             setCurrentPage(totalPages);
@@ -207,33 +170,44 @@ const TableStudent = () => {
         e.preventDefault();
         try {
             await addEstudiante(formData);
+            Swal.fire('¡Éxito!', 'Estudiante agregado correctamente.', 'success');
             handleClose();
             obtenerEstudiantes();
         } catch (error) {
             console.error('[DEBUG] Error en handleSubmit:', error);
-            throw error;
+            Swal.fire('¡Error!', error.response?.data?.message || 'No se pudo agregar el estudiante.', 'error');
         }
     };
 
     const handleImportExcel = async (e) => {
         const file = e.target.files[0];
         if (!file) {
-            setAlertMessage("Por favor selecciona un archivo Excel");
+            setAlertMessage('Por favor selecciona un archivo Excel.');
+            setAlertVariant('warning');
             setShowAlert(true);
             return;
         }
         const validTypes = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
         if (!validTypes.includes(file.type)) {
-            setAlertMessage("El archivo debe ser un Excel (.xlsx o .xls)");
+            setAlertMessage('El archivo debe ser un Excel (.xlsx o .xls).');
+            setAlertVariant('warning');
+            setShowAlert(true);
+            return;
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            setAlertMessage('El archivo excede el tamaño máximo de 5MB.');
+            setAlertVariant('warning');
             setShowAlert(true);
             return;
         }
         setIsImporting(true);
         try {
             await importStudents(file);
+            Swal.fire('¡Éxito!', 'Estudiantes importados correctamente.', 'success');
             obtenerEstudiantes();
         } catch (error) {
-            setAlertMessage(error.response?.data?.message || "Error al importar el archivo Excel");
+            setAlertMessage(error.response?.data?.message || 'Error al importar el archivo Excel.');
+            setAlertVariant('danger');
             setShowAlert(true);
         } finally {
             setIsImporting(false);
@@ -254,31 +228,11 @@ const TableStudent = () => {
 
     return (
         <div className="dashboard-container-student">
-            <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
-                <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                    <FaBars />
-                </div>
-                {(auth === 'admin' ? adminMenuItems : userMenuItems).map((item, index) => (
-                    <div
-                        key={index}
-                        className="sidebar-item"
-                        onClick={() => {
-                            if (item.action) {
-                                item.action();
-                            } else {
-                                navigate(item.route);
-                            }
-                        }}
-                    >
-                        <span className="icon">{item.icon}</span>
-                        <span className="text">{item.name}</span>
-                    </div>
-                ))}
-            </div>
+            <Sidebar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} auth={auth} />
             <div className="content-student">
                 {showAlert && (
-                    <Alert variant="warning" onClose={() => setShowAlert(false)} dismissible className="custom-alert">
-                        <Alert.Heading>¡Atención!</Alert.Heading>
+                    <Alert variant={alertVariant} onClose={() => setShowAlert(false)} dismissible className="custom-alert">
+                        <Alert.Heading>{alertVariant === 'warning' ? '¡Atención!' : '¡Error!'}</Alert.Heading>
                         <p>{alertMessage}</p>
                     </Alert>
                 )}
@@ -291,6 +245,7 @@ const TableStudent = () => {
                                 placeholder="Buscar por nombre, apellido o DNI..."
                                 value={searchTerm}
                                 onChange={handleSearchChange}
+                                aria-label="Buscar estudiantes"
                             />
                             <FaSearch className="search-icon" />
                         </div>
@@ -300,6 +255,7 @@ const TableStudent = () => {
                                 id="filter-status"
                                 value={filterStatus}
                                 onChange={(e) => setFilterStatus(e.target.value)}
+                                aria-label="Filtrar por estado"
                             >
                                 <option value="">Todos</option>
                                 <option value="Activo">Activo</option>
@@ -309,7 +265,9 @@ const TableStudent = () => {
                         {auth === 'admin' && (
                             <div className="filter-actions">
                                 <div className="actions">
-                                    <Button className="add-btn-student" onClick={handleShow}>Agregar Alumno</Button>
+                                    <Button className="add-btn-student" onClick={handleShow} aria-label="Agregar nuevo estudiante">
+                                        Agregar Alumno
+                                    </Button>
                                     <label htmlFor="import-excel" className="import-btn">
                                         <FaFileExcel style={{ marginRight: '5px' }} /> Importar Excel
                                     </label>
@@ -320,109 +278,126 @@ const TableStudent = () => {
                                         style={{ display: 'none' }}
                                         onChange={handleImportExcel}
                                         disabled={isImporting}
+                                        aria-label="Importar archivo Excel"
                                     />
                                 </div>
                             </div>
                         )}
                     </div>
-                    <Table className="students-table">
-                        <thead>
-                            <tr>
-                                <th>#</th>
-                                <th>Nombre</th>
-                                <th>Apellido</th>
-                                <th>DNI</th>
-                                <th className="categoria">Categoría</th>
-                                <th className="categoria">Escuela</th>
-                                <th>Estado</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {currentStudents.length > 0 ? (
-                                currentStudents.map((estudiante, index) => (
-                                    <tr key={estudiante._id}>
-                                        <td>{indexOfFirstStudent + index + 1}</td>
-                                        <td>{capitalizeInitials(estudiante.name)}</td>
-                                        <td>{capitalizeInitials(estudiante.lastName)}</td>
-                                        <td>{estudiante.dni}</td>
-                                        <td className="categoria">{estudiante.category}</td>
-                                        <td className="categoria">{estudiante.school}</td>
-                                        <td>{estudiante.status}</td>
-                                        <td>
-                                            <Button
-                                                className="action-btn ver-mas-btn"
-                                                onClick={() => {
-                                                    tempState.current = {
-                                                        currentPage,
-                                                        searchTerm,
-                                                        filterCategory,
-                                                        filterStatus
-                                                    };
-                                                    navigate(`/detailstudent/${estudiante._id}?page=${currentPage}`, { state: { fromDetailStudent: true } });
-                                                }}
-                                            >
-                                                <span className="ver-mas-text">Ver Más</span>
-                                                <span className="ver-mas-icon">
-                                                    <MdOutlineReadMore />
-                                                </span>
-                                            </Button>
-                                        </td>
-                                    </tr>
-                                ))
-                            ) : (
-                                <tr>
-                                    <td colSpan="9" className="text-center">
-                                        No hay alumnos registrados.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </Table>
-                    <div className="pagination">
-                        <Button
-                            disabled={currentPage === 1}
-                            onClick={() => paginate(currentPage - 1)}
-                            className="pagination-btn"
-                        >
-                            «
-                        </Button>
-                        {getVisiblePageNumbers().map((number) => (
-                            <Button
-                                key={number}
-                                className={`pagination-btn ${currentPage === number ? 'active' : ''}`}
-                                onClick={() => paginate(number)}
-                            >
-                                {number}
-                            </Button>
-                        ))}
-                        <Button
-                            disabled={currentPage === totalPages}
-                            onClick={() => paginate(currentPage + 1)}
-                            className="pagination-btn"
-                        >
-                            »
-                        </Button>
-                    </div>
-                </div>
-                {auth === 'admin' && (
-                    <StudentFormModal
-                        show={show}
-                        handleClose={handleClose}
-                        handleSubmit={handleSubmit}
-                        handleChange={handleChange}
-                        formData={formData}
-                        student={null}
-                    />
-                )}
-                {isImporting && (
-                    <div className="loading-overlay">
-                        <div className="loading-spinner">
+                    {loading ? (
+                        <div className="loading-overlay">
                             <Spinner animation="border" variant="primary" />
-                            <p>Importando archivo Excel...</p>
+                            <p>Cargando estudiantes...</p>
                         </div>
-                    </div>
-                )}
+                    ) : (
+                        <>
+                            <Table className="students-table" aria-label="Tabla de estudiantes">
+                                <thead>
+                                    <tr>
+                                        <th>#</th>
+                                        <th>Nombre</th>
+                                        <th>Apellido</th>
+                                        <th>DNI</th>
+                                        <th className="categoria">Categoría</th>
+                                        <th className="categoria">Escuela</th>
+                                        <th>Estado</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {currentStudents.length > 0 ? (
+                                        currentStudents.map((estudiante, index) => (
+                                            <tr key={estudiante._id}>
+                                                <td>{indexOfFirstStudent + index + 1}</td>
+                                                <td>{capitalizeInitials(estudiante.name)}</td>
+                                                <td>{capitalizeInitials(estudiante.lastName)}</td>
+                                                <td>{estudiante.dni || '-'}</td>
+                                                <td className="categoria">{estudiante.category || '-'}</td>
+                                                <td className="categoria">{estudiante.school || '-'}</td>
+                                                <td>{estudiante.status}</td>
+                                                <td>
+                                                    <Button
+                                                        className="action-btn ver-mas-btn"
+                                                        onClick={() => {
+                                                            navigate(`/detailstudent/${estudiante._id}?page=${currentPage}`, {
+                                                                state: {
+                                                                    fromDetailStudent: true,
+                                                                    currentPage,
+                                                                    searchTerm,
+                                                                    filterStatus
+                                                                }
+                                                            });
+                                                        }}
+                                                        aria-label={`Ver detalles de ${estudiante.name} ${estudiante.lastName}`}
+                                                    >
+                                                        <span className="ver-mas-text">Ver Más</span>
+                                                        <span className="ver-mas-icon">
+                                                            <MdOutlineReadMore />
+                                                        </span>
+                                                    </Button>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan="8" className="text-center">
+                                                No hay alumnos registrados.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </Table>
+                            {filteredStudents.length > 0 && (
+                                <div className="pagination">
+                                    <Button
+                                        disabled={currentPage === 1}
+                                        onClick={() => paginate(currentPage - 1)}
+                                        className="pagination-btn"
+                                        aria-label="Página anterior"
+                                    >
+                                        «
+                                    </Button>
+                                    {getVisiblePageNumbers().map((number) => (
+                                        <Button
+                                            key={number}
+                                            className={`pagination-btn ${currentPage === number ? 'active' : ''}`}
+                                            onClick={() => paginate(number)}
+                                            aria-label={`Página ${number}`}
+                                        >
+                                            {number}
+                                        </Button>
+                                    ))}
+                                    <Button
+                                        disabled={currentPage === totalPages}
+                                        onClick={() => paginate(currentPage + 1)}
+                                        className="pagination-btn"
+                                        aria-label="Página siguiente"
+                                    >
+                                        »
+                                    </Button>
+                                </div>
+                            )}
+                        </>
+                    )}
+                    {auth === 'admin' && (
+                        <StudentFormModal
+                            show={show}
+                            handleClose={handleClose}
+                            handleSubmit={handleSubmit}
+                            handleChange={handleChange}
+                            formData={formData}
+                            student={null}
+                        />
+                    )}
+                    {isImporting && (
+                        <div className="loading-overlay">
+                            <div className="loading-spinner">
+                                <Spinner animation="border" variant="primary" />
+                                <p>Importando archivo Excel...</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
     );

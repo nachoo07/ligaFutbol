@@ -14,7 +14,6 @@ const StudentsProvider = ({ children }) => {
     const { auth, loading: authLoading } = useContext(LoginContext);
     const location = useLocation();
 
-    // Mapa de traducción para nombres de campos
     const fieldTranslations = {
         name: "Nombre",
         lastName: "Apellido",

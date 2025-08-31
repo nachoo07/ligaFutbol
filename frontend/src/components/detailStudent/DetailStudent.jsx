@@ -1,12 +1,18 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FaSearch, FaDownload, FaBars, FaUsers, FaAddressCard, FaMoneyBill, FaListUl, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa';
+import { FaDownload, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import { StudentsContext } from "../../context/student/StudentContext";
 import { LoginContext } from "../../context/login/LoginContext";
 import StudentFormModal from '../modal/StudentFormModal';
 import Swal from 'sweetalert2';
 import "./detailStudent.css";
+
+const formatDate = (date) => {
+    if (!date) return '';
+    if (date.includes('/')) return date;
+    return new Date(date + 'T00:00:00Z').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').reverse().join('/');
+};
 
 const StudentDetail = () => {
     const { estudiante: student, obtenerEstudiante, updateEstudiante, deleteEstudiante } = useContext(StudentsContext);
@@ -16,58 +22,15 @@ const StudentDetail = () => {
     const location = useLocation();
     const [show, setShow] = useState(false);
     const [imageError, setImageError] = useState(false);
-    const [isMenuOpen, setIsMenuOpen] = useState(true);
     const [formData, setFormData] = useState({
-        name: '',
-        lastName: '',
-        dni: '',
-        birthDate: '',
-        address: '',
-        mail: '',
-        category: '',
-        motherName: '',
-        motherPhone: '',
-        fatherName: '',
-        fatherPhone: '',
-        profileImage: null,
-        school: '',
-        color: '',
-        sex: '',
-        status: 'Activo',
-        archived: [],
-        archivedNames: []
+        name: '', lastName: '', dni: '', birthDate: '', address: '', mail: '', category: '',
+        motherName: '', motherPhone: '', fatherName: '', fatherPhone: '', profileImage: null,
+        school: '', color: '', sex: '', status: 'Activo', archived: [], archivedNames: []
     });
-    const [initialFormData, setInitialFormData] = useState(null);
+    const [initialFormData, setInitialFormData] = useState(formData);
     const [loading, setLoading] = useState(true);
-    const isMounted = useRef(false);
-
+    const [hasFetched, setHasFetched] = useState(false);
     const defaultImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
-
-    const adminMenuItems = [
-        { name: 'Inicio', route: '/', icon: <FaHome /> },
-        { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
-        { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
-        { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
-        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
-        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
-        { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Envios de Mail', route: '/email', icon: <FaEnvelope /> },
-        { name: 'Detalle Diario', route: '/share/detail', icon: <FaRegListAlt /> },
-        {
-            name: 'Volver Atrás',
-            route: null,
-            action: () => {
-                const queryParams = new URLSearchParams(location.search);
-                const page = queryParams.get('page') || 1;
-                navigate(`/student?page=${page}`, { state: { fromDetailStudent: true } });
-            },
-            icon: <FaArrowLeft />
-        },
-    ];
-
-    const userMenuItems = [{ name: 'Inicio', route: '/', icon: <FaHome /> }];
 
     const getCachedImage = (url) => {
         if (!url || url === defaultImage) return defaultImage;
@@ -81,8 +44,7 @@ const StudentDetail = () => {
             const img = new Image();
             img.src = url;
             img.onload = () => {
-                const cacheKey = `image_${btoa(url)}`;
-                localStorage.setItem(cacheKey, url);
+                localStorage.setItem(`image_${btoa(url)}`, url);
                 resolve(url);
             };
             img.onerror = () => resolve(defaultImage);
@@ -91,15 +53,11 @@ const StudentDetail = () => {
 
     useEffect(() => {
         const fetchData = async () => {
-            if (isMounted.current) return;
-            isMounted.current = true;
+            if (hasFetched) return;
+            setHasFetched(true);
             setLoading(true);
             try {
-               
                 await obtenerEstudiante(id);
-                if (student?.profileImage) {
-                    await preloadImage(student.profileImage);
-                }
             } catch (error) {
                 console.error('[DEBUG] Error al obtener estudiante:', error);
                 Swal.fire("¡Error!", "No se pudo cargar el estudiante.", "error");
@@ -112,36 +70,25 @@ const StudentDetail = () => {
     }, [id, obtenerEstudiante, navigate]);
 
     useEffect(() => {
-        if (student) {
-            const formattedBirthDate = student.birthDate && !student.birthDate.includes('/')
-                ? new Date(student.birthDate + 'T00:00:00Z').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').reverse().join('/')
-                : student.birthDate || '';
-            const initialData = {
-                ...student,
-                birthDate: formattedBirthDate,
-                profileImage: student.profileImage || null,
-                archived: student.archived || [],
-                archivedNames: student.archivedNames || [],
-                sex: student.sex || '',
-                status: student.status || 'Activo'
-            };
-            setFormData(initialData);
-            setInitialFormData(initialData);
+        if (student && student._id === id) {
+            (async () => {
+                if (student.profileImage) {
+                    await preloadImage(student.profileImage);
+                }
+                const initialData = {
+                    ...student,
+                    birthDate: formatDate(student.birthDate),
+                    profileImage: student.profileImage || null,
+                    archived: student.archived || [],
+                    archivedNames: student.archivedNames || [],
+                    sex: student.sex || '',
+                    status: student.status || 'Activo'
+                };
+                setFormData(initialData);
+                setInitialFormData(initialData);
+            })();
         }
-    }, [student]);
-
-    useEffect(() => {
-        const handleShareUpdate = () => {
-            
-            obtenerEstudiante(id);
-        };
-        window.addEventListener('shareUpdated', handleShareUpdate);
-        if (window.shareUpdatedPending) {
-            obtenerEstudiante(id);
-            window.shareUpdatedPending = false;
-        }
-        return () => window.removeEventListener('shareUpdated', handleShareUpdate);
-    }, [id, obtenerEstudiante]);
+    }, [student, id]);
 
     if (loading) {
         return (
@@ -150,7 +97,9 @@ const StudentDetail = () => {
                     <div className="perfil-container">
                         <div className="perfil-header">
                             <div className="perfil-header-row">
-                                <div className="perfil-avatar"><div className="skeleton-image"></div></div>
+                                <div className="perfil-avatar">
+                                    <div className="skeleton-image"></div>
+                                </div>
                                 <div className="perfil-info">
                                     <div className="skeleton-text skeleton-text-title"></div>
                                     <div className="skeleton-text skeleton-text-medium"></div>
@@ -162,29 +111,39 @@ const StudentDetail = () => {
                         </div>
                         <form className="perfil-formulario">
                             <div className="perfil-row">
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
+                                <div className="perfil-inputs-grid grid-4">
+                                    {[...Array(4)].map((_, i) => (
+                                        <div key={i} className="input-field">
+                                            <div className="skeleton-text skeleton-text-medium"></div>
+                                        </div>
+                                    ))}
+                                </div>
                             </div>
-                            <div className="perfil-row">
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
-                            </div>
-                            <div className="perfil-row">
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
-                            </div>
-                            <div className="perfil-row">
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
-                            </div>
-                            <div className="perfil-row">
-                                <div><div className="skeleton-text skeleton-text-medium"></div></div>
-                            </div>
+                            {auth === 'admin' && (
+                                <>
+                                    <div className="perfil-row">
+                                        <div className="perfil-inputs-grid grid-3">
+                                            {[...Array(5)].map((_, i) => (
+                                                <div key={i} className="input-field">
+                                                    <div className="skeleton-text skeleton-text-medium"></div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                    <div className="perfil-row">
+                                        <div className="perfil-inputs-grid grid-2">
+                                            {[...Array(2)].map((_, i) => (
+                                                <div key={i} className="input-field">
+                                                    <div className="skeleton-text skeleton-text-medium"></div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </>
+                            )}
                             <div className="perfil-actions">
-                                <div className="skeleton-button skeleton-button-action"></div>
-                                <div className="skeleton-button skeleton-button-action"></div>
+                                <div className="skeleton-button skeleton-action"></div>
+                                <div className="skeleton-button skeleton-action"></div>
                             </div>
                         </form>
                     </div>
@@ -193,17 +152,16 @@ const StudentDetail = () => {
         );
     }
 
-    if (!student) {
+    if (!student || student._id !== id) {
         return <div>No se encontró el estudiante.</div>;
     }
 
     const handleClose = () => {
-        setFormData(initialFormData || formData);
+        setFormData(initialFormData);
         setShow(false);
     };
 
     const handleShow = () => {
-        setFormData(initialFormData || formData);
         setShow(true);
     };
 
@@ -228,63 +186,60 @@ const StudentDetail = () => {
     };
 
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    const formDataToSend = new FormData();
-    Object.keys(formData).forEach(key => {
-        if (key === 'profileImage' && formData[key] instanceof File) {
-            formDataToSend.append('profileImage', formData[key]);
-        } else if (key === 'archived' && Array.isArray(formData[key])) {
-            formData[key].forEach((item, index) => {
-                if (item instanceof File) {
-                    formDataToSend.append('archived', item);
-                } else if (typeof item === 'string' && item.startsWith('http')) {
-                    formDataToSend.append('existingArchived', item);
-                }
-            });
-        } else if (key !== 'archivedNames' && key !== 'profileImage' && key !== 'archived' && key !== 'isEnabled') {
-            formDataToSend.append(key, formData[key] || '');
+        e.preventDefault();
+        const formDataToSend = new FormData();
+        Object.keys(formData).forEach(key => {
+            if (key === 'profileImage' && formData[key] instanceof File) {
+                formDataToSend.append('profileImage', formData[key]);
+            } else if (key === 'archived' && Array.isArray(formData[key])) {
+                formData[key].forEach((item, index) => {
+                    if (item instanceof File) {
+                        formDataToSend.append('archived', item);
+                    } else if (typeof item === 'string' && item.startsWith('http')) {
+                        formDataToSend.append('existingArchived', item);
+                    }
+                });
+            } else if (key !== 'archivedNames' && key !== 'profileImage' && key !== 'archived') {
+                formDataToSend.append(key, formData[key] || '');
+            }
+        });
+        const archivedNames = Array.isArray(formData.archivedNames) ? formData.archivedNames : [];
+        const existingNames = Array.isArray(student.archivedNames) ? student.archivedNames : [];
+        const combinedNames = formData.archived.map((item, index) => {
+            if (item instanceof File) {
+                return archivedNames[index] || item.name || `Archivo ${index + 1}`;
+            } else if (typeof item === 'string' && item.startsWith('http')) {
+                return existingNames[index] || archivedNames[index] || `Archivo ${index + 1}`;
+            }
+            return null;
+        }).filter(name => name !== null);
+        formDataToSend.append('archivedNames', JSON.stringify(combinedNames));
+        if (!formData.archived || formData.archived.length === 0) {
+            formDataToSend.append('archived', JSON.stringify([]));
         }
-    });
-    const archivedNames = Array.isArray(formData.archivedNames) ? formData.archivedNames : [];
-    const existingNames = Array.isArray(student.archivedNames) ? student.archivedNames : [];
-    const combinedNames = formData.archived.map((item, index) => {
-        if (item instanceof File) {
-            return archivedNames[index] || item.name || `Archivo ${index + 1}`;
-        } else if (typeof item === 'string' && item.startsWith('http')) {
-            return existingNames[index] || archivedNames[index] || `Archivo ${index + 1}`;
+        try {
+            const response = await updateEstudiante(student._id, formDataToSend);
+            if (response && (response.data.success || response.status === 200)) {
+                const updatedStudent = response.data.student || response.data;
+                const updatedData = {
+                    ...updatedStudent,
+                    birthDate: formatDate(updatedStudent.birthDate),
+                    profileImage: updatedStudent.profileImage || formData.profileImage,
+                    archived: updatedStudent.archived || [],
+                    archivedNames: updatedStudent.archivedNames || []
+                };
+                setFormData(updatedData);
+                setInitialFormData(updatedData);
+                await obtenerEstudiante(student._id);
+                handleClose();
+            } else {
+                await Swal.fire("¡Error!", response?.data?.message || "No se pudo actualizar el perfil.", "error");
+            }
+        } catch (error) {
+            console.error("[DEBUG] Error al actualizar estudiante:", error);
+            await Swal.fire("¡Error!", error.response?.data?.message || "Ha ocurrido un error al actualizar el perfil.", "error");
         }
-        return null;
-    }).filter(name => name !== null);
-    formDataToSend.append('archivedNames', JSON.stringify(combinedNames));
-    if (!formData.archived || formData.archived.length === 0) {
-        formDataToSend.append('archived', JSON.stringify([]));
-    }
-    try {
-        const response = await updateEstudiante(student._id, formDataToSend);
-        if (response && (response.data.success || response.status === 200)) {
-            const updatedStudent = response.data.student || response.data;
-            const updatedData = {
-                ...updatedStudent,
-                birthDate: updatedStudent.birthDate.includes('/')
-                    ? updatedStudent.birthDate
-                    : new Date(updatedStudent.birthDate + 'T00:00:00Z').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').reverse().join('/'),
-                profileImage: updatedStudent.profileImage || formData.profileImage,
-                archived: updatedStudent.archived || [],
-                archivedNames: updatedStudent.archivedNames || []
-            };
-            setFormData(updatedData);
-            setInitialFormData(updatedData);
-            await obtenerEstudiante(student._id);
-            handleClose(); // Cerrar el modal después de la actualización
-            window.dispatchEvent(new Event('shareUpdated'));
-        } else {
-            await Swal.fire("¡Error!", response?.data?.message || "No se pudo actualizar el perfil.", "error");
-        }
-    } catch (error) {
-        console.error("[DEBUG] Error al actualizar estudiante:", error);
-        await Swal.fire("¡Error!", error.response?.data?.message || "Ha ocurrido un error al actualizar el perfil.", "error");
-    }
-};
+    };
 
     const handleDelete = async () => {
         try {
@@ -366,7 +321,7 @@ const StudentDetail = () => {
                         </div>
                         <div className="perfil-actions-mobile">
                             {auth === 'admin' && (
-                                <button className="btn-ver-cuotas " onClick={handleViewShares}>
+                                <button className="btn-ver-cuotas" onClick={handleViewShares}>
                                     Ver Cuotas
                                 </button>
                             )}
@@ -383,7 +338,6 @@ const StudentDetail = () => {
                         </div>
                     </div>
                     <form className="perfil-formulario">
-                        {/* Información Personal */}
                         <div className="perfil-row">
                             <h3>📋 Información Personal</h3>
                             <div className="perfil-inputs-grid grid-4">
@@ -411,8 +365,6 @@ const StudentDetail = () => {
                                 )}
                             </div>
                         </div>
-
-                        {/* Información de Contacto */}
                         {auth === 'admin' && (
                             <div className="perfil-row">
                                 <h3>📞 Información de Contacto</h3>
@@ -440,10 +392,7 @@ const StudentDetail = () => {
                                 </div>
                             </div>
                         )}
-
-                        {/* Otros Datos y Archivos Adjuntos en dos columnas */}
                         <div className="two-column-layout">
-                            {/* Otros Datos */}
                             <div className="perfil-row">
                                 <h3>⚽ Otros Datos</h3>
                                 <div className="perfil-inputs-grid grid-2">
@@ -461,19 +410,8 @@ const StudentDetail = () => {
                                             <input type="text" value={student.status || ''} readOnly />
                                         </div>
                                     )}
-                                    <div className="input-field">
-                                        <label>Habilitado para Jugar</label>
-                                        <input
-                                            type="text"
-                                            value={student.isEnabled ? "Habilitado" : "No Habilitado"}
-                                            readOnly
-                                            className={student.isEnabled ? "habilitado" : "no-habilitado"}
-                                        />
-                                    </div>
                                 </div>
                             </div>
-
-                            {/* Archivos Adjuntos */}
                             {auth === 'admin' && (
                                 <div className="perfil-row archived-section">
                                     <h3>📎 Archivos Adjuntos</h3>
@@ -507,34 +445,27 @@ const StudentDetail = () => {
                                     ) : (
                                         <p style={{ fontSize: '14px', color: '#666', fontStyle: 'italic' }}>No hay archivos adjuntos.</p>
                                     )}
-
-                 
                                 </div>
-                                
                             )}
-                            
                         </div>
-                                              {/* Botones de acción MOVIDOS al final del contenedor */}
-                    {auth === 'admin' && (
-                        <div className="perfil-actions">
-                            <button type="button" className="btn-editar-detail" onClick={handleShow}>Editar Perfil</button>
-                            <button type="button" className="btn-eliminar-detail" onClick={handleDelete}>Eliminar Perfil</button>
-                        </div>
-                    )}
+                        {auth === 'admin' && (
+                            <div className="perfil-actions">
+                                <button type="button" className="btn-editar-detail" onClick={handleShow}>Editar Perfil</button>
+                                <button type="button" className="btn-eliminar-detail" onClick={handleDelete}>Eliminar Perfil</button>
+                            </div>
+                        )}
                     </form>
-
-                 
+                    {auth === 'admin' && (
+                        <StudentFormModal
+                            show={show}
+                            handleClose={handleClose}
+                            handleSubmit={handleSubmit}
+                            handleChange={handleChange}
+                            formData={formData}
+                            student={student}
+                        />
+                    )}
                 </div>
-                {auth === 'admin' && (
-                    <StudentFormModal
-                        show={show}
-                        handleClose={handleClose}
-                        handleSubmit={handleSubmit}
-                        handleChange={handleChange}
-                        formData={formData}
-                        student={student}
-                    />
-                )}
             </div>
         </div>
     );

@@ -23,17 +23,7 @@ const ReportSchool = () => {
     { name: 'Inicio', route: '/', icon: <FaHome /> },
     { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
     { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
-    {
-      name: 'Reportes',
-      icon: <FaChartBar />,
-      hasSubmenu: true,
-      submenu: [
-        { name: 'Sede El Palmar', route: '/report/canada' },
-        { name: 'Sede Valladares', route: '/report/valladares' },
-        { name: 'Sede Sirga', route: '/report/sirga' },
-        { name: 'Reporte escuela', route: '/report/School' },
-      ],
-    },
+    { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
     { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
     { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
     { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },

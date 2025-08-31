@@ -23,11 +23,6 @@ const motionSchema = new mongoose.Schema({
     required: true,
     enum: ['ingreso', 'egreso'],
   },
-  location: { // Nuevo campo para la sede
-    type: String,
-    enum: ['Sede El Palmar', 'Sede Valladares', 'Sede Sirga'], // Ajusta los nombres de las sedes aquí
-    required: true,
-  },
 }, {
   timestamps: true,
 });

@@ -6,12 +6,39 @@
   margin-top: 20px;
 }
 
+.dashboard-container-pending {
+   display: flex;
+   height: 100vh; /* Cambia a 100vh para ocupar todo el alto de la ventana */
+  
+}
+
+.content-student-pending {
+  flex-grow: 1;
+  padding: 20px;
+  overflow-y: auto !important; /* Mantiene el scroll si el contenido excede el alto */
+  background: #f9f9f9;
+  height: 100vh; /* Asegura que ocupe al menos el 100% del contenedor padre */
+  display: flex;
+  flex-direction: column; /* Apila los hijos verticalmente */
+
+}
+
+.students-view-pending {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex-grow: 1; /* Hace que el contenido se expanda para llenar el espacio */
+  min-height: 0; /* Permite que los hijos se ajusten correctamente */
+  
+}
+
+
 .students-table th,
 .students-table td {
   padding: 12px;
   text-align: center;
   border: none;
-  background: #fff;
+  background: #fff
 }
 
 .students-table th {
@@ -20,17 +47,21 @@
   font-weight: bold;
 }
 
-.students-table tr.state-activo {
-  background: #d4edda;
+.table-action-pending {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 25px;
 }
 
-.students-table tr.state-inactivo {
-  background: #f8d7da;
+.table-container-pending {
+  height: 500px; /* Altura máxima para el contenedor de la tabla */
+  overflow-y: auto; /* Habilita el scroll vertical */
+  
+  width: 100%;
+  margin-top: 20px;
 }
 
-.students-table tr:hover {
-  background: #e8e8e8;
-}
 
 /* Ocultar columnas específicas en dispositivos móviles */
 @media (max-width: 576px) {
