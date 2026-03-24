@@ -3,13 +3,6 @@ import { PORT } from './config/config.js';
 import morgan from 'morgan';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import './db/db.connection.js';
-import studentRouter from './routes/student/student.router.js';
-import shareRouter from './routes/share/share.router.js';
-import userRoutes from './routes/user/user.router.js';
-import authRoutes from './routes/login/login.router.js';
-import emailRoutes from './routes/email/email.router.js';
-import motionRoutes from './routes/motion/motion.router.js';
 import dotenv from 'dotenv';
 
 dotenv.config();
@@ -31,14 +24,6 @@ app.use(cors({
 
 
 
-// Rutas
-app.use('/api/students', studentRouter);
-app.use('/api/shares', shareRouter);
-app.use('/api/users', userRoutes);
-app.use('/api/auth', authRoutes);
-app.use('/api/email', emailRoutes);
-app.use('/api/motions', motionRoutes);
-
 // Ruta base
 app.get('/', (req, res) => {
   res.send('Hello World');
@@ -50,7 +35,44 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Something went wrong!', error: err.message });
 });
 
-// Iniciar el servidor
-app.listen(PORT, () => {
-  console.log(`La aplicación está escuchando en el puerto ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    console.log('Iniciando backend...');
+    console.log('Cargando conexion a base de datos...');
+    const { connectDB } = await import('./db/db.connection.js');
+    await connectDB();
+
+    console.log('Cargando rutas de estudiantes...');
+    const { default: studentRouter } = await import('./routes/student/student.router.js');
+    app.use('/api/students', studentRouter);
+
+    console.log('Cargando rutas de cuotas...');
+    const { default: shareRouter } = await import('./routes/share/share.router.js');
+    app.use('/api/shares', shareRouter);
+
+    console.log('Cargando rutas de usuarios...');
+    const { default: userRoutes } = await import('./routes/user/user.router.js');
+    app.use('/api/users', userRoutes);
+
+    console.log('Cargando rutas de autenticacion...');
+    const { default: authRoutes } = await import('./routes/login/login.router.js');
+    app.use('/api/auth', authRoutes);
+
+    console.log('Cargando rutas de email...');
+    const { default: emailRoutes } = await import('./routes/email/email.router.js');
+    app.use('/api/email', emailRoutes);
+
+    console.log('Cargando rutas de movimientos...');
+    const { default: motionRoutes } = await import('./routes/motion/motion.router.js');
+    app.use('/api/motions', motionRoutes);
+
+    app.listen(PORT, () => {
+      console.log(`La aplicación está escuchando en el puerto ${PORT}`);
+    });
+  } catch (error) {
+    console.error('No se pudo iniciar el backend:', error.message);
+    process.exit(1);
+  }
+};
+
+startServer();
