@@ -1,6 +1,6 @@
-import { useEffect, useState, createContext, useContext } from "react";
+import { useEffect, useState, createContext, useContext, useCallback } from "react";
 import { useLocation } from 'react-router-dom';
-import axios from "axios";
+import client from "../../api/axios";
 import Swal from "sweetalert2";
 import { LoginContext } from "../login/LoginContext";
 
@@ -31,15 +31,14 @@ const StudentsProvider = ({ children }) => {
         status: "Estado",
     };
 
-    const obtenerEstudiantes = async () => {
+    const obtenerEstudiantes = useCallback(async (force = false) => {
         if (loading) return;
         if (auth !== "admin" && auth !== "user") return;
+        if (isDataLoaded && !force) return;
 
         setLoading(true);
         try {
-            const response = await axios.get("/api/students", {
-                withCredentials: true,
-            });
+            const response = await client.get("/students");
             setEstudiantes(Array.isArray(response.data) ? response.data : []);
             setIsDataLoaded(true);
         } catch (error) {
@@ -53,17 +52,15 @@ const StudentsProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [auth, isDataLoaded, loading]);
 
-    const obtenerEstudiante = async (id) => {
+    const obtenerEstudiante = useCallback(async (id) => {
         if (loading) return;
         if (auth !== "admin" && auth !== "user") return;
 
         setLoading(true);
         try {
-            const response = await axios.get(`/api/students/${id}`, {
-                withCredentials: true,
-            });
+            const response = await client.get(`/students/${id}`);
             setEstudiante(response.data);
         } catch (error) {
             console.error(`Error obteniendo estudiante con ID ${id}:`, error);
@@ -77,7 +74,7 @@ const StudentsProvider = ({ children }) => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [auth, loading]);
 
     useEffect(() => {
         if (
@@ -92,7 +89,7 @@ const StudentsProvider = ({ children }) => {
         ) {
             obtenerEstudiantes();
         }
-    }, [auth, authLoading, location.pathname, isDataLoaded]);
+    }, [auth, authLoading, location.pathname, isDataLoaded, obtenerEstudiantes]);
 
     const addEstudiante = async (estudiante) => {
         if (auth === "admin") {
@@ -106,60 +103,14 @@ const StudentsProvider = ({ children }) => {
                     }
                 }
                 formData.append("invalidate", "true");
-                const response = await axios.post("/api/students/create", formData, {
-                    withCredentials: true,
+                const response = await client.post("/students/create", formData, {
                     headers: { "Content-Type": "multipart/form-data" },
                 });
                 setEstudiantes((prev) => [...prev, response.data.student]);
-                Swal.fire({
-                    icon: "success",
-                    title: "¡Éxito!",
-                    text: "El estudiante ha sido creado correctamente",
-                    confirmButtonText: "Aceptar",
-                });
                 await obtenerEstudiantes();
+                return response;
             } catch (error) {
                 console.error("Error al crear el estudiante:", error.response?.data || error.message);
-                let errorMessage = "Ha ocurrido un error al crear el estudiante: ";
-
-                const rawMessage = error.response?.data?.message || error.message;
-                if (rawMessage.includes('duplicate key error')) {
-                    const match = rawMessage.match(/index: (\w+)_1/);
-                    const field = match ? match[1] : 'desconocido';
-                    const readableField = fieldTranslations[field] || field;
-                    errorMessage += `${readableField} duplicado.`;
-                } else if (rawMessage.includes('validation failed')) {
-                    const validationErrors = error.response?.data?.error?.errors || {};
-                    const errorMessages = Object.entries(validationErrors).map(([field, err]) => {
-                        const readableField = fieldTranslations[field] || field;
-                        if (err.kind === 'required') {
-                            return `${readableField} es obligatorio.`;
-                        } else if (err.kind === 'enum') {
-                            return `${readableField} debe ser ${err.enumValues.map(v => `"${v}"`).join(' o ')}.`;
-                        } else if (err.message) {
-                            return `${readableField}: ${err.message}`;
-                        }
-                        return `${readableField}: Valor inválido.`;
-                    });
-                    errorMessage += errorMessages.join(' ');
-                } else if (rawMessage.includes('Faltan campos obligatorios')) {
-                    errorMessage += 'Faltan campos obligatorios. Por favor, completa todos los campos requeridos.';
-                } else if (rawMessage.includes('Se permiten máximo 2 archivos en archived')) {
-                    errorMessage += 'Solo se permiten máximo 2 archivos adjuntos.';
-                } else if (rawMessage.includes('Error al subir profileImage')) {
-                    errorMessage += 'Hubo un problema al subir la imagen de perfil.';
-                } else if (rawMessage.includes('Error al subir archived')) {
-                    errorMessage += 'Hubo un problema al subir los archivos adjuntos.';
-                } else {
-                    errorMessage += rawMessage;
-                }
-
-                Swal.fire({
-                    icon: "error",
-                    title: "¡Error!",
-                    text: errorMessage,
-                    confirmButtonText: "Aceptar",
-                });
                 throw error;
             }
         }
@@ -179,9 +130,7 @@ const StudentsProvider = ({ children }) => {
                     cancelButtonText: "Cancelar",
                 });
                 if (confirmacion.isConfirmed) {
-                    const response = await axios.delete(`/api/students/delete/${id}`, {
-                        withCredentials: true,
-                    });
+                    const response = await client.delete(`/students/delete/${id}`);
                     setEstudiantes((prev) => prev.filter((estudiante) => estudiante._id !== id));
                     if (response.data.errors && response.data.errors.length > 0) {
                         await Swal.fire({
@@ -229,11 +178,10 @@ const StudentsProvider = ({ children }) => {
         if (auth === "admin") {
             try {
                 formData.append("invalidate", "true");
-                const response = await axios.put(
-                    `/api/students/update/${id}`,
+                const response = await client.put(
+                    `/students/update/${id}`,
                     formData,
                     {
-                        withCredentials: true,
                         headers: {
                             "Content-Type": "multipart/form-data",
                         },
@@ -251,7 +199,7 @@ const StudentsProvider = ({ children }) => {
                 await obtenerEstudiantes();
                 return response;
             } catch (error) {
-                console.error("Error en axios.put:", error.response ? error.response.data : error.message);
+                console.error("Error en client.put:", error.response ? error.response.data : error.message);
                 let errorMessage = "Ha ocurrido un error al actualizar el estudiante: ";
                 const rawMessage = error.response?.data?.message || error.message;
 
@@ -304,8 +252,7 @@ const StudentsProvider = ({ children }) => {
                 const formData = new FormData();
                 formData.append("excelFile", file);
 
-                const response = await axios.post("/api/students/import", formData, {
-                    withCredentials: true,
+                const response = await client.post("/students/import", formData, {
                     headers: { "Content-Type": "multipart/form-data" },
                 });
 

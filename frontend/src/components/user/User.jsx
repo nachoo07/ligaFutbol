@@ -122,7 +122,7 @@ const User = () => {
                 setIsLoading(false);
             });
         }
-    }, []);
+    }, [isLoading, obtenerUsuarios, usuarios.length]);
 
     const getRoleName = (role) => {
         const isMobile = window.innerWidth <= 576; // Detectar si es tamaño móvil

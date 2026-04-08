@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FaBars, FaUsers, FaAddressCard, FaListUl, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaHome, FaArrowLeft } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
-import '../tableStudent/tableStudent.css'; // Asumiendo que los estilos se mueven a un archivo CSS separado
+import './sidebar.css';
 
 const Sidebar = ({ isMenuOpen, setIsMenuOpen, auth }) => {
     const navigate = useNavigate();
@@ -18,6 +18,7 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen, auth }) => {
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
         { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
+        { name: 'Mail', route: '/email', icon: <FaUserCog /> },
         {
             name: 'Volver Atrás',
             route: null,
@@ -29,14 +30,14 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen, auth }) => {
     const userMenuItems = [{ name: 'Inicio', route: '/', icon: <FaHome /> }];
 
     return (
-        <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
-            <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
+        <div className={`app-sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
+            <div className="app-sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
                 <FaBars />
             </div>
             {(auth === 'admin' ? adminMenuItems : userMenuItems).map((item, index) => (
                 <div
                     key={index}
-                    className="sidebar-item"
+                    className="app-sidebar-item"
                     onClick={() => {
                         if (item.action) {
                             item.action();
@@ -45,8 +46,8 @@ const Sidebar = ({ isMenuOpen, setIsMenuOpen, auth }) => {
                         }
                     }}
                 >
-                    <span className="icon">{item.icon}</span>
-                    <span className="text">{item.name}</span>
+                    <span className="app-sidebar-icon">{item.icon}</span>
+                    <span className="app-sidebar-text">{item.name}</span>
                 </div>
             ))}
         </div>

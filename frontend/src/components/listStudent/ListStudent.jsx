@@ -9,6 +9,16 @@ import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import './listaStudent.css';
 
+const groupedCategories = [
+    { value: '2011-2012', label: '2011-2012', years: ['2011', '2012'] },
+    { value: '2013-2014', label: '2013-2014', years: ['2013', '2014'] },
+    { value: '2015-2016', label: '2015-2016', years: ['2015', '2016'] },
+    { value: '2017-2018', label: '2017-2018', years: ['2017', '2018'] },
+    { value: '2019-2020-2021', label: '2019-2020-2021', years: ['2019', '2020', '2021'] },
+    { value: '2010-2011-2012', label: '2010-2011-2012', years: ['2010', '2011', '2012'] },
+    { value: '2015-2016-2017', label: '2015-2016-2017', years: ['2015', '2016', '2017'] },
+];
+
 const ListStudent = () => {
     const { estudiantes, obtenerEstudiantes } = useContext(StudentsContext);
     const navigate = useNavigate();
@@ -20,16 +30,6 @@ const ListStudent = () => {
     const [filters, setFilters] = useState({ school: '', category: '', color: '', sex: '' });
     const [isMenuOpen, setIsMenuOpen] = useState(true);
     const [loading, setLoading] = useState(true);
-
-    const groupedCategories = [
-        { value: '2011-2012', label: '2011-2012', years: ['2011', '2012'] },
-        { value: '2013-2014', label: '2013-2014', years: ['2013', '2014'] },
-        { value: '2015-2016', label: '2015-2016', years: ['2015', '2016'] },
-        { value: '2017-2018', label: '2017-2018', years: ['2017', '2018'] },
-        { value: '2019-2020-2021', label: '2019-2020-2021', years: ['2019', '2020', '2021'] },
-        { value: '2010-2011-2012', label: '2010-2011-2012', years: ['2010', '2011', '2012'] },
-        { value: '2015-2016-2017', label: '2015-2016-2017', years: ['2015', '2016', '2017'] },
-    ];
 
     const menuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
@@ -92,7 +92,7 @@ const ListStudent = () => {
             setFilters(prev => ({ ...prev, category: '', color: '' }));
             setColors([]);
         }
-    }, [filters.school, estudiantes]);
+    }, [filters.school, filters.category, estudiantes]);
 
     useEffect(() => {
         if (filters.school && filters.category && estudiantes && Array.isArray(estudiantes)) {
@@ -115,7 +115,7 @@ const ListStudent = () => {
             setColors([]);
             setFilters(prev => ({ ...prev, color: '' }));
         }
-    }, [filters.school, filters.category, estudiantes]);
+    }, [filters.school, filters.category, filters.color, estudiantes]);
 
     useEffect(() => {
         if (!filters.school) {

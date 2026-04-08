@@ -1,5 +1,5 @@
 import { createContext, useContext, useState } from 'react';
-import axios from 'axios';
+import client from '../../api/axios';
 import Swal from 'sweetalert2';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
@@ -7,8 +7,19 @@ import validator from 'validator';
 
 export const EmailContext = createContext();
 
+const initialProgressState = {
+  sent: 0,
+  success: 0,
+  failed: 0,
+  total: 0,
+  currentBatch: 0,
+  totalBatches: 0,
+  percentage: 0,
+  isSending: false,
+};
+
 export const EmailProvider = ({ children }) => {
-  const [progress, setProgress] = useState({ sent: 0, success: 0, failed: 0 });
+  const [progress, setProgress] = useState(initialProgressState);
 
   const formatDate = (dateString) => {
     if (!dateString) return '-';
@@ -21,7 +32,7 @@ export const EmailProvider = ({ children }) => {
 
   const fetchActiveStudents = async () => {
     try {
-      const response = await axios.get('/api/students', { withCredentials: true });
+      const response = await client.get('/students');
       return response.data.filter(student => student.status === 'Activo');
     } catch (error) {
       console.error('Error fetching students:', error);
@@ -33,7 +44,7 @@ export const EmailProvider = ({ children }) => {
   const fetchDebtors = async () => {
     try {
       const activeStudents = await fetchActiveStudents();
-      const sharesResponse = await axios.get('/api/shares', { withCredentials: true });
+      const sharesResponse = await client.get('/shares');
       const debtors = activeStudents.filter(student => {
         const studentShares = sharesResponse.data.filter(share => share.student._id.toString() === student._id.toString());
         return studentShares.some(share => share.status === 'Pendiente' || (share.status === 'Pagado' && share.paymentType === 'Pago Parcial'));
@@ -48,8 +59,10 @@ export const EmailProvider = ({ children }) => {
 
   const fetchSchools = async () => {
     try {
-      const response = await axios.get('/api/students', { withCredentials: true });
-      const schools = [...new Set(response.data.map(student => student.school))].filter(Boolean);
+      const response = await client.get('/students');
+      const schools = [...new Set(response.data.map(student => student.school))]
+        .filter(Boolean)
+        .sort((a, b) => a.localeCompare(b));
       return schools;
     } catch (error) {
       console.error('Error fetching schools:', error);
@@ -58,17 +71,7 @@ export const EmailProvider = ({ children }) => {
     }
   };
 
-  const classifyErrorReason = (errorMessage, email, missing) => {
-    if (missing) return 'Sin correo registrado';
-    if (!email) return 'Correo no proporcionado';
-    if (errorMessage?.includes('550') || errorMessage?.includes('recipient address rejected') || errorMessage?.includes('address not found')) {
-      return 'Correo rebotado - Dirección no encontrada';
-    }
-    if (errorMessage?.includes('554') || errorMessage?.includes('delivery not allowed')) {
-      return 'Correo rebotado - No puede recibir correos';
-    }
-    return 'Correo rebotado - Error desconocido';
-  };
+  const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
   const sendEmail = async (recipients, subject, message, emailType, studentsData, onSuccess) => {
     if (!recipients.length || !subject) {
@@ -86,27 +89,36 @@ export const EmailProvider = ({ children }) => {
       return false;
     }
 
-    setProgress({ sent: 0, success: 0, failed: 0 });
-
     const batchSize = 50;
     const batches = [];
     for (let i = 0; i < validRecipients.length; i += batchSize) {
       batches.push(validRecipients.slice(i, i + batchSize));
     }
 
-    for (const batch of batches) {
+    setProgress({
+      ...initialProgressState,
+      total: validRecipients.length,
+      totalBatches: batches.length,
+      isSending: true,
+    });
+
+    const failedDetails = [];
+
+    for (const [index, batch] of batches.entries()) {
+      setProgress((prev) => ({
+        ...prev,
+        currentBatch: index + 1,
+      }));
+
       const batchMessages = emailType === 'debtors'
         ? batch.map(recipient => {
             const student = studentsData.find(s => (s.student ? s.student.mail : s.mail) === recipient);
             const studentShares = studentsData.find(s => s._id === student._id)?.shares || [];
-            const pendingShare = studentShares.find(share => share.status === 'Pendiente');
             const partialShare = studentShares.find(share => share.status === 'Pagado' && share.paymentType === 'Pago Parcial');
             let owed = parseFloat(message.match(/\$\d+(?:\.\d{2})?/)?.[0].replace('$', '')) || 0;
 
             if (partialShare && partialShare.amount) {
               owed = owed - partialShare.amount;
-            } else if (pendingShare && !pendingShare.amount) {
-              owed = owed;
             }
 
             return {
@@ -133,35 +145,98 @@ export const EmailProvider = ({ children }) => {
           });
 
       try {
-        const response = await axios.post(
-          '/api/email/send',
+        const response = await client.post(
+          '/email/send',
           {
             recipients: batch,
             subject,
             messages: batchMessages,
             studentsData: allStudents,
-          },
-          { withCredentials: true }
+          }
         );
-        setProgress(prev => ({
-          sent: prev.sent + batch.length,
-          success: prev.success + (response.data.successEmails?.length || 0),
-          failed: prev.failed,
-        }));
+        setProgress(prev => {
+          const sent = prev.sent + batch.length;
+          return {
+            ...prev,
+            sent,
+            success: prev.success + (response.data.totalSucceeded || 0),
+            failed: prev.failed + (response.data.totalFailed || 0),
+            percentage: prev.total > 0 ? Math.round((sent / prev.total) * 100) : 0,
+          };
+        });
+
+        if (Array.isArray(response.data.failedEmails) && response.data.failedEmails.length > 0) {
+          failedDetails.push(...response.data.failedEmails);
+        }
       } catch (error) {
         console.error('Error response from server:', error.response?.data || error.message);
-        setProgress(prev => ({
-          sent: prev.sent + batch.length,
-          success: prev.success,
-          failed: prev.failed + batch.length,
-        }));
+        const batchFailedEmails = error.response?.data?.failedEmails;
+        if (Array.isArray(batchFailedEmails) && batchFailedEmails.length > 0) {
+          failedDetails.push(...batchFailedEmails);
+        } else {
+          batch.forEach((recipient) => {
+            failedDetails.push({
+              recipient,
+              error: error.response?.data?.message || error.message || 'Error desconocido al enviar el correo.',
+            });
+          });
+        }
+        setProgress(prev => {
+          const sent = prev.sent + batch.length;
+          return {
+            ...prev,
+            sent,
+            success: prev.success,
+            failed: prev.failed + batch.length,
+            percentage: prev.total > 0 ? Math.round((sent / prev.total) * 100) : 0,
+          };
+        });
       }
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await wait(1000);
     }
 
-    Swal.fire('Éxito', 'Todos los correos se enviaron correctamente', 'success');
-    if (onSuccess) onSuccess();
-    return true;
+    const finalStats = {
+      sent: validRecipients.length,
+      success: validRecipients.length - failedDetails.length,
+      failed: failedDetails.length,
+    };
+
+    setProgress({
+      ...initialProgressState,
+      ...finalStats,
+      total: validRecipients.length,
+      totalBatches: batches.length,
+      currentBatch: batches.length,
+      percentage: 100,
+      isSending: false,
+    });
+
+    if (finalStats.failed === 0) {
+      Swal.fire('Éxito', `Se enviaron ${finalStats.success} correos correctamente.`, 'success');
+      if (onSuccess) onSuccess();
+      return true;
+    }
+
+    if (finalStats.success > 0) {
+      const failedPreview = failedDetails
+        .slice(0, 5)
+        .map((item) => `<li>${item.recipient}: ${item.error}</li>`)
+        .join('');
+
+      Swal.fire({
+        icon: 'warning',
+        title: 'Envío parcial',
+        html: `
+          <p>Se enviaron ${finalStats.success} correos y fallaron ${finalStats.failed}.</p>
+          ${failedPreview ? `<ul style="text-align:left;">${failedPreview}</ul>` : ''}
+        `,
+      });
+      if (onSuccess) onSuccess();
+      return true;
+    }
+
+    Swal.fire('Error', 'No se pudo enviar ningún correo.', 'error');
+    return false;
   };
 
   const sendReceiptEmail = async (student, share, onSuccess) => {
@@ -236,8 +311,8 @@ export const EmailProvider = ({ children }) => {
         <p>Saludos cordiales,<br>Liga de Fútbol Infantil</p>
       `;
 
-      const response = await axios.post(
-        '/api/email/send',
+      const response = await client.post(
+        '/email/send',
         {
           recipients: [student.mail],
           subject,
@@ -248,11 +323,13 @@ export const EmailProvider = ({ children }) => {
             content: pdfBase64,
             encoding: 'base64',
           },
-        },
-        { withCredentials: true }
+        }
       );
 
-      Swal.fire('¡Éxito!', 'Comprobante enviado exitosamente', 'success');
+      if ((response.data?.totalSucceeded || 0) < 1) {
+        throw new Error(response.data?.message || 'No se pudo enviar el comprobante');
+      }
+
       if (onSuccess) onSuccess();
       return true;
     } catch (error) {

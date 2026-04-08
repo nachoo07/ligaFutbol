@@ -171,11 +171,10 @@ const TableStudent = () => {
         try {
             await addEstudiante(formData);
             Swal.fire('¡Éxito!', 'Estudiante agregado correctamente.', 'success');
-            handleClose();
             obtenerEstudiantes();
         } catch (error) {
             console.error('[DEBUG] Error en handleSubmit:', error);
-            Swal.fire('¡Error!', error.response?.data?.message || 'No se pudo agregar el estudiante.', 'error');
+            throw error;
         }
     };
 

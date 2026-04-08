@@ -1,6 +1,6 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
-import axios from 'axios';
+import client from '../../api/axios';
 import Swal from 'sweetalert2';
 import { LoginContext } from '../login/LoginContext';
 
@@ -12,18 +12,18 @@ export const MotionProvider = ({ children }) => {
     const { auth, loading: authLoading } = useContext(LoginContext);
     const location = useLocation();
 
-    const fetchMotions = async () => {
+    const fetchMotions = useCallback(async () => {
         if (auth === 'admin') {
             try {
-                const response = await axios.get('/api/motions/', { withCredentials: true });
-                setMotions(response.data);
+                const response = await client.get('/motions/');
+                setMotions(Array.isArray(response.data) ? response.data : []);
                 setIsDataLoaded(true);
             } catch (error) {
                 console.error('Error fetching motions:', error);
                 Swal.fire("¡Error!", "No se pudieron obtener los movimientos. Verifica la URL y el servidor.", "error");
             }
         }
-    };
+    }, [auth]);
 
     useEffect(() => {
         if (
@@ -34,11 +34,11 @@ export const MotionProvider = ({ children }) => {
         ) {
             fetchMotions();
         }
-    }, [auth, authLoading, location.pathname, isDataLoaded]);
+    }, [auth, authLoading, location.pathname, isDataLoaded, fetchMotions]);
 
     const createMotion = async (motion) => {
         try {
-            const response = await axios.post('/api/motions/create', motion, { withCredentials: true });
+            const response = await client.post('/motions/create', motion);
             setMotions(prevMotions => [...prevMotions, response.data]);
             Swal.fire("¡Éxito!", "El movimiento ha sido creado correctamente", "success");
         } catch (error) {
@@ -49,7 +49,7 @@ export const MotionProvider = ({ children }) => {
 
     const updateMotion = async (id, updatedMotion) => {
         try {
-            const response = await axios.put(`/api/motions/update/${id}`, updatedMotion, { withCredentials: true });
+            const response = await client.put(`/motions/update/${id}`, updatedMotion);
             setMotions(prevMotions => prevMotions.map(motion => (motion._id === id ? response.data : motion)));
             Swal.fire("¡Éxito!", "Ha sido actualizado correctamente", "success");
         } catch (error) {
@@ -71,8 +71,8 @@ export const MotionProvider = ({ children }) => {
                 cancelButtonText: "Cancelar",
             });
             if (confirmacion.isConfirmed) {
-                await axios.delete(`/api/motions/delete/${id}`, { withCredentials: true });
-                setMotions(motions.filter(motion => motion._id !== id));
+                await client.delete(`/motions/delete/${id}`);
+                setMotions(prevMotions => prevMotions.filter(motion => motion._id !== id));
                 Swal.fire("¡Eliminado!", "El movimiento ha sido eliminado correctamente", "success");
             }
         } catch (error) {
@@ -83,7 +83,7 @@ export const MotionProvider = ({ children }) => {
 
     const getMotionsByDate = async (date) => {
         try {
-            const response = await axios.get(`/api/motions/date/${date}`, { withCredentials: true });
+            const response = await client.get(`/motions/date/${date}`);
             return response.data;
         } catch (error) {
             console.error('Error obteniendo movimientos por fecha:', error);
@@ -94,7 +94,9 @@ export const MotionProvider = ({ children }) => {
 
     const getMotionsByDateRange = async (startDate, endDate) => {
         try {
-            const response = await axios.get(`/api/motions/date-range?startDate=${startDate}&endDate=${endDate}`, { withCredentials: true });
+            const response = await client.get('/motions/date-range', {
+                params: { startDate, endDate },
+            });
             return response.data;
         } catch (error) {
             console.error('Error obteniendo movimientos por rango de fechas:', error);
@@ -102,18 +104,20 @@ export const MotionProvider = ({ children }) => {
             return [];
         }
     };
-    
-  
+
+
 
     return (
-        <MotionContext.Provider value={{ motions,
-         createMotion,
-         updateMotion,
-         deleteMotion,
-         getMotionsByDate,
-         getMotionsByDateRange,
-         fetchMotions,}}>
-         {children}
+        <MotionContext.Provider value={{
+            motions,
+            createMotion,
+            updateMotion,
+            deleteMotion,
+            getMotionsByDate,
+            getMotionsByDateRange,
+            fetchMotions,
+        }}>
+            {children}
         </MotionContext.Provider>
     );
 };

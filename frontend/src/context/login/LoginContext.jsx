@@ -1,133 +1,131 @@
-import React, { createContext, useState, useEffect } from 'react';
-import axios from 'axios';
+import React, { createContext, useState, useEffect, useCallback } from 'react';
+import client, { refreshSession } from '../../api/axios';
 import { useNavigate } from 'react-router-dom';
 
 export const LoginContext = createContext();
+
 export const LoginProvider = ({ children }) => {
-    const [auth, setAuth] = useState(localStorage.getItem('authRole') || null);
-    const [userData, setUserData] = useState(localStorage.getItem('authName') ? { name: localStorage.getItem('authName') } : null);
-    const [loading, setLoading] = useState(true);
-    const [isLoggingOut, setIsLoggingOut] = useState(false);
-    const navigate = useNavigate();
+  const [auth, setAuth] = useState(null);
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const navigate = useNavigate();
 
-    // Verificar autenticación solo una vez al montar el componente
-    useEffect(() => {
-        const checkAuth = async () => {
-            const authRole = localStorage.getItem('authRole');
-            const authName = localStorage.getItem('authName');
+  const clearSession = useCallback(() => {
+    setAuth(null);
+    setUserData(null);
+    localStorage.removeItem('authRole');
+    localStorage.removeItem('authName');
+    sessionStorage.removeItem('auth_error_message');
+  }, []);
 
-            if (!authRole || !authName) {
-                setAuth(null);
-                setUserData(null);
-                setLoading(false);
-                if (window.location.pathname !== '/login') {
-                    navigate('/login', { replace: true });
-                }
-                return;
-            }
+  const persistSession = useCallback((user) => {
+    setAuth(user.role);
+    setUserData({
+      id: user.id,
+      name: user.name,
+      role: user.role,
+      mail: user.mail,
+    });
+    localStorage.setItem('authRole', user.role);
+    localStorage.setItem('authName', user.name);
+  }, []);
 
-            try {
-                setLoading(true);
-                const response = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
-                setAuth(localStorage.getItem('authRole') || null);
-                setUserData(localStorage.getItem('authName') ? { name: localStorage.getItem('authName') } : null);
-            } catch (error) {
-                console.error('Error al verificar autenticación:', error.response?.data || error.message);
-                setAuth(null);
-                setUserData(null);
-                localStorage.removeItem('authRole');
-                localStorage.removeItem('authName');
-                if (window.location.pathname !== '/login') {
-                    navigate('/login', { replace: true });
-                }
-            } finally {
-                setLoading(false);
-            }
-        };
-        checkAuth();
-    }, [navigate]);
+  const logout = useCallback(async (redirectToLogin = true) => {
+    try {
+      setIsLoggingOut(true);
+      await client.post('/auth/logout');
+    } catch (error) {
+      console.error('Error en logout:', error.response?.data || error.message);
+    } finally {
+      clearSession();
+      if (redirectToLogin) {
+        navigate('/login', { replace: true });
+      }
+      setIsLoggingOut(false);
+    }
+  }, [clearSession, navigate]);
 
-    const login = async (mail, password) => {
-        try {
-            const response = await axios.post('/api/auth/login', { mail, password }, { withCredentials: true });
-            const { role, name } = response.data.user;
-            setAuth(role);
-            setUserData({ name });
-            localStorage.setItem('authRole', role);
-            localStorage.setItem('authName', name);
-            navigate(role === 'admin' ? '/' : '/homeuser', { replace: true });
-            return role;
-        } catch (error) {
-            console.error('Error en login:', error.response?.data || error.message);
-            throw error.response?.data?.message || 'Error al iniciar sesión';
+  const refreshAccessToken = useCallback(async () => {
+    const response = await refreshSession();
+    const user = response.data?.user;
+
+    if (!user) {
+      throw new Error('La respuesta de refresh no contiene usuario');
+    }
+
+    persistSession(user);
+    return user;
+  }, [persistSession]);
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        setLoading(true);
+        await refreshAccessToken();
+      } catch (error) {
+        console.error('Error al verificar autenticación:', error.response?.data || error.message);
+        clearSession();
+
+        if (window.location.pathname !== '/login') {
+          navigate('/login', { replace: true });
         }
+      } finally {
+        setLoading(false);
+      }
     };
 
-    const logout = async () => {
-        try {
-            setIsLoggingOut(true); // Indicamos que estamos cerrando sesión
-            setAuth(null); // Limpiamos auth inmediatamente
-            setUserData(null);
-            localStorage.removeItem('authRole');
-            localStorage.removeItem('authName');
-            await axios.post('/api/auth/logout', {}, { withCredentials: true });
-            navigate('/login', { replace: true });
-        } catch (error) {
-            console.error('Error en logout:', error);
-        } finally {
-            setIsLoggingOut(false); // Reseteamos la bandera
-        }
+    checkAuth();
+  }, [refreshAccessToken, clearSession, navigate]);
+
+  const login = async (mail, password) => {
+    try {
+      const response = await client.post('/auth/login', { mail, password });
+
+      const user = response.data?.user;
+      if (!user) {
+        throw new Error('La respuesta de login no contiene usuario');
+      }
+
+      persistSession(user);
+      navigate(user.role === 'admin' ? '/' : '/homeuser', { replace: true });
+      return user.role;
+    } catch (error) {
+      console.error('Error en login:', error.response?.data || error.message);
+      throw error.response?.data?.message || 'Error al iniciar sesión';
+    }
+  };
+
+  useEffect(() => {
+    const handleSessionExpired = () => {
+      if (isLoggingOut) return;
+
+      clearSession();
+
+      if (window.location.pathname !== '/login') {
+        navigate('/login', { replace: true });
+      }
     };
 
-    const refreshAccessToken = async () => {
-        try {
-            await axios.post('/api/auth/refresh', {}, { withCredentials: true });
-        } catch (error) {
-            console.error('Error al renovar token:', error.response?.data || error.message);
-            logout();
-            throw error;
-        }
-    };
+    window.addEventListener('SESSION_EXPIRED', handleSessionExpired);
+    return () => window.removeEventListener('SESSION_EXPIRED', handleSessionExpired);
+  }, [clearSession, isLoggingOut, navigate]);
 
-    useEffect(() => {
-        const interceptor = axios.interceptors.response.use(
-            (response) => response,
-            async (error) => {
-                const originalRequest = error.config;
-                // No intentamos refrescar si estamos cerrando sesión o si ya no hay sesión activa
-                if (isLoggingOut || !auth || error.response?.status !== 401 || originalRequest._retry) {
-                    return Promise.reject(error);
-                }
-                if (originalRequest.url.includes('/api/auth/refresh')) {
-                    logout();
-                    return Promise.reject(error);
-                }
-                originalRequest._retry = true;
-                try {
-                    await refreshAccessToken();
-                    return axios(originalRequest);
-                } catch (refreshError) {
-                    console.error('Error al renovar token:', refreshError.response?.data || refreshError.message);
-                    logout();
-                    return Promise.reject(refreshError);
-                }
-            }
-        );
-        return () => axios.interceptors.response.eject(interceptor);
-    }, [logout, auth, isLoggingOut]);
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (auth && !isLoggingOut) {
+        refreshAccessToken().catch((error) => {
+          console.error('Error en refresh programado:', error.response?.data || error.message);
+        });
+      }
+    }, 90 * 60 * 1000);
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            if (auth && !isLoggingOut) {
-                refreshAccessToken();
-            }
-        }, 90 * 60 * 1000); // 90 minutos
-        return () => clearInterval(interval);
-    }, [auth, isLoggingOut]);
+    return () => clearInterval(interval);
+  }, [auth, isLoggingOut, refreshAccessToken]);
 
-    return (
-        <LoginContext.Provider value={{ auth, userData, login, logout, loading }}>
-            {children}
-        </LoginContext.Provider>
-    );
+  return (
+    <LoginContext.Provider value={{ auth, userData, login, logout, loading, authLoading: loading }}>
+      {children}
+    </LoginContext.Provider>
+  );
 };

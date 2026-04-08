@@ -1,6 +1,6 @@
-import { useEffect, useState, createContext, useContext } from "react";
+import { useEffect, useState, createContext, useContext, useCallback } from "react";
 import { useLocation } from 'react-router-dom';
-import axios from "axios";
+import client from "../../api/axios";
 import Swal from "sweetalert2";
 import { LoginContext } from "../login/LoginContext";
 
@@ -12,12 +12,11 @@ const UsersProvider = ({ children }) => {
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     const location = useLocation();
 
-    const obtenerUsuarios = async () => {
+    const obtenerUsuarios = useCallback(async (force = false) => {
         if (auth === 'admin') {
+            if (isDataLoaded && !force) return;
             try {
-                const response = await axios.get("/api/users", {
-                    withCredentials: true,
-                });
+                const response = await client.get("/users");
                 setUsuarios(response.data);
                 setIsDataLoaded(true);
             } catch (error) {
@@ -25,7 +24,7 @@ const UsersProvider = ({ children }) => {
                 Swal.fire("¡Error!", "No se pudieron cargar los usuarios", "error");
             }
         }
-    };
+    }, [auth, isDataLoaded]);
 
     useEffect(() => {
         if (
@@ -36,14 +35,12 @@ const UsersProvider = ({ children }) => {
         ) {
             obtenerUsuarios();
         }
-    }, [auth, authLoading, location.pathname, isDataLoaded]);
+    }, [auth, authLoading, location.pathname, isDataLoaded, obtenerUsuarios]);
 
     const addUsuarioAdmin = async (usuario) => {
         if (auth === 'admin') {
             try {
-                const response = await axios.post("/api/users/create", usuario, {
-                    withCredentials: true,
-                });
+                const response = await client.post("/users/create", usuario);
                 setUsuarios((prevUsuarios) => [...prevUsuarios, response.data]);
                 Swal.fire("¡Éxito!", "Usuario admin creado correctamente", "success");
             } catch (error) {
@@ -56,9 +53,7 @@ const UsersProvider = ({ children }) => {
     const updateUsuarioAdmin = async (id, usuarioActualizado) => {
         if (auth === 'admin') {
             try {
-                const response = await axios.put(`/api/users/update/${id}`, usuarioActualizado, {
-                    withCredentials: true,
-                });
+                const response = await client.put(`/users/update/${id}`, usuarioActualizado);
                 setUsuarios((prevUsuarios) =>
                     prevUsuarios.map((usuario) =>
                         usuario._id === id ? response.data : usuario
@@ -87,9 +82,7 @@ const UsersProvider = ({ children }) => {
                 });
 
                 if (confirmacion.isConfirmed) {
-                    await axios.delete(`/api/users/delete/${id}`, {
-                        withCredentials: true,
-                    });
+                    await client.delete(`/users/delete/${id}`);
                     setUsuarios((prevUsuarios) => prevUsuarios.filter((usuario) => usuario._id !== id));
                     Swal.fire("¡Eliminado!", "Usuario eliminado correctamente", "success");
                     await obtenerUsuarios(); // Actualizar lista solo tras éxito

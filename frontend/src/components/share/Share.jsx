@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FaBars, FaAddressCard, FaRegListAlt, FaUsers, FaListUl, FaMoneyBill, FaChartBar, FaExchangeAlt, FaUserCog, FaHome, FaArrowLeft, FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice, FaSpinner } from 'react-icons/fa';
-import { MdOutlineReadMore } from "react-icons/md";
-import { LuClipboardList } from "react-icons/lu";
+import { FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice, FaSpinner } from 'react-icons/fa';
 import { SharesContext } from "../../context/share/ShareContext";
 import { StudentsContext } from "../../context/student/StudentContext";
 import { LoginContext } from "../../context/login/LoginContext";
 import { useEmail } from '../../context/email/EmailContext';
 import { Button, Table, Form, Modal } from 'react-bootstrap';
 import { MdDelete } from 'react-icons/md';
+import { MdOutlineReadMore } from "react-icons/md";
 import MassiveShareForm from "../shareMassive/MassiveShareForm";
+import Sidebar from '../sidebar/Sidebar';
 import Swal from 'sweetalert2';
 import "./share.css";
 
@@ -38,7 +38,6 @@ const Share = () => {
     const [yearFilter, setYearFilter] = useState("");
     const [currentPage, setCurrentPage] = useState(1);
     const [sendingReceipt, setSendingReceipt] = useState(null);
-    const [hasClearedStudent, setHasClearedStudent] = useState(false);
     const [showMassiveModal, setShowMassiveModal] = useState(false);
     const [showCuotaModal, setShowCuotaModal] = useState(false);
     const [modalTitle, setModalTitle] = useState("Crear Cuota");
@@ -51,27 +50,6 @@ const Share = () => {
     const years = Array.from({ length: 5 }, (_, i) => 2025 + i);
     const initialDataLoaded = useRef(false);
     const hasFetchedStudentCuotas = useRef(false);
-
-    const adminMenuItems = [
-        { name: 'Inicio', route: '/', icon: <FaHome /> },
-        { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
-        { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
-        { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
-        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
-        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
-        { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
-        {
-            name: 'Volver Atrás',
-            route: null,
-            action: () => navigate(-1, { state: { fromDetailStudent: true } }),
-            icon: <FaArrowLeft />
-        },
-    ];
-
-    const userMenuItems = [];
 
     const sortCuotas = (cuotas) => {
         const cuotaOrder = {
@@ -115,7 +93,20 @@ const Share = () => {
         if (!initialDataLoaded.current && !loadingStudents) {
             const loadInitialData = async () => {
                 try {
-                    await Promise.all([obtenerEstudiantes(true), obtenerCuotas(true)]);
+                    const requests = [];
+
+                    if (!Array.isArray(estudiantes) || estudiantes.length === 0) {
+                        requests.push(obtenerEstudiantes(true));
+                    }
+
+                    if (!Array.isArray(cuotas) || cuotas.length === 0) {
+                        requests.push(obtenerCuotas(true));
+                    }
+
+                    if (requests.length > 0) {
+                        await Promise.all(requests);
+                    }
+
                     initialDataLoaded.current = true;
                 } catch (error) {
                     console.error('Error en carga inicial:', error);
@@ -124,7 +115,7 @@ const Share = () => {
             };
             loadInitialData();
         }
-    }, [obtenerEstudiantes, obtenerCuotas, loadingStudents]);
+    }, [cuotas, estudiantes, obtenerEstudiantes, obtenerCuotas, loadingStudents]);
 
     useEffect(() => {
         if (studentId && !hasFetchedStudentCuotas.current) {
@@ -145,7 +136,7 @@ const Share = () => {
             };
             loadStudentCuotas();
         }
-    }, [studentId, obtenerCuotasPorEstudiante]);
+    }, [studentId, obtenerCuotasPorEstudiante, estudiantes]);
 
     useEffect(() => {
         if (!yearFilter) {
@@ -161,18 +152,25 @@ const Share = () => {
 
     useEffect(() => {
         if (year && showCuotaModal && !isEditing) {
-            getAvailableShareNames(year).then((names) => {
+            getAvailableShareNames(year, selectedStudent?._id).then((names) => {
                 setAvailableNames(names);
-                setPaymentName("");
+                setPaymentName((currentValue) => {
+                    if (!currentValue) return "";
+                    return names.some((item) => item.name === currentValue && !item.isBlocked)
+                        ? currentValue
+                        : "";
+                });
             }).catch((error) => {
                 console.error("Error al obtener nombres disponibles:", error);
                 Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener los nombres disponibles.", "error");
             });
         } else if (!year || !showCuotaModal || isEditing) {
             setAvailableNames([]);
-            setPaymentName(isEditing ? paymentName : "");
+            if (!isEditing) {
+                setPaymentName("");
+            }
         }
-    }, [year, showCuotaModal, isEditing, getAvailableShareNames]);
+    }, [year, showCuotaModal, isEditing, getAvailableShareNames, selectedStudent]);
 
     useEffect(() => {
         return () => {
@@ -189,7 +187,6 @@ const Share = () => {
     }, [studentId]);
 
     const handleSelectStudent = (student) => {
-        setHasClearedStudent(false);
         setSelectedStudent(student);
         navigate(`/share/${student._id}`);
         hasFetchedStudentCuotas.current = false; // Resetear para permitir recarga de cuotas
@@ -218,7 +215,6 @@ const Share = () => {
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
     const handleBackToStudents = () => {
-        setHasClearedStudent(true);
         setSelectedStudent(null);
         setYearFilter("");
         setAllStudentCuotas([]);
@@ -246,25 +242,42 @@ const Share = () => {
             return;
         }
 
-        if (!paymentName || !amount || !paymentDate || !paymentMethod || !paymentType) {
-            Swal.fire("¡Advertencia!", "Por favor completa todos los campos obligatorios.", "warning");
+        if (!paymentName || !year) {
+            Swal.fire("¡Advertencia!", "Debes seleccionar el año y el nombre de la cuota.", "warning");
             return;
         }
 
-        const year = new Date(paymentDate).getFullYear();
-        if (isNaN(year)) {
-            Swal.fire("¡Advertencia!", "La fecha de pago ingresada no es válida.", "warning");
-            return;
+        const hasAnyPaymentField =
+            amount !== "" ||
+            paymentDate !== "" ||
+            paymentMethod !== "" ||
+            paymentType !== "";
+
+        if (hasAnyPaymentField) {
+            if (amount === "" || !paymentDate || !paymentMethod || !paymentType) {
+                Swal.fire(
+                    "¡Advertencia!",
+                    "Si vas a registrar un pago, debes completar monto, fecha, método de pago y tipo de pago.",
+                    "warning"
+                );
+                return;
+            }
+
+            const parsedDate = new Date(paymentDate);
+            if (isNaN(parsedDate.getTime())) {
+                Swal.fire("¡Advertencia!", "La fecha de pago ingresada no es válida.", "warning");
+                return;
+            }
         }
 
         const cuotaData = {
             student: selectedStudent._id,
             paymentName,
-            year,
-            amount: parseFloat(amount),
-            paymentDate,
-            paymentMethod,
-            paymentType,
+            year: parseInt(year, 10),
+            amount: amount === "" ? null : parseFloat(amount),
+            paymentDate: paymentDate || null,
+            paymentMethod: paymentMethod || null,
+            paymentType: paymentType || null,
         };
 
         try {
@@ -277,7 +290,16 @@ const Share = () => {
             const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id);
             setAllStudentCuotas(studentCuotas);
             setFilteredStudentCuotas(sortCuotas([...studentCuotas]));
-            Swal.fire("¡Éxito!", `Cuota ${selectedCuota ? 'actualizada' : 'agregada'} exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`, "success");
+
+            Swal.fire(
+                "¡Éxito!",
+                selectedCuota
+                    ? `Cuota actualizada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`
+                    : hasAnyPaymentField
+                        ? `Cuota pagada agregada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`
+                        : `Cuota pendiente agregada exitosamente para ${selectedStudent.name} ${selectedStudent.lastName}.`,
+                "success"
+            );
 
             setPaymentName("");
             setAmount("");
@@ -290,22 +312,28 @@ const Share = () => {
             setYear("");
         } catch (error) {
             console.error('Error en handleSave:', error);
-            Swal.fire("¡Error!", `Error al ${selectedCuota ? 'actualizar' : 'agregar'} la cuota: ${error.response?.data?.message || error.message}`, "error");
+            Swal.fire(
+                "¡Error!",
+                error.response?.data?.message || `No se pudo guardar la cuota.`,
+                "error"
+            );
         }
     };
+
 
     const handleEditClick = (cuota) => {
         setSelectedCuota(cuota);
         setPaymentName(cuota.paymentName);
-        setAmount(cuota.amount || "");
+        setAmount(cuota.amount ?? "");
         setPaymentDate(cuota.paymentDate ? formatDate(cuota.paymentDate) : "");
         setPaymentMethod(cuota.paymentMethod || "");
         setPaymentType(cuota.paymentType || "");
         setIsEditing(true);
-        setModalTitle(cuota.paymentDate ? "Editar Cuota" : "Pagar Cuota");
-        setYear(cuota.paymentName ? parseInt(cuota.paymentName.split(' - ')[2] || 0).toString() : "");
+        setModalTitle(cuota.status === "Pagado" ? "Editar Cuota" : "Editar / Registrar Pago");
+        setYear(String(cuota.year || ""));
         setShowCuotaModal(true);
     };
+
 
     const handleCancelEdit = () => {
         setSelectedCuota(null);
@@ -319,18 +347,19 @@ const Share = () => {
         setYear("");
     };
 
-    const handleCreateCuota = () => {
-        setSelectedCuota(null);
-        setPaymentName("");
-        setAmount("");
-        setPaymentDate("");
-        setPaymentMethod("");
-        setPaymentType("");
-        setIsEditing(false);
-        setModalTitle("Crear Cuota");
-        setYear("");
-        setShowCuotaModal(true);
-    };
+const handleCreateCuota = () => {
+  setSelectedCuota(null);
+  setPaymentName("");
+  setAmount("");
+  setPaymentDate("");
+  setPaymentMethod("");
+  setPaymentType("");
+  setIsEditing(false);
+  setModalTitle("Crear Cuota");
+  setYear("");
+  setShowCuotaModal(true);
+};
+
 
     const handleDelete = async (id) => {
         const confirmacion = await Swal.fire({
@@ -365,8 +394,10 @@ const Share = () => {
         }
         setSendingReceipt(cuota._id);
         try {
-            await sendReceiptEmail(cuota.student, cuota);
-            Swal.fire("¡Éxito!", "Comprobante enviado exitosamente.", "success");
+            const sent = await sendReceiptEmail(cuota.student, cuota);
+            if (sent) {
+                Swal.fire("¡Éxito!", "Comprobante enviado exitosamente.", "success");
+            }
         } catch (error) {
             console.error('Error en handleSendReceipt:', error);
             Swal.fire("¡Error!", `Error al enviar el comprobante: ${error.response?.data?.message || error.message}`, "error");
@@ -385,27 +416,7 @@ const Share = () => {
 
     return (
         <div className="dashboard-container-share">
-            <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
-                <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                    <FaBars />
-                </div>
-                {(auth === 'admin' ? adminMenuItems : userMenuItems).map((item, index) => (
-                    <div
-                        key={index}
-                        className="sidebar-item"
-                        onClick={() => {
-                            if (item.action) {
-                                item.action();
-                            } else {
-                                navigate(item.route);
-                            }
-                        }}
-                    >
-                        <span className="icon">{item.icon}</span>
-                        <span className="text">{item.name}</span>
-                    </div>
-                ))}
-            </div>
+            <Sidebar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} auth={auth} />
             <div className="content-share">
                 {!selectedStudent ? (
                     <div className="students-view">

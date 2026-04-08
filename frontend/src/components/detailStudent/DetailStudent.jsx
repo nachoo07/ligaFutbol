@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { FaDownload, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
@@ -29,32 +29,27 @@ const StudentDetail = () => {
     });
     const [initialFormData, setInitialFormData] = useState(formData);
     const [loading, setLoading] = useState(true);
-    const [hasFetched, setHasFetched] = useState(false);
+    const hasFetched = useRef(false);
     const defaultImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
 
-    const getCachedImage = (url) => {
+    const getImageUrl = (url) => {
         if (!url || url === defaultImage) return defaultImage;
-        const cacheKey = `image_${btoa(url)}`;
-        const cachedImage = localStorage.getItem(cacheKey);
-        return cachedImage || url;
+        return url;
     };
 
     const preloadImage = (url) => {
         return new Promise((resolve) => {
             const img = new Image();
             img.src = url;
-            img.onload = () => {
-                localStorage.setItem(`image_${btoa(url)}`, url);
-                resolve(url);
-            };
+            img.onload = () => resolve(url);
             img.onerror = () => resolve(defaultImage);
         });
     };
 
     useEffect(() => {
         const fetchData = async () => {
-            if (hasFetched) return;
-            setHasFetched(true);
+            if (hasFetched.current) return;
+            hasFetched.current = true;
             setLoading(true);
             try {
                 await obtenerEstudiante(id);
@@ -188,32 +183,53 @@ const StudentDetail = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         const formDataToSend = new FormData();
-        Object.keys(formData).forEach(key => {
+        Object.keys(formData).forEach((key) => {
             if (key === 'profileImage' && formData[key] instanceof File) {
                 formDataToSend.append('profileImage', formData[key]);
-            } else if (key === 'archived' && Array.isArray(formData[key])) {
-                formData[key].forEach((item, index) => {
-                    if (item instanceof File) {
-                        formDataToSend.append('archived', item);
-                    } else if (typeof item === 'string' && item.startsWith('http')) {
-                        formDataToSend.append('existingArchived', item);
-                    }
-                });
-            } else if (key !== 'archivedNames' && key !== 'profileImage' && key !== 'archived') {
+                return;
+            }
+
+            if (key === 'archived') {
+                if (Array.isArray(formData.archived)) {
+                    formData.archived.forEach((item) => {
+                        if (item instanceof File) {
+                            formDataToSend.append('archived', item);
+                        } else if (typeof item === 'string' && item.startsWith('http')) {
+                            formDataToSend.append('existingArchived', item);
+                        }
+                    });
+                }
+
+                return;
+            }
+
+            if (key === 'archivedNames') {
+                return;
+            }
+
+            if (key !== 'profileImage') {
                 formDataToSend.append(key, formData[key] || '');
             }
         });
+
         const archivedNames = Array.isArray(formData.archivedNames) ? formData.archivedNames : [];
         const existingNames = Array.isArray(student.archivedNames) ? student.archivedNames : [];
-        const combinedNames = formData.archived.map((item, index) => {
-            if (item instanceof File) {
-                return archivedNames[index] || item.name || `Archivo ${index + 1}`;
-            } else if (typeof item === 'string' && item.startsWith('http')) {
-                return existingNames[index] || archivedNames[index] || `Archivo ${index + 1}`;
-            }
-            return null;
-        }).filter(name => name !== null);
+        const combinedNames = (Array.isArray(formData.archived) ? formData.archived : [])
+            .map((item, index) => {
+                if (item instanceof File) {
+                    return archivedNames[index] || item.name || `Archivo ${index + 1}`;
+                }
+
+                if (typeof item === 'string' && item.startsWith('http')) {
+                    return existingNames[index] || archivedNames[index] || `Archivo ${index + 1}`;
+                }
+
+                return null;
+            })
+            .filter(Boolean);
+
         formDataToSend.append('archivedNames', JSON.stringify(combinedNames));
+
         if (!formData.archived || formData.archived.length === 0) {
             formDataToSend.append('archived', JSON.stringify([]));
         }
@@ -247,7 +263,7 @@ const StudentDetail = () => {
             if (success) {
                 navigate("/student", { state: { fromDetailStudent: false } });
             }
-        } catch (error) {
+        } catch {
             Swal.fire('Error', 'Hubo un problema al eliminar el perfil.', 'error');
         }
     };
@@ -291,7 +307,7 @@ const StudentDetail = () => {
                         <div className="perfil-header-row">
                             <div className="perfil-avatar">
                                 <img
-                                    src={getCachedImage(student.profileImage)}
+                                    src={getImageUrl(student.profileImage)}
                                     alt="Perfil"
                                     onError={handleImageError}
                                     style={{ display: imageError ? 'none' : 'block' }}

@@ -1,6 +1,6 @@
 .email-notification-container {
   display: flex;
-  height: 720px;
+  min-height: 100vh;
 }
 
 .email-notification-content {
@@ -8,6 +8,60 @@
   padding: 20px;
   overflow-y: auto !important;
   background: #f9f9f9;
+      overflow-y: auto;
+}
+
+.email-type-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.type-btn {
+  border: none;
+  border-radius: 10px;
+  background: #0163a9;
+  color: #fff;
+  padding: 10px 16px;
+  font-weight: 600;
+}
+
+.type-btn:disabled {
+  opacity: 0.6;
+}
+
+.recipient-stats,
+.school-selection,
+.progress-card {
+  background: #fff;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.06);
+}
+
+.school-selection label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.school-select {
+  width: 100%;
+  max-width: 360px;
+  padding: 10px 12px;
+  border: 1px solid #d6d6d6;
+  border-radius: 8px;
+}
+
+.compact-card {
+  padding: 18px 22px;
+}
+
+.selection-summary {
+  margin: 0;
+  color: #505050;
 }
 
 .email-notification-title {
@@ -55,6 +109,12 @@
   font-family: Arial, sans-serif;
   line-height: 1.6;
   outline: none;
+  min-height: 260px;
+  border: 1px solid #e0e0e0;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  background: #fff;
+  padding: 14px;
 }
 
 .email-message-editor:focus {
@@ -323,11 +383,38 @@
   background: #013d61;
 }
 
-@media (max-width: 576px) {
-  .sidebar {
-      display: none;
-  }
+.progress-header,
+.progress-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
 
+.progress-header {
+  margin-bottom: 10px;
+}
+
+.progress-meta {
+  font-size: 14px;
+  color: #555;
+  margin-top: 8px;
+}
+
+.progress-track {
+  width: 100%;
+  height: 12px;
+  background: #e8edf3;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #0163a9 0%, #35a0ff 100%);
+  transition: width 0.3s ease;
+}
+
+@media (max-width: 576px) {
   .selected-students {
       flex-wrap: nowrap; /* Mantener una fila en móviles */
   }

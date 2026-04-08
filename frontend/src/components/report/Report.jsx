@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useContext, useMemo, useCallback, useReducer } from "react";
-import { useNavigate } from "react-router-dom";
-import { FaSearch, FaFileExcel } from "react-icons/fa";
+import { FaFileExcel } from "react-icons/fa";
 import DatePicker, { registerLocale } from "react-datepicker";
 import { es } from "date-fns/locale";
 import "react-datepicker/dist/react-datepicker.css";
@@ -41,22 +40,28 @@ const datesReducer = (state, action) => {
 };
 
 // Hook para cálculos de reportes
-const useReportData = (cuotas, motions, estudiantes, selectedSemester, obtenerCuotasPorSemestre, dates) => {
+const useReportData = (cuotas, motions, selectedSemester, obtenerCuotasPorSemestre) => {
   const [semesterStats, setSemesterStats] = useState(null);
 
-  const formatDate = (date) => {
-    const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
-    return localDate.toISOString().split("T")[0];
+  const formatDateKey = (dateValue) => {
+    if (!dateValue) return "";
+    const date = new Date(dateValue);
+    if (Number.isNaN(date.getTime())) return "";
+
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
   };
 
   const calculateCardData = useCallback(
     (selectedDate, type) => {
-      const selectedDateStr = formatDate(selectedDate);
+      const selectedDateStr = formatDateKey(selectedDate);
       const filteredMovements = Array.isArray(motions)
-        ? motions.filter((mov) => mov.date && mov.date.split("T")[0] === selectedDateStr)
+        ? motions.filter((mov) => formatDateKey(mov.date) === selectedDateStr)
         : [];
       const filteredCuotas = Array.isArray(cuotas)
-        ? cuotas.filter((cuota) => cuota.paymentDate && cuota.paymentDate.split("T")[0] === selectedDateStr)
+        ? cuotas.filter((cuota) => formatDateKey(cuota.paymentDate) === selectedDateStr)
         : [];
 
       if (type === "cuotas") {
@@ -122,11 +127,10 @@ const useReportData = (cuotas, motions, estudiantes, selectedSemester, obtenerCu
     }
   }, [selectedSemester, obtenerCuotasPorSemestre]);
 
-  return { calculateCardData, semesterStats, formatDate };
+  return { calculateCardData, semesterStats, formatDateKey };
 };
 
 const Report = () => {
-  const navigate = useNavigate();
   const { estudiantes, obtenerEstudiantes } = useContext(StudentsContext);
   const { cuotas, obtenerCuotasPorSemestre, selectedSemester, setSelectedSemester } = useContext(SharesContext);
   const { motions } = useContext(MotionContext);
@@ -141,13 +145,11 @@ const Report = () => {
     month: new Date(),
   });
 
-  const { calculateCardData, semesterStats, formatDate } = useReportData(
+  const { calculateCardData, semesterStats } = useReportData(
     cuotas,
     motions,
-    estudiantes,
     selectedSemester,
-    obtenerCuotasPorSemestre,
-    dates
+    obtenerCuotasPorSemestre
   );
 
   // Carga inicial de datos
@@ -155,7 +157,7 @@ const Report = () => {
     if (!isDataLoaded && !authLoading && auth) {
       obtenerEstudiantes()
         .then(() => setIsDataLoaded(true))
-        .catch((error) => Swal.fire("¡Error!", "No se pudieron cargar los estudiantes.", "error"));
+        .catch(() => Swal.fire("¡Error!", "No se pudieron cargar los estudiantes.", "error"));
     }
   }, [obtenerEstudiantes, isDataLoaded, authLoading, auth]);
 
@@ -186,36 +188,41 @@ const Report = () => {
   const chartData = useMemo(() => {
     const cuotasArray = Array.isArray(cuotas) ? cuotas : [];
     const motionsArray = Array.isArray(motions) ? motions : [];
-    const monthStr = `${dates.month.getFullYear()}-${(dates.month.getMonth() + 1).toString().padStart(2, "0")}`;
+    const selectedMonth = dates.month.getMonth();
+    const selectedYear = dates.month.getFullYear();
+    const isSameMonth = (dateValue) => {
+      if (!dateValue) return false;
+      const date = new Date(dateValue);
+      if (Number.isNaN(date.getTime())) return false;
+      return date.getMonth() === selectedMonth && date.getFullYear() === selectedYear;
+    };
     const cuotasTotal = cuotasArray
-      .filter((cuota) => cuota.paymentDate && cuota.paymentDate.startsWith(monthStr))
+      .filter((cuota) => isSameMonth(cuota.paymentDate))
       .reduce((sum, cuota) => sum + (cuota.amount || 0), 0);
     const ingresosMovimientos = motionsArray
-      .filter((mov) => mov.date && mov.date.startsWith(monthStr) && mov.incomeType === INCOME_TYPES.INGRESO)
+      .filter((mov) => isSameMonth(mov.date) && mov.incomeType === INCOME_TYPES.INGRESO)
       .reduce((sum, mov) => sum + (mov.amount || 0), 0);
     const egresosTotal = motionsArray
-      .filter((mov) => mov.date && mov.date.startsWith(monthStr) && mov.incomeType === INCOME_TYPES.EGRESO)
+      .filter((mov) => isSameMonth(mov.date) && mov.incomeType === INCOME_TYPES.EGRESO)
       .reduce((sum, mov) => sum + (mov.amount || 0), 0);
     const efectivoTotal = cuotasArray
-      .filter((cuota) => cuota.paymentDate && cuota.paymentDate.startsWith(monthStr) && cuota.paymentMethod === PAYMENT_METHODS.EFECTIVO)
+      .filter((cuota) => isSameMonth(cuota.paymentDate) && cuota.paymentMethod === PAYMENT_METHODS.EFECTIVO)
       .reduce((sum, cuota) => sum + (cuota.amount || 0), 0) +
       motionsArray
         .filter(
           (mov) =>
-            mov.date &&
-            mov.date.startsWith(monthStr) &&
+            isSameMonth(mov.date) &&
             mov.incomeType === INCOME_TYPES.INGRESO &&
             mov.paymentMethod === PAYMENT_METHODS.EFECTIVO.toLowerCase()
         )
         .reduce((sum, mov) => sum + (mov.amount || 0), 0);
     const transferenciaTotal = cuotasArray
-      .filter((cuota) => cuota.paymentDate && cuota.paymentDate.startsWith(monthStr) && cuota.paymentMethod === PAYMENT_METHODS.TRANSFERENCIA)
+      .filter((cuota) => isSameMonth(cuota.paymentDate) && cuota.paymentMethod === PAYMENT_METHODS.TRANSFERENCIA)
       .reduce((sum, cuota) => sum + (cuota.amount || 0), 0) +
       motionsArray
         .filter(
           (mov) =>
-            mov.date &&
-            mov.date.startsWith(monthStr) &&
+            isSameMonth(mov.date) &&
             mov.incomeType === INCOME_TYPES.INGRESO &&
             mov.paymentMethod === PAYMENT_METHODS.TRANSFERENCIA.toLowerCase()
         )

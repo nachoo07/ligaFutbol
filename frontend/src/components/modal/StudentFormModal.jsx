@@ -42,14 +42,6 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
         return url;
     };
 
-    const capitalizeWords = (str) => {
-        if (!str) return '';
-        return str
-            .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-            .join(' ');
-    };
-
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         const normalizedValue = value
@@ -118,7 +110,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
             const updatedFiles = [...currentFiles];
             const updatedFileNames = [...currentFileNames];
 
-            selectedFiles.forEach((file, index) => {
+            selectedFiles.forEach((file) => {
                 // Añadir al final del arreglo o reemplazar null
                 const targetIndex = updatedFiles.length < 2 ? updatedFiles.length : updatedFiles.findIndex(item => item === null);
                 if (targetIndex !== -1) {

@@ -1,7 +1,7 @@
 import React from 'react';
 import './receipt.css';
 
-const Receipt = ({ student, share, logoUrl, contactEmail }) => {
+const Receipt = ({ student, share, logoUrl }) => {
     // Función para formatear la fecha sin problemas de zona horaria
     const formatDate = (dateString) => {
         if (!dateString) return '-';

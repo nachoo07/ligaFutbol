@@ -8,7 +8,6 @@ import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { registerLocale } from 'react-datepicker';
 import es from 'date-fns/locale/es';
-import { useNavigate } from 'react-router-dom';
 import { FaSearch } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -24,6 +23,17 @@ const CUOTA_STATUS = { PAID: 'Pagado' };
 const PAYMENT_METHODS = {
   EFECTIVO: 'Efectivo',
   TRANSFERENCIA: 'Transferencia',
+};
+
+const formatDateKey = (dateValue) => {
+  if (!dateValue) return '';
+  const date = new Date(dateValue);
+  if (Number.isNaN(date.getTime())) return '';
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 };
 
 // Reducer para manejar filtros
@@ -43,20 +53,19 @@ const filtersReducer = (state, action) => {
 };
 
 // Hook personalizado para filtrado de cuotas
-const useFilteredCuotas = (cuotas, filters, obtenerCuotas) => {
+const useFilteredCuotas = (cuotas, filters) => {
   const [filteredCuotas, setFilteredCuotas] = useState([]);
 
   useEffect(() => {
     const applyFilters = async () => {
       if (filters.selectedUser && filters.selectedDate) {
         try {
-          await obtenerCuotas();
           let filtered = (Array.isArray(cuotas) ? cuotas : []).filter(
             (cuota) => cuota.status === CUOTA_STATUS.PAID && cuota.registeredBy === filters.selectedUser.label
           );
-          const dateStr = filters.selectedDate.toISOString().split('T')[0];
+          const dateStr = formatDateKey(filters.selectedDate);
           filtered = filtered.filter(
-            (cuota) => cuota.paymentDate && new Date(cuota.paymentDate).toISOString().split('T')[0] === dateStr
+            (cuota) => formatDateKey(cuota.paymentDate) === dateStr
           );
           if (filters.searchTerm) {
             const searchLower = filters.searchTerm.toLowerCase();
@@ -76,7 +85,7 @@ const useFilteredCuotas = (cuotas, filters, obtenerCuotas) => {
       }
     };
     applyFilters();
-  }, [filters, cuotas, obtenerCuotas]);
+  }, [filters, cuotas]);
 
   return filteredCuotas;
 };
@@ -146,8 +155,6 @@ const ShareDetail = () => {
   const { cuotas, obtenerCuotas } = useContext(SharesContext);
   const { usuarios, obtenerUsuarios } = useContext(UsersContext);
   const { auth } = useContext(LoginContext);
-  const navigate = useNavigate();
-
   const [filters, dispatch] = useReducer(filtersReducer, {
     selectedUser: null,
     selectedDate: null,
@@ -155,7 +162,15 @@ const ShareDetail = () => {
   });
   const [isMenuOpen, setIsMenuOpen] = useState(true);
 
-  const filteredCuotas = useFilteredCuotas(cuotas, filters, obtenerCuotas);
+  const filteredCuotas = useFilteredCuotas(cuotas, filters);
+
+  useEffect(() => {
+    if (Array.isArray(cuotas) && cuotas.length === 0) {
+      obtenerCuotas().catch((error) => {
+        console.error('Error al obtener cuotas para detalle diario:', error);
+      });
+    }
+  }, [cuotas, obtenerCuotas]);
 
   useEffect(() => {
     if (!Array.isArray(usuarios) || usuarios.length === 0) {
@@ -168,7 +183,7 @@ const ShareDetail = () => {
     label: user.name,
   }));
 
-  const formatDate = (dateString) => (dateString ? new Date(dateString).toISOString().split('T')[0] : '-');
+  const formatDate = (dateString) => formatDateKey(dateString) || '-';
 
   const calculateTotals = () => {
     const total = filteredCuotas.reduce((sum, cuota) => sum + (cuota.amount || 0), 0);

@@ -1,6 +1,5 @@
 import { useState, useEffect, useContext, useCallback, useRef, createContext } from "react";
-import { useLocation } from "react-router-dom";
-import axios from "axios";
+import client from "../../api/axios";
 import { LoginContext } from "../login/LoginContext";
 
 export const SharesContext = createContext();
@@ -11,39 +10,62 @@ const SharesProvider = ({ children }) => {
   const [semesterStats, setSemesterStats] = useState(null);
   const [selectedSemester, setSelectedSemester] = useState("");
   const { auth, authLoading } = useContext(LoginContext);
-  const location = useLocation();
   const hasFetchedCuotas = useRef(false);
   const hasFetchedStats = useRef(false);
+  const sharesByStudentCache = useRef(new Map());
 
-  const obtenerCuotas = useCallback(
-    async (force = false) => {
-      if (loading || (hasFetchedCuotas.current && !force && cuotas.length > 0)) return;
-      if (authLoading || !auth) return;
+  const buildSharesByStudentCache = useCallback((shares) => {
+    const nextCache = new Map();
 
-      setLoading(true);
-      try {
-        const response = await axios.get("/api/shares", { withCredentials: true });
-        setCuotas(Array.isArray(response.data) ? response.data : []);
-        hasFetchedCuotas.current = true;
-      } catch (error) {
-        console.error("Error obteniendo cuotas:", error);
-        setCuotas([]);
-        throw error;
-      } finally {
-        setLoading(false);
+    (Array.isArray(shares) ? shares : []).forEach((share) => {
+      const studentId =
+        typeof share.student === "string"
+          ? share.student
+          : share.student?._id;
+
+      if (!studentId) return;
+
+      if (!nextCache.has(studentId)) {
+        nextCache.set(studentId, []);
       }
-    },
-    [loading, hasFetchedCuotas, authLoading, auth, cuotas.length]
-  );
+
+      nextCache.get(studentId).push(share);
+    });
+
+    sharesByStudentCache.current = nextCache;
+  }, []);
+
+const obtenerCuotas = useCallback(
+  async (force = false) => {
+    if (loading || (hasFetchedCuotas.current && !force && cuotas.length > 0)) return;
+    if (authLoading || !auth) return;
+
+    setLoading(true);
+    try {
+      const response = await client.get("/shares");
+      const shares = Array.isArray(response.data) ? response.data : [];
+      setCuotas(shares);
+      buildSharesByStudentCache(shares);
+      hasFetchedCuotas.current = true;
+    } catch (error) {
+      console.error("Error obteniendo cuotas:", error);
+      setCuotas([]);
+      sharesByStudentCache.current = new Map();
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  },
+  [loading, authLoading, auth, cuotas.length, buildSharesByStudentCache]
+);
 
   const obtenerCuotasPorSemestre = useCallback(
     async (semester) => {
       if (!semester) return;
       try {
         setLoading(true);
-        const response = await axios.get("/api/shares/by-semester", {
+        const response = await client.get("/shares/by-semester", {
           params: { semester },
-          withCredentials: true,
         });
         setSemesterStats(response.data);
         return response;
@@ -59,12 +81,17 @@ const SharesProvider = ({ children }) => {
   );
 
   const obtenerCuotasPorEstudiante = useCallback(
-    async (studentId) => {
+    async (studentId, options = {}) => {
+      const { force = false } = options;
+
+      if (!force && sharesByStudentCache.current.has(studentId)) {
+        return sharesByStudentCache.current.get(studentId) || [];
+      }
+
       try {
-        const response = await axios.get(`/api/shares/${studentId}`, {
-          withCredentials: true,
-        });
+        const response = await client.get(`/shares/${studentId}`);
         const data = Array.isArray(response.data) ? response.data : [];
+        sharesByStudentCache.current.set(studentId, data);
         return data;
       } catch (error) {
         console.error("Error obteniendo cuotas por estudiante:", error);
@@ -75,11 +102,10 @@ const SharesProvider = ({ children }) => {
   );
 
   const getAvailableShareNames = useCallback(
-    async (year) => {
+    async (year, studentId = null) => {
       try {
-        const response = await axios.get(`/api/shares/available-names`, {
-          params: { year },
-          withCredentials: true,
+        const response = await client.get(`/shares/available-names`, {
+          params: studentId ? { year, studentId } : { year },
         });
         const data = Array.isArray(response.data) ? response.data : [];
         return data;
@@ -110,34 +136,46 @@ const SharesProvider = ({ children }) => {
     }
   }, [auth, authLoading, obtenerCuotas, obtenerCuotasPorSemestre, selectedSemester]);
 
-  const addCuota = useCallback(
-    async (cuota) => {
-      if (!auth || auth !== "admin") return Promise.reject("No autorizado");
-      try {
-        const response = await axios.post("/api/shares/create", cuota, {
-          withCredentials: true,
-        });
-        setCuotas((prevCuotas) => [...prevCuotas, response.data.share]);
-        hasFetchedCuotas.current = false;
-        return Promise.resolve();
-      } catch (error) {
-        console.error("Error al crear la cuota:", error);
-        throw error;
+const addCuota = useCallback(
+  async (cuota) => {
+    if (!auth || auth !== "admin") {
+      return Promise.reject(new Error("No autorizado"));
+    }
+
+    try {
+      const response = await client.post("/shares/create", cuota);
+      const createdShare = response.data.share;
+
+      setCuotas((prevCuotas) => {
+        const nextCuotas = [...prevCuotas, createdShare];
+        buildSharesByStudentCache(nextCuotas);
+        return nextCuotas;
+      });
+
+      const studentId =
+        typeof createdShare.student === "string"
+          ? createdShare.student
+          : createdShare.student?._id || cuota.student;
+
+      if (studentId) {
+        const cachedShares = sharesByStudentCache.current.get(studentId) || [];
+        sharesByStudentCache.current.set(studentId, [...cachedShares, createdShare]);
       }
-    },
-    [auth]
-  );
+
+      return response.data.share;
+    } catch (error) {
+      console.error("Error al crear la cuota:", error);
+      throw error;
+    }
+  },
+  [auth, buildSharesByStudentCache]
+);
 
   const createMassiveShares = useCallback(
     async (paymentName, year) => {
       if (!auth || auth !== "admin") return Promise.reject("No autorizado");
       try {
-        const response = await axios.post(
-          "/api/shares/create-massive",
-          { paymentName, year },
-          { withCredentials: true }
-        );
-        hasFetchedCuotas.current = false;
+        const response = await client.post("/shares/create-massive", { paymentName, year });
         await obtenerCuotas(true);
         return response.data.shares.length;
       } catch (error) {
@@ -152,37 +190,45 @@ const SharesProvider = ({ children }) => {
     async (id) => {
       if (!auth || auth !== "admin") return Promise.reject("No autorizado");
       try {
-        await axios.delete(`/api/shares/delete/${id}`, {
-          withCredentials: true,
+        await client.delete(`/shares/delete/${id}`);
+        setCuotas((prevCuotas) => {
+          const nextCuotas = prevCuotas.filter((cuota) => cuota._id !== id);
+          buildSharesByStudentCache(nextCuotas);
+          return nextCuotas;
         });
-        setCuotas((prevCuotas) => prevCuotas.filter((cuota) => cuota._id !== id));
-        hasFetchedCuotas.current = false;
         return Promise.resolve();
       } catch (error) {
         console.error("Error al eliminar cuota:", error);
         throw error;
       }
     },
-    [auth]
+    [auth, buildSharesByStudentCache]
   );
 
-  const updateCuota = useCallback(
-    async (cuota) => {
-      if (!auth || auth !== "admin") return Promise.reject("No autorizado");
-      try {
-        const response = await axios.put(`/api/shares/update/${cuota._id}`, cuota, {
-          withCredentials: true,
-        });
-        setCuotas((prevCuotas) => prevCuotas.map((c) => (c._id === cuota._id ? response.data.share : c)));
-        hasFetchedCuotas.current = false;
-        return Promise.resolve();
-      } catch (error) {
-        console.error("Error al actualizar cuota:", error);
-        throw error;
-      }
-    },
-    [auth]
-  );
+const updateCuota = useCallback(
+  async (cuota) => {
+    if (!auth || auth !== "admin") {
+      return Promise.reject(new Error("No autorizado"));
+    }
+
+    try {
+      const response = await client.put(`/shares/update/${cuota._id}`, cuota);
+      const updatedShare = response.data.share;
+
+      setCuotas((prevCuotas) => {
+        const nextCuotas = prevCuotas.map((c) => (c._id === cuota._id ? updatedShare : c));
+        buildSharesByStudentCache(nextCuotas);
+        return nextCuotas;
+      });
+
+      return response.data.share;
+    } catch (error) {
+      console.error("Error al actualizar cuota:", error);
+      throw error;
+    }
+  },
+  [auth, buildSharesByStudentCache]
+);
 
   return (
     <SharesContext.Provider

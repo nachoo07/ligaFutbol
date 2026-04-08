@@ -9,38 +9,60 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-export const sendEmail = async (req, res) => {
-  const { recipients, subject, messages, studentsData, attachment } = req.body;
+const buildPlainText = (htmlMessage = '') => String(htmlMessage).replace(/<[^>]+>/g, '');
 
-  if (!recipients || !Array.isArray(recipients) || recipients.length === 0 || !subject || !messages || !Array.isArray(messages)) {
-    return res.status(400).json({ message: 'Faltan campos requeridos o recipients/messages no es un arreglo válido' });
+export const sendEmail = async (req, res) => {
+  const { recipients, subject, messages, studentsData = [], attachment } = req.body;
+
+  if (
+    !recipients ||
+    !Array.isArray(recipients) ||
+    recipients.length === 0 ||
+    !subject ||
+    !messages ||
+    !Array.isArray(messages)
+  ) {
+    return res.status(400).json({
+      message: 'Faltan campos requeridos o recipients/messages no es un arreglo válido'
+    });
   }
 
   if (recipients.length > 100) {
     return res.status(400).json({ message: 'Demasiados destinatarios. El límite es 100 por correo.' });
   }
 
-  const allStudents = studentsData.map(s => s.student || s);
-  const validRecipients = [...new Set(recipients)].filter(r => allStudents.some(s => s.mail === r));
+  const allStudents = studentsData.map((s) => s.student || s);
+  const validRecipients = [...new Set(recipients)].filter((recipient) =>
+    allStudents.some((student) => student.mail === recipient)
+  );
 
   if (validRecipients.length === 0) {
     return res.status(400).json({ message: 'No hay destinatarios válidos' });
   }
 
   const successEmails = [];
+  const failedEmails = [];
 
   try {
-    for (let i = 0; i < validRecipients.length; i++) {
-      const recipient = validRecipients[i];
-      let mailOptions = {
+    for (const recipient of validRecipients) {
+      const messageEntry = messages.find((item) => item.recipient === recipient) || messages[0];
+
+      if (!messageEntry?.message) {
+        failedEmails.push({
+          recipient,
+          error: 'No se encontró un mensaje válido para este destinatario.',
+        });
+        continue;
+      }
+
+      const mailOptions = {
         from: `"Liga de Futbol Infantil" <${process.env.EMAIL_USER}>`,
         to: recipient,
         subject,
-        text: messages[i].message.replace(/<[^>]+>/g, ''),
-        html: messages[i].message,
+        text: buildPlainText(messageEntry.message),
+        html: messageEntry.message,
       };
 
-      // Agregar adjunto si existe
       if (attachment) {
         mailOptions.attachments = [{
           filename: attachment.filename,
@@ -55,12 +77,29 @@ export const sendEmail = async (req, res) => {
         successEmails.push(recipient);
       } catch (sendError) {
         console.error(`Error enviando a ${recipient}:`, sendError);
+        failedEmails.push({
+          recipient,
+          error: sendError.message || 'Error desconocido al enviar el correo.',
+        });
       }
     }
 
-    res.status(200).json({ message: 'Correos enviados exitosamente', successEmails });
+    const totalAttempted = validRecipients.length;
+    const hasFailures = failedEmails.length > 0;
+    const statusCode = successEmails.length > 0 ? 200 : 500;
+
+    return res.status(statusCode).json({
+      message: hasFailures
+        ? 'El envío finalizó con errores parciales.'
+        : 'Correos enviados exitosamente',
+      totalAttempted,
+      totalSucceeded: successEmails.length,
+      totalFailed: failedEmails.length,
+      successEmails,
+      failedEmails,
+    });
   } catch (error) {
     console.error('Error general enviando correos:', error);
-    res.status(500).json({ message: 'Error al enviar correos', error: error.message });
+    return res.status(500).json({ message: 'Error al enviar correos', error: error.message });
   }
 };

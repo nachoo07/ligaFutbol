@@ -24,6 +24,83 @@ cloudinaryV2.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+const DEFAULT_PROFILE_IMAGE = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
+
+const getCloudinaryResourceType = (mimetype) => {
+  if (!mimetype) return 'raw';
+  if (mimetype.startsWith('image/')) return 'image';
+  if (mimetype === 'application/pdf') return 'raw';
+  return 'raw';
+};
+
+const uploadBufferToCloudinary = async ({ file, publicId, overwrite = true }) => {
+  const resourceType = getCloudinaryResourceType(file.mimetype);
+
+  const result = await cloudinaryV2.uploader.upload(
+    `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
+    {
+      public_id: publicId,
+      resource_type: resourceType,
+      overwrite,
+      invalidate: true,
+    }
+  );
+
+  if (!result.secure_url) {
+    throw new Error('Cloudinary no devolvió secure_url');
+  }
+
+  return result.secure_url;
+};
+
+const destroyCloudinaryFile = async (publicId, resourceType = 'image') => {
+  if (!publicId) return { result: 'not found' };
+
+  return cloudinaryV2.uploader.destroy(publicId, {
+    resource_type: resourceType,
+  });
+};
+
+const deleteCloudinaryResources = async (publicIds, resourceType = 'image') => {
+  if (!Array.isArray(publicIds) || publicIds.length === 0) {
+    return { deleted: {} };
+  }
+
+  return cloudinaryV2.api.delete_resources(publicIds, {
+    resource_type: resourceType,
+  });
+};
+
+const cleanupUploadedStudentAssets = async ({ profileImage, archivedUrls = [] }) => {
+  const cleanupErrors = [];
+
+  if (profileImage && profileImage !== DEFAULT_PROFILE_IMAGE) {
+    const profilePublicId = getPublicIdFromUrl(profileImage);
+    if (profilePublicId) {
+      try {
+        await destroyCloudinaryFile(profilePublicId, 'image');
+      } catch (error) {
+        cleanupErrors.push(`No se pudo limpiar la imagen de perfil: ${error.message}`);
+      }
+    }
+  }
+
+  if (archivedUrls.length > 0) {
+    const archivedPublicIds = archivedUrls.map(getPublicIdFromUrl).filter(Boolean);
+
+    if (archivedPublicIds.length > 0) {
+      try {
+        await deleteCloudinaryResources(archivedPublicIds, 'raw');
+        await deleteCloudinaryResources(archivedPublicIds, 'image');
+      } catch (error) {
+        cleanupErrors.push(`No se pudieron limpiar los adjuntos: ${error.message}`);
+      }
+    }
+  }
+
+  return cleanupErrors;
+};
+
 // Función para extraer el public_id de una URL de Cloudinary
 const getPublicIdFromUrl = (url) => {
   if (!url) return null;
@@ -97,10 +174,10 @@ const normalizeDate = (dateInput) => {
 const capitalizeWords = (str) => {
   if (!str) return '';
   return str
-      .trim()
-      .split(/\s+/)
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-      .join(' ');
+    .trim()
+    .split(/\s+/)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(' ');
 };
 
 // Función para verificar si un enlace de Google Drive es accesible
@@ -243,18 +320,26 @@ const uploadToCloudinary = async (url, folder, options = {}) => {
 // Obtener todos los estudiantes
 export const getAllStudents = async (req, res) => {
   try {
-    const students = await Student.find();
-    if (students.length === 0) {
-      return res.status(200).json({ message: 'No hay estudiantes disponibles' });
-    }
-    res.status(200).json(students);
+    const students = await Student.find()
+      .select(
+        'name lastName dni birthDate address motherName fatherName motherPhone fatherPhone category mail profileImage archived archivedNames school color sex status isEnabled createdAt updatedAt'
+      )
+      .sort({ lastName: 1, name: 1 });
+
+    return res.status(200).json(students);
   } catch (error) {
-    return res.status(500).json({ message: 'Error al obtener estudiantes', error: error.message });
+    return res.status(500).json({
+      message: 'Error al obtener estudiantes',
+      error: error.message,
+    });
   }
 };
 
 // Crear un nuevo estudiante
 export const createStudent = async (req, res) => {
+  let profileImage = DEFAULT_PROFILE_IMAGE;
+  let archivedUrls = [];
+
   try {
     imageCache.clear();
     console.log('[INFO] imageCache limpiado al inicio de createStudent');
@@ -288,52 +373,82 @@ export const createStudent = async (req, res) => {
       return res.status(400).json({ message: `Faltan campos obligatorios: ${missingFields.join(', ')}` });
     }
 
-    let profileImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
-    let archivedUrls = [];
+    const existingStudent = await Student.findOne({ dni: normalizedData.dni }).select('_id');
+    if (existingStudent) {
+      return res.status(400).json({ message: `dni duplicado: ${normalizedData.dni}` });
+    }
+
     let archivedNames = [];
+
+    const draftStudent = new Student({
+      ...normalizedData,
+      profileImage: DEFAULT_PROFILE_IMAGE,
+      archived: [],
+      archivedNames: [],
+    });
+
+    const validationError = draftStudent.validateSync();
+    if (validationError) {
+      const validationErrors = Object.entries(validationError.errors).map(([field, err]) => {
+        if (err.kind === 'required') {
+          return `${field} es obligatorio`;
+        } else if (err.kind === 'enum') {
+          return `${field} debe ser ${err.enumValues.map(v => `"${v}"`).join(' o ')}`;
+        }
+        return err.message;
+      });
+      return res.status(400).json({ message: `Errores de validación: ${validationErrors.join('; ')}` });
+    }
 
     if (req.files && req.files['profileImage'] && req.files['profileImage'].length > 0) {
       const file = req.files['profileImage'][0];
       const publicId = `students/profile/${normalizedData.dni}`;
+
       try {
-        const result = await cloudinaryV2.uploader.upload(
-          `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-          { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true }
-        );
-        if (!result.secure_url) {
-          throw new Error('Fallo al subir profileImage: secure_url no devuelto');
-        }
-        profileImage = result.secure_url;
+        profileImage = await uploadBufferToCloudinary({
+          file,
+          publicId,
+        });
       } catch (error) {
         console.error('Error al subir profileImage:', error);
-        return res.status(500).json({ message: `Error al subir profileImage: ${error.message}`, success: false });
+        await cleanupUploadedStudentAssets({ profileImage, archivedUrls });
+        return res.status(500).json({
+          message: `Error al subir profileImage: ${error.message}`,
+          success: false,
+        });
       }
     }
 
-    if (req.files && req.files['archived'] && req.files['archived'].length > 0) {
-      const archivedFiles = req.files['archived'];
-      if (archivedFiles.length > 2) {
-        return res.status(400).json({ message: 'Se permiten máximo 2 archivos en archived' });
-      }
-      for (let i = 0; i < archivedFiles.length; i++) {
-        const file = archivedFiles[i];
-        const publicId = `students/archived/${normalizedData.dni}/${i}`;
-        try {
-          const result = await cloudinaryV2.uploader.upload(
-            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-            { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true }
-          );
-          if (!result.secure_url) {
-            throw new Error(`Fallo al subir archived[${i}]: secure_url no devuelto`);
-          }
-          archivedUrls.push(result.secure_url);
-          archivedNames.push(file.originalname);
-        } catch (error) {
-          console.error(`Error al subir archived[${i}]:`, error);
-          return res.status(500).json({ message: `Error al subir archived[${i}]: ${error.message}`, success: false });
-        }
-      }
+if (req.files && req.files['archived'] && req.files['archived'].length > 0) {
+  const archivedFiles = req.files['archived'];
+
+  if (archivedFiles.length > 2) {
+    return res.status(400).json({ message: 'Se permiten máximo 2 archivos en archived' });
+  }
+
+  for (let i = 0; i < archivedFiles.length; i++) {
+    const file = archivedFiles[i];
+    const extension = file.originalname.split('.').pop();
+    const publicId = `students/archived/${normalizedData.dni}/${Date.now()}-${i}.${extension}`;
+
+    try {
+      const secureUrl = await uploadBufferToCloudinary({
+        file,
+        publicId,
+      });
+
+      archivedUrls.push(secureUrl);
+      archivedNames.push(file.originalname);
+    } catch (error) {
+      console.error(`Error al subir archived[${i}]:`, error);
+      await cleanupUploadedStudentAssets({ profileImage, archivedUrls });
+      return res.status(500).json({
+        message: `Error al subir archived[${i}]: ${error.message}`,
+        success: false,
+      });
     }
+  }
+}
 
     const newStudent = await Student.create({
       ...normalizedData,
@@ -352,6 +467,10 @@ export const createStudent = async (req, res) => {
     });
   } catch (error) {
     console.error('Error en createStudent:', error);
+    const cleanupErrors = await cleanupUploadedStudentAssets({ profileImage, archivedUrls });
+    if (cleanupErrors.length > 0) {
+      console.error('Errores al limpiar archivos tras fallo en createStudent:', cleanupErrors);
+    }
     if (error.code === 11000) { // Error de clave duplicada
       const field = Object.keys(error.keyValue)[0];
       return res.status(400).json({ message: `${field} duplicado: ${error.keyValue[field]}` });
@@ -388,11 +507,13 @@ export const deleteStudent = async (req, res) => {
     }
 
     // Eliminar profileImage de Cloudinary
-    if (student.profileImage && student.profileImage !== 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg') {
+    if (student.profileImage && student.profileImage !== DEFAULT_PROFILE_IMAGE) {
       const profileImagePublicId = getPublicIdFromUrl(student.profileImage);
+
       if (profileImagePublicId) {
         try {
-          const result = await cloudinaryV2.uploader.destroy(profileImagePublicId, { resource_type: 'image' });
+          const result = await destroyCloudinaryFile(profileImagePublicId, 'image');
+
           if (result.result !== 'ok' && result.result !== 'not found') {
             deletionErrors.push(`No se pudo eliminar profileImage (${profileImagePublicId}) de Cloudinary: ${result.result}`);
           }
@@ -404,18 +525,29 @@ export const deleteStudent = async (req, res) => {
       }
     }
 
-    // Eliminar archived de Cloudinary
     if (student.archived && student.archived.length > 0) {
       const archivedPublicIds = student.archived
         .map(url => getPublicIdFromUrl(url))
-        .filter(publicId => publicId);
+        .filter(Boolean);
+
       if (archivedPublicIds.length > 0) {
         try {
-          const result = await cloudinaryV2.api.delete_resources(archivedPublicIds, { resource_type: 'image' });
-          const deleted = Object.keys(result.deleted).filter(id => result.deleted[id] === 'deleted');
-          const notDeleted = Object.keys(result.deleted).filter(id => result.deleted[id] !== 'deleted');
-          if (notDeleted.length > 0) {
-            deletionErrors.push(`No se pudieron eliminar algunos archivos archived: ${notDeleted.join(', ')}`);
+          const rawDeleteResult = await deleteCloudinaryResources(archivedPublicIds, 'raw');
+          const imageDeleteResult = await deleteCloudinaryResources(archivedPublicIds, 'image');
+
+          const rawDeleted = rawDeleteResult.deleted || {};
+          const imageDeleted = imageDeleteResult.deleted || {};
+
+          const unresolved = archivedPublicIds.filter((id) => {
+            const rawStatus = rawDeleted[id];
+            const imageStatus = imageDeleted[id];
+
+            return !['deleted', 'not_found'].includes(rawStatus) &&
+              !['deleted', 'not_found'].includes(imageStatus);
+          });
+
+          if (unresolved.length > 0) {
+            deletionErrors.push(`No se pudieron eliminar algunos archivos archived: ${unresolved.join(', ')}`);
           }
         } catch (deleteError) {
           deletionErrors.push(`Error al eliminar archived: ${deleteError.message}`);
@@ -426,7 +558,7 @@ export const deleteStudent = async (req, res) => {
     // Limpiar los campos profileImage y archived antes de eliminar el estudiante
     await Student.findByIdAndUpdate(req.params.id, {
       $set: {
-        profileImage: 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg',
+        profileImage: DEFAULT_PROFILE_IMAGE,
         archived: [],
         archivedNames: [],
       }
@@ -451,8 +583,6 @@ export const deleteStudent = async (req, res) => {
 };
 
 // Actualizar un estudiante por su ID
-
-
 export const updateStudent = async (req, res) => {
   try {
     imageCache.clear();
@@ -477,14 +607,14 @@ export const updateStudent = async (req, res) => {
     console.log('[INFO] req.body:', req.body);
     console.log('[INFO] req.files:', req.files);
 
-    // Manejar profileImage
     if (req.files && req.files.profileImage && req.files.profileImage.length > 0) {
-      // Eliminar imagen de perfil anterior si existe
-      if (student.profileImage && student.profileImage !== 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg') {
+      if (student.profileImage && student.profileImage !== DEFAULT_PROFILE_IMAGE) {
         const oldProfileImagePublicId = getPublicIdFromUrl(student.profileImage);
+
         if (oldProfileImagePublicId) {
           try {
-            const result = await cloudinaryV2.uploader.destroy(oldProfileImagePublicId, { resource_type: 'image' });
+            const result = await destroyCloudinaryFile(oldProfileImagePublicId, 'image');
+
             if (result.result !== 'ok' && result.result !== 'not found') {
               updateErrors.push(`No se pudo eliminar la imagen de perfil anterior (${oldProfileImagePublicId}): ${result.result}`);
             }
@@ -495,19 +625,16 @@ export const updateStudent = async (req, res) => {
       }
 
       const file = req.files.profileImage[0];
+
       if (!file || !file.buffer) {
         updateErrors.push('El archivo profileImage no es válido');
       } else {
         try {
           const publicId = `students/profile/${student.dni}`;
-          const result = await cloudinaryV2.uploader.upload(
-            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-            { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true, width: 100, height: 100, crop: 'fill' }
-          );
-          if (!result.secure_url) {
-            throw new Error('Fallo al subir profileImage: secure_url no devuelto');
-          }
-          studentData.profileImage = result.secure_url;
+          studentData.profileImage = await uploadBufferToCloudinary({
+            file,
+            publicId,
+          });
         } catch (uploadError) {
           console.error('Error al subir profileImage a Cloudinary:', uploadError);
           updateErrors.push(`Error al subir la imagen de perfil: ${uploadError.message}`);
@@ -548,8 +675,8 @@ export const updateStudent = async (req, res) => {
 
     // Si se envían nuevos archivos adjuntos
     if (req.files && req.files.archived && req.files.archived.length > 0) {
-      // Validar límite de 2 archivos
       const totalFiles = archivedUrls.length + req.files.archived.length;
+
       if (totalFiles > 2) {
         return res.status(400).json({
           message: `Se permiten máximo 2 archivos en archived. Actualmente hay ${archivedUrls.length} archivo(s) existente(s).`,
@@ -557,25 +684,27 @@ export const updateStudent = async (req, res) => {
         });
       }
 
-      // Subir nuevos archivos
       const newUrls = [];
+
       for (let i = 0; i < req.files.archived.length; i++) {
         const file = req.files.archived[i];
+
         if (!file || !file.buffer) {
           updateErrors.push(`El archivo archived[${i}] no es válido`);
           continue;
         }
+
         try {
-          const publicId = `students/archived/${student.dni}/${Date.now()}-${i}`;
-          const result = await cloudinaryV2.uploader.upload(
-            `data:${file.mimetype};base64,${file.buffer.toString('base64')}`,
-            { public_id: publicId, resource_type: 'image', overwrite: true, invalidate: true }
-          );
-          if (!result.secure_url) {
-            throw new Error(`Fallo al subir archived[${i}]: secure_url no devuelto`);
-          }
-          newUrls.push(result.secure_url);
-          // Añadir el nombre del archivo nuevo al índice correcto
+          const extension = file.originalname.split('.').pop();
+          const publicId = `students/archived/${student.dni}/${Date.now()}-${i}.${extension}`;
+
+          const secureUrl = await uploadBufferToCloudinary({
+            file,
+            publicId,
+          });
+
+          newUrls.push(secureUrl);
+
           const targetIndex = archivedUrls.length + i;
           archivedNames[targetIndex] = file.originalname || `Archivo ${targetIndex + 1}`;
         } catch (uploadError) {
@@ -583,28 +712,50 @@ export const updateStudent = async (req, res) => {
         }
       }
 
-      // Combinar URLs nuevas con existentes
       archivedUrls = [...archivedUrls, ...newUrls].slice(0, 2);
-    } else if (req.body.archived && JSON.parse(req.body.archived).length === 0) {
-      // Si se envía archived como arreglo vacío, limpiar todo
-      if (student.archived && student.archived.length > 0) {
-        const archivedPublicIds = student.archived
-          .map(url => getPublicIdFromUrl(url))
-          .filter(publicId => publicId);
-        if (archivedPublicIds.length > 0) {
-          try {
-            const result = await cloudinaryV2.api.delete_resources(archivedPublicIds, { resource_type: 'image' });
-            const notDeleted = Object.keys(result.deleted).filter(id => result.deleted[id] !== 'deleted');
-            if (notDeleted.length > 0) {
-              updateErrors.push(`No se pudieron eliminar algunos archivos archived anteriores: ${notDeleted.join(', ')}`);
+    } else if (req.body.archived) {
+      let parsedArchived = null;
+
+      try {
+        parsedArchived = JSON.parse(req.body.archived);
+      } catch (error) {
+        parsedArchived = null;
+      }
+
+      if (Array.isArray(parsedArchived) && parsedArchived.length === 0) {
+        if (student.archived && student.archived.length > 0) {
+          const archivedPublicIds = student.archived
+            .map(url => getPublicIdFromUrl(url))
+            .filter(Boolean);
+
+          if (archivedPublicIds.length > 0) {
+            try {
+              const rawDeleteResult = await deleteCloudinaryResources(archivedPublicIds, 'raw');
+              const imageDeleteResult = await deleteCloudinaryResources(archivedPublicIds, 'image');
+
+              const rawDeleted = rawDeleteResult.deleted || {};
+              const imageDeleted = imageDeleteResult.deleted || {};
+
+              const unresolved = archivedPublicIds.filter((id) => {
+                const rawStatus = rawDeleted[id];
+                const imageStatus = imageDeleted[id];
+
+                return !['deleted', 'not_found'].includes(rawStatus) &&
+                  !['deleted', 'not_found'].includes(imageStatus);
+              });
+
+              if (unresolved.length > 0) {
+                updateErrors.push(`No se pudieron eliminar algunos archivos archived anteriores: ${unresolved.join(', ')}`);
+              }
+            } catch (deleteError) {
+              updateErrors.push(`Error al eliminar archived anteriores: ${deleteError.message}`);
             }
-          } catch (deleteError) {
-            updateErrors.push(`Error al eliminar archived anteriores: ${deleteError.message}`);
           }
         }
+
+        archivedUrls = [];
+        archivedNames = [];
       }
-      archivedUrls = [];
-      archivedNames = [];
     }
 
     // Eliminar archivos de Cloudinary que ya no están en archivedUrls
@@ -618,10 +769,19 @@ export const updateStudent = async (req, res) => {
       const publicIdsToDelete = currentPublicIds.filter(id => !newPublicIds.includes(id));
       if (publicIdsToDelete.length > 0) {
         try {
-          const result = await cloudinaryV2.api.delete_resources(publicIdsToDelete, { resource_type: 'image' });
-          const notDeleted = Object.keys(result.deleted).filter(id => result.deleted[id] !== 'deleted');
-          if (notDeleted.length > 0) {
-            updateErrors.push(`No se pudieron eliminar algunos archivos archived anteriores: ${notDeleted.join(', ')}`);
+          const rawDeleteResult = await deleteCloudinaryResources(publicIdsToDelete, 'raw');
+          const imageDeleteResult = await deleteCloudinaryResources(publicIdsToDelete, 'image');
+          const rawDeleted = rawDeleteResult.deleted || {};
+          const imageDeleted = imageDeleteResult.deleted || {};
+          const unresolved = publicIdsToDelete.filter((id) => {
+            const rawStatus = rawDeleted[id];
+            const imageStatus = imageDeleted[id];
+
+            return !['deleted', 'not_found'].includes(rawStatus) &&
+              !['deleted', 'not_found'].includes(imageStatus);
+          });
+          if (unresolved.length > 0) {
+            updateErrors.push(`No se pudieron eliminar algunos archivos archived anteriores: ${unresolved.join(', ')}`);
           }
         } catch (deleteError) {
           updateErrors.push(`Error al eliminar archived anteriores: ${deleteError.message}`);
@@ -691,8 +851,6 @@ export const updateStudent = async (req, res) => {
     return res.status(500).json({ message: `Error al actualizar el estudiante: ${error.message}`, success: false });
   }
 };
-
-
 
 // Obtener un estudiante por su ID
 export const getStudentById = async (req, res) => {
@@ -817,7 +975,7 @@ export const importStudents = async (req, res) => {
         }
 
         // Procesar profileImage (máximo 1)
-        let profileImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
+        let profileImage = DEFAULT_PROFILE_IMAGE;
         if (studentData.profileImage) {
           const profileImageLinks = typeof studentData.profileImage === 'string'
             ? studentData.profileImage.split(',').map(link => link.trim())

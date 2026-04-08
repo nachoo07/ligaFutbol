@@ -6,33 +6,25 @@ import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 
 dotenv.config();
+
 const app = express();
 
-// Middleware
+// Middleware base
 app.use(express.json({ limit: '10mb' }));
 app.use(morgan('dev'));
 app.use(cookieParser());
 app.use(cors({
   origin: [
     'http://localhost:5173',
-    'http://69.62.96.81:4002',  
+    'http://69.62.96.81:4002',
     'https://ligainfantilyb.com',
     'http://localhost:4002'
   ],
   credentials: true,
 }));
 
-
-
-// Ruta base
 app.get('/', (req, res) => {
   res.send('Hello World');
-});
-
-// Manejo de errores
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!', error: err.message });
 });
 
 const startServer = async () => {
@@ -65,6 +57,22 @@ const startServer = async () => {
     console.log('Cargando rutas de movimientos...');
     const { default: motionRoutes } = await import('./routes/motion/motion.router.js');
     app.use('/api/motions', motionRoutes);
+
+    // 404 de API
+    app.use('/api', (req, res) => {
+      res.status(404).json({ message: 'Ruta no encontrada' });
+    });
+
+    // Middleware global de errores: siempre al final
+    app.use((err, req, res, next) => {
+      console.error(err.stack);
+
+      const statusCode = err.statusCode || 500;
+      res.status(statusCode).json({
+        message: err.message || 'Something went wrong!',
+        error: process.env.NODE_ENV === 'production' ? undefined : err.stack,
+      });
+    });
 
     app.listen(PORT, () => {
       console.log(`La aplicación está escuchando en el puerto ${PORT}`);

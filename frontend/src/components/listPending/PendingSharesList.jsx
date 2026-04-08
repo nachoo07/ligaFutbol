@@ -10,16 +10,14 @@ import autoTable from 'jspdf-autotable';
 import './pendingShareList.css';
 
 const PendingSharesList = () => {
-  const { cuotas, obtenerCuotas, loading } = useContext(SharesContext);
+  const { cuotas, obtenerCuotas } = useContext(SharesContext);
   const navigate = useNavigate();
 
   const [studentShares, setStudentShares] = useState([]);
   const [schools, setSchools] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [colors, setColors] = useState([]);
   const [semesters, setSemesters] = useState([]);
   const [years, setYears] = useState([]);
-  const [filters, setFilters] = useState({ school: '', category: '', color: '', semester: '', year: '', status: 'all' });
+  const [filters, setFilters] = useState({ school: '', semester: '', year: '', status: 'all' });
   const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [maxShares, setMaxShares] = useState(1);
 
@@ -50,13 +48,6 @@ const PendingSharesList = () => {
           label: school,
         }));
 
-      const uniqueCategories = [...new Set(cuotas.map(share => share.student.category))]
-        .filter(category => category)
-        .map(category => ({
-          value: category,
-          label: category,
-        }));
-
       const uniqueSemesters = [...new Set(cuotas.map(share => {
         const match = share.paymentName.match(/Semestre (\d+)/i);
         return match ? `Semestre ${match[1]}` : null;
@@ -78,7 +69,6 @@ const PendingSharesList = () => {
         }));
 
       setSchools(uniqueSchools);
-      setCategories(uniqueCategories);
       setSemesters(uniqueSemesters);
       setYears(uniqueYears);
     }
@@ -144,14 +134,6 @@ const PendingSharesList = () => {
   const getFullName = (name, lastName) => {
     if (!name && !lastName) return '';
     return `${name || ''} ${lastName || ''}`.trim();
-  };
-
-  const formatDate = (dateString) => {
-    if (!dateString) return '-';
-    const match = dateString.match(/^(\d{4})-(\d{2})-(\d{2})/);
-    if (!match) return '-';
-    const [, year, month, day] = match;
-    return `${day}/${month}/${year}`;
   };
 
   const getSimplifiedPaymentName = (paymentName) => {

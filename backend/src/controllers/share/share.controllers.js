@@ -3,76 +3,178 @@ import Student from '../../models/student/student.model.js';
 import { calculateStudentEnabledStatus, updateStudentEnabledStatus } from '../../utils/student.utils.js';
 import logger from '../../winston/logger.js';
 
+const normalizeShareYear = (value) => {
+  const parsed = parseInt(value, 10);
+  return Number.isNaN(parsed) ? null : parsed;
+};
+
+const normalizeOptionalString = (value) => {
+  if (value == null) return null;
+  const trimmed = String(value).trim();
+  return trimmed === '' ? null : trimmed;
+};
+
+const isValidPaymentPayload = ({ amount, paymentDate, paymentMethod, paymentType }) => {
+  const hasAnyPaymentField =
+    amount != null ||
+    !!paymentDate ||
+    !!paymentMethod ||
+    !!paymentType;
+
+  if (!hasAnyPaymentField) {
+    return { isPayment: false, error: null };
+  }
+
+  if (
+    amount == null ||
+    paymentDate == null ||
+    !paymentMethod ||
+    !paymentType
+  ) {
+    return {
+      isPayment: true,
+      error: 'Para registrar un pago debes completar monto, fecha, método de pago y tipo de pago.',
+    };
+  }
+
+  if (Number.isNaN(Number(amount)) || Number(amount) < 0) {
+    return {
+      isPayment: true,
+      error: 'El monto debe ser un número mayor o igual a 0.',
+    };
+  }
+
+  const parsedDate = new Date(paymentDate);
+  if (Number.isNaN(parsedDate.getTime())) {
+    return {
+      isPayment: true,
+      error: 'La fecha de pago no es válida.',
+    };
+  }
+
+  return { isPayment: true, error: null };
+};
+
 // Obtener todas las cuotas
 export const getAllShares = async (req, res) => {
-    try {
-        const { year } = req.query; // Filtro por año
-        const query = { student: { $ne: null } };
-        if (year) {
-            query.year = parseInt(year);
-        }
+  try {
+    const { year } = req.query;
+    const query = { student: { $ne: null } };
 
-        const shares = await Share.find(query)
-            .populate({
-                path: 'student',
-                select: 'name lastName mail dni school category color isEnabled',
-            });
-
-        if (shares.length === 0) {
-            return res.status(200).json({ message: 'No hay cuotas disponibles' });
-        }
-        res.status(200).json(shares);
-    } catch (error) {
-        console.error('Error en getAllShares:', error);
-        return res.status(500).json({ message: 'Error al obtener cuotas', error: error.message });
+    if (year) {
+      query.year = parseInt(year);
     }
+
+    const shares = await Share.find(query).populate({
+      path: 'student',
+      select: 'name lastName mail dni school category color isEnabled',
+    });
+
+    return res.status(200).json(shares);
+  } catch (error) {
+    console.error('Error en getAllShares:', error);
+    return res.status(500).json({
+      message: 'Error al obtener cuotas',
+      error: error.message,
+    });
+  }
 };
+
 // Crear una nueva cuota (individual)
 export const createShare = async (req, res) => {
-    logger.info('Entrando en createShare', { path: req.path, body: req.body });
-  const { student, paymentName, year, amount, paymentDate, paymentMethod, paymentType } = req.body;
+  logger.info('Entrando en createShare', { path: req.path, body: req.body });
 
-  if (!student || !paymentName || !year) {
+  const {
+    student,
+    paymentName,
+    year,
+    amount,
+    paymentDate,
+    paymentMethod,
+    paymentType,
+  } = req.body;
+
+  const normalizedYear = normalizeShareYear(year);
+
+  if (!student || !paymentName || !normalizedYear) {
     logger.warn('Faltan campos obligatorios en createShare', { student, paymentName, year });
-    return res.status(400).json({ message: 'Faltan campos obligatorios: student, paymentName, year' });
+    return res.status(400).json({
+      message: 'Faltan campos obligatorios: student, paymentName, year',
+    });
   }
 
   try {
-    logger.info('Iniciando creación de nueva cuota', { student, paymentName, year });
     const studentExists = await Student.findById(student);
     if (!studentExists) {
-      logger.error('Estudiante no encontrado', { student });
       return res.status(404).json({ message: 'Estudiante no encontrado' });
     }
 
+    const existingShare = await Share.findOne({
+      student,
+      paymentName: paymentName.trim(),
+      year: normalizedYear,
+    });
+
+    if (existingShare) {
+      return res.status(400).json({
+        message: 'Ese alumno ya tiene registrada esa cuota para ese año.',
+      });
+    }
+
+    const normalizedPaymentMethod = normalizeOptionalString(paymentMethod);
+    const normalizedPaymentType = normalizeOptionalString(paymentType);
+    const normalizedPaymentDate = paymentDate ? new Date(paymentDate) : null;
+    const normalizedAmount = amount !== '' && amount != null ? Number(amount) : null;
+
+    const paymentValidation = isValidPaymentPayload({
+      amount: normalizedAmount,
+      paymentDate: normalizedPaymentDate,
+      paymentMethod: normalizedPaymentMethod,
+      paymentType: normalizedPaymentType,
+    });
+
+    if (paymentValidation.error) {
+      return res.status(400).json({ message: paymentValidation.error });
+    }
+
     const userName = req.user?.name || 'UsuarioDesconocido';
-  logger.info('Asignando registeredBy:', { userName });
 
     const newShare = await Share.create({
       student,
-      paymentName,
-      year,
-      amount: amount || null,
-      paymentDate: paymentDate || null,
-      paymentMethod: paymentDate ? paymentMethod : null,
-      paymentType: paymentDate ? paymentType : null,
-      status: paymentDate ? 'Pagado' : 'Pendiente',
+      paymentName: paymentName.trim(),
+      year: normalizedYear,
+      amount: paymentValidation.isPayment ? normalizedAmount : null,
+      paymentDate: paymentValidation.isPayment ? normalizedPaymentDate : null,
+      paymentMethod: paymentValidation.isPayment ? normalizedPaymentMethod : null,
+      paymentType: paymentValidation.isPayment ? normalizedPaymentType : null,
+      status: paymentValidation.isPayment ? 'Pagado' : 'Pendiente',
       registeredBy: userName,
     });
 
-    logger.info('Cuota creada exitosamente', { shareId: newShare._id, registeredBy: userName });
     await updateStudentEnabledStatus(student);
-    logger.info('Estado del estudiante actualizado', { student });
 
-    res.status(201).json({
-      message: 'La cuota se agregó exitosamente',
+    return res.status(201).json({
+      message: paymentValidation.isPayment
+        ? 'La cuota se registró con pago correctamente'
+        : 'La cuota pendiente se creó correctamente',
       share: newShare,
     });
   } catch (error) {
     logger.error('Error al crear la cuota', { error: error.message, stack: error.stack });
-    return res.status(500).json({ message: 'Error al crear la cuota', error: error.message });
+
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'Ese alumno ya tiene registrada esa cuota para ese año.',
+      });
+    }
+
+    return res.status(500).json({
+      message: 'Error al crear la cuota',
+      error: error.message,
+    });
   }
 };
+
 // Crear cuotas masivas
 export const createMassiveShares = async (req, res) => {
     const { paymentName, year } = req.body;
@@ -251,48 +353,97 @@ export const createMassiveShares = async (req, res) => {
 };
 // Actualizar una cuota (registrar pago)
 export const updateShare = async (req, res) => {
-  const { paymentName, amount, paymentDate, paymentMethod, paymentType } = req.body;
+  const { paymentName, year, amount, paymentDate, paymentMethod, paymentType } = req.body;
 
   try {
-    logger.info('Iniciando actualización de cuota', { shareId: req.params.id });
     const share = await Share.findById(req.params.id);
+
     if (!share) {
-      logger.error('Cuota no encontrada', { shareId: req.params.id });
       return res.status(404).json({ message: 'Cuota no encontrada' });
     }
 
-       // Cambiar la validación para permitir 0
-    if (paymentDate && (amount == null || !paymentMethod || !paymentType)) {
-      logger.warn('Faltan campos obligatorios para registrar el pago', { amount, paymentMethod, paymentType });
-      return res.status(400).json({ message: 'Faltan campos obligatorios para registrar el pago: Monto, Metodo de pago, Tipo de pago' });
+    const normalizedPaymentName = paymentName ? paymentName.trim() : share.paymentName;
+    const normalizedYear = year ? normalizeShareYear(year) : share.year;
+
+    if (!normalizedPaymentName || !normalizedYear) {
+      return res.status(400).json({ message: 'paymentName y year son obligatorios.' });
+    }
+
+    const duplicateShare = await Share.findOne({
+      _id: { $ne: share._id },
+      student: share.student,
+      paymentName: normalizedPaymentName,
+      year: normalizedYear,
+    });
+
+    if (duplicateShare) {
+      return res.status(400).json({
+        message: 'Ese alumno ya tiene otra cuota con ese nombre y año.',
+      });
+    }
+
+    const normalizedPaymentMethod = normalizeOptionalString(paymentMethod);
+    const normalizedPaymentType = normalizeOptionalString(paymentType);
+    const normalizedPaymentDate = paymentDate ? new Date(paymentDate) : null;
+    const normalizedAmount = amount !== '' && amount != null ? Number(amount) : null;
+
+    const paymentValidation = isValidPaymentPayload({
+      amount: normalizedAmount,
+      paymentDate: normalizedPaymentDate,
+      paymentMethod: normalizedPaymentMethod,
+      paymentType: normalizedPaymentType,
+    });
+
+    if (paymentValidation.error) {
+      return res.status(400).json({ message: paymentValidation.error });
     }
 
     const userName = req.user?.name || 'UsuarioDesconocido';
-    logger.info('Usuario asignado para registeredBy en actualización', { userName });
-    share.paymentName = paymentName !== undefined ? paymentName : share.paymentName;
-    share.year = share.year;
-    share.amount = amount !== undefined ? amount : share.amount;
-    share.paymentDate = paymentDate !== undefined ? paymentDate : share.paymentDate;
-    share.paymentMethod = paymentMethod !== undefined ? paymentMethod : share.paymentMethod;
-    share.paymentType = paymentType !== undefined ? paymentType : share.paymentType;
-    share.status = paymentDate ? 'Pagado' : 'Pendiente';
-    share.registeredBy = userName;
+
+    share.paymentName = normalizedPaymentName;
+    share.year = normalizedYear;
+
+    if (paymentValidation.isPayment) {
+      share.amount = normalizedAmount;
+      share.paymentDate = normalizedPaymentDate;
+      share.paymentMethod = normalizedPaymentMethod;
+      share.paymentType = normalizedPaymentType;
+      share.status = 'Pagado';
+      share.registeredBy = userName;
+    } else {
+      share.amount = null;
+      share.paymentDate = null;
+      share.paymentMethod = null;
+      share.paymentType = null;
+      share.status = 'Pendiente';
+      share.registeredBy = userName;
+    }
 
     await share.save();
-    logger.info('Cuota actualizada exitosamente', { shareId: share._id, registeredBy: userName });
-
     await updateStudentEnabledStatus(share.student);
-    logger.info('Estado del estudiante actualizado tras pago', { student: share.student });
 
-    res.status(200).json({
-      message: 'Cuota actualizada correctamente',
+    return res.status(200).json({
+      message: paymentValidation.isPayment
+        ? 'Cuota actualizada correctamente'
+        : 'Cuota marcada como pendiente correctamente',
       share,
     });
   } catch (error) {
     logger.error('Error al actualizar la cuota', { error: error.message, stack: error.stack });
-    return res.status(500).json({ message: 'Error al actualizar la cuota', error: error.message });
+
+    if (error.code === 11000) {
+      return res.status(400).json({
+        message: 'Ese alumno ya tiene otra cuota con ese nombre y año.',
+      });
+    }
+
+    return res.status(500).json({
+      message: 'Error al actualizar la cuota',
+      error: error.message,
+    });
   }
 };
+
 // Eliminar una cuota
 export const deleteShare = async (req, res) => {
     try {
@@ -313,31 +464,32 @@ export const deleteShare = async (req, res) => {
 };
 // Obtener cuotas por estudiante
 export const getSharesByStudent = async (req, res) => {
-    try {
-        const { year } = req.query; // Filtro por año
-        const query = { student: req.params.id };
-        if (year) {
-            query.year = parseInt(year);
-        }
+  try {
+    const { year } = req.query;
+    const query = { student: req.params.id };
 
-        const shares = await Share.find(query)
-            .populate({
-                path: 'student',
-                select: 'name lastName dni mail isEnabled',
-            });
-
-        if (shares.length === 0) {
-            return res.status(200).json({ message: 'No hay cuotas para este estudiante' });
-        }
-        res.status(200).json(shares || []);
-    } catch (error) {
-        return res.status(500).json({ message: 'Error al obtener cuotas', error: error.message });
+    if (year) {
+      query.year = parseInt(year);
     }
+
+    const shares = await Share.find(query).populate({
+      path: 'student',
+      select: 'name lastName dni mail isEnabled',
+    });
+
+    return res.status(200).json(shares);
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Error al obtener cuotas',
+      error: error.message,
+    });
+  }
 };
+
 // Obtener nombres de cuotas disponibles para un año
 export const getAvailableShareNames = async (req, res) => {
     try {
-        const { year } = req.query;
+        const { year, studentId } = req.query;
         if (!year) {
             logger.warn('Falta el campo year', { year });
             return res.status(400).json({ message: 'El campo year es obligatorio.' });
@@ -350,6 +502,50 @@ export const getAvailableShareNames = async (req, res) => {
             `Primera cuota - Semestre 2 - ${parsedYear}`,
             `Segunda cuota - Semestre 2 - ${parsedYear}`,
         ];
+
+        if (studentId) {
+            const student = await Student.findById(studentId).select('_id status');
+
+            if (!student) {
+                return res.status(404).json({ message: 'Estudiante no encontrado.' });
+            }
+
+            const studentShares = await Share.find({
+                student: studentId,
+                year: parsedYear,
+            }).select('paymentName paymentType status amount paymentMethod paymentDate');
+
+            const availableNames = possibleNames.map((name) => {
+                const existingShare = studentShares.find((share) => share.paymentName === name);
+
+                if (existingShare) {
+                    return { name, isBlocked: true };
+                }
+
+                if (name.includes('Segunda cuota')) {
+                    const firstShareName = name.includes('Semestre 1')
+                        ? `Primera cuota - Semestre 1 - ${parsedYear}`
+                        : `Primera cuota - Semestre 2 - ${parsedYear}`;
+
+                    const firstShare = studentShares.find((share) => share.paymentName === firstShareName);
+
+                    const canCreateSecondShare = Boolean(
+                        firstShare &&
+                        firstShare.paymentType === 'Pago Parcial' &&
+                        firstShare.status === 'Pagado' &&
+                        firstShare.amount &&
+                        firstShare.paymentMethod &&
+                        firstShare.paymentDate
+                    );
+
+                    return { name, isBlocked: !canCreateSecondShare };
+                }
+
+                return { name, isBlocked: false };
+            });
+
+            return res.status(200).json(availableNames);
+        }
 
         // Obtener estudiantes activos
         const activeStudents = await Student.find({ status: "Activo" }, '_id');
