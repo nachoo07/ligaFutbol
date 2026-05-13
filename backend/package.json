@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "students:list-schools": "node scripts/updateStudentsStatusBySchool.js --list-schools",
+    "students:update-status": "node scripts/updateStudentsStatusBySchool.js"
   },
   "dependencies": {
     "axios": "^1.8.3",
