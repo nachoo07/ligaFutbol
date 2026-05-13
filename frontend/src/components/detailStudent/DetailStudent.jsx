@@ -34,7 +34,7 @@ const initialStudentFormData = {
     archivedNames: [],
 };
 
-const buildStudentFormData = (student) => ({
+const buildStudentFormData = (student = {}) => ({
     ...student,
     birthDate: formatDate(student.birthDate),
     profileImage: student.profileImage || null,
@@ -57,21 +57,11 @@ const StudentDetail = () => {
     const [loading, setLoading] = useState(true);
     const hasFetched = useRef(false);
     const defaultImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
-    const archivedFiles = Array.isArray(student.archived) ? student.archived.slice(0, 2) : [];
 
 
     const getImageUrl = (url) => {
         if (!url || url === defaultImage) return defaultImage;
         return url;
-    };
-
-    const preloadImage = (url) => {
-        return new Promise((resolve) => {
-            const img = new Image();
-            img.src = url;
-            img.onload = () => resolve(url);
-            img.onerror = () => resolve(defaultImage);
-        });
     };
 
     useEffect(() => {
@@ -166,6 +156,8 @@ const StudentDetail = () => {
     if (!student || student._id !== id) {
         return <div>No se encontró el estudiante.</div>;
     }
+
+    const archivedFiles = Array.isArray(student.archived) ? student.archived.slice(0, 2) : [];
 
     const handleClose = () => {
         setFormData(initialFormData);
