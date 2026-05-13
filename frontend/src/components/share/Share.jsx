@@ -91,6 +91,10 @@ const Share = () => {
         () => Array.isArray(estudiantes) ? estudiantes : [],
         [estudiantes]
     );
+    const activeStudents = useMemo(
+        () => students.filter((student) => student.status === "Activo"),
+        [students]
+    );
     const shares = useMemo(
         () => Array.isArray(cuotas) ? cuotas : [],
         [cuotas]
@@ -219,13 +223,13 @@ const Share = () => {
         return getShareStatusFromStudentShares(getSharesByStudentId(shares, studentId));
     };
 
-    const filteredStudents = useMemo(() => students.filter((estudiante) => {
+    const filteredStudents = useMemo(() => activeStudents.filter((estudiante) => {
         const fullName = `${estudiante.name || ''} ${estudiante.lastName || ''}`.toLowerCase();
         const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || (estudiante.dni?.includes(searchTerm) || '');
         const status = getShareStatusFromStudentShares(getSharesByStudentId(shares, estudiante._id));
         const matchesStatus = statusFilter === "" || status === statusFilter;
         return matchesSearch && matchesStatus;
-    }), [searchTerm, shares, statusFilter, students]);
+    }), [activeStudents, searchTerm, shares, statusFilter]);
 
     const shareStatusCounts = useMemo(() => {
         const initialCounts = {
@@ -235,7 +239,7 @@ const Share = () => {
             withoutShares: 0,
         };
 
-        return students.reduce((counts, estudiante) => {
+        return activeStudents.reduce((counts, estudiante) => {
             const status = getShareStatusFromStudentShares(getSharesByStudentId(shares, estudiante._id));
 
             counts.total += 1;
@@ -245,7 +249,7 @@ const Share = () => {
 
             return counts;
         }, initialCounts);
-    }, [students, shares]);
+    }, [activeStudents, shares]);
 
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
     const indexOfLastStudent = currentPage * studentsPerPage;

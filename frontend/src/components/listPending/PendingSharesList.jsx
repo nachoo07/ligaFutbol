@@ -1,8 +1,5 @@
-import React, { useState, useEffect, useContext } from 'react';
+import React, { useState, useEffect, useContext, useMemo } from 'react';
 import { SharesContext } from '../../context/share/ShareContext';
-import { useNavigate } from 'react-router-dom';
-import { FaSearch, FaBars, FaUsers, FaAddressCard, FaListUl, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft, FaFileExcel } from 'react-icons/fa';
-import { LuClipboardList } from "react-icons/lu";
 import Select from 'react-select';
 import { Table, Button } from 'react-bootstrap';
 import { jsPDF } from 'jspdf';
@@ -11,7 +8,6 @@ import './pendingShareList.css';
 
 const PendingSharesList = () => {
   const { cuotas, obtenerCuotas } = useContext(SharesContext);
-  const navigate = useNavigate();
 
   const [studentShares, setStudentShares] = useState([]);
   const [schools, setSchools] = useState([]);
@@ -19,35 +15,27 @@ const PendingSharesList = () => {
   const [years, setYears] = useState([]);
   const [filters, setFilters] = useState({ school: '', semester: '', year: '', status: 'all' });
   const [maxShares, setMaxShares] = useState(1);
-
-  const menuItems = [
-    { name: 'Inicio', route: '/', icon: <FaHome /> },
-    { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-    { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
-    { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
-    { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-    { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
-    { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
-    { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
-    { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-    { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
-    { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
-  ];
+  const activeShares = useMemo(
+    () => Array.isArray(cuotas)
+      ? cuotas.filter(share => share.student?.status === 'Activo')
+      : [],
+    [cuotas]
+  );
 
   useEffect(() => {
     obtenerCuotas();
   }, [obtenerCuotas]);
 
   useEffect(() => {
-    if (cuotas && Array.isArray(cuotas)) {
-      const uniqueSchools = [...new Set(cuotas.map(share => share.student.school))]
+    if (activeShares.length > 0) {
+      const uniqueSchools = [...new Set(activeShares.map(share => share.student.school))]
         .filter(school => school)
         .map(school => ({
           value: school,
           label: school,
         }));
 
-      const uniqueSemesters = [...new Set(cuotas.map(share => {
+      const uniqueSemesters = [...new Set(activeShares.map(share => {
         const match = share.paymentName.match(/Semestre (\d+)/i);
         return match ? `Semestre ${match[1]}` : null;
       }))]
@@ -57,7 +45,7 @@ const PendingSharesList = () => {
           label: semester,
         }));
 
-      const uniqueYears = [...new Set(cuotas.map(share => {
+      const uniqueYears = [...new Set(activeShares.map(share => {
         const yearMatch = share.paymentName.match(/(\d{4})/);
         return yearMatch ? yearMatch[1] : null;
       }))]
@@ -70,11 +58,15 @@ const PendingSharesList = () => {
       setSchools(uniqueSchools);
       setSemesters(uniqueSemesters);
       setYears(uniqueYears);
+    } else {
+      setSchools([]);
+      setSemesters([]);
+      setYears([]);
     }
-  }, [cuotas]);
+  }, [activeShares]);
 
   useEffect(() => {
-    if (!cuotas || !Array.isArray(cuotas)) {
+    if (!Array.isArray(cuotas)) {
       setStudentShares([]);
       return;
     }
@@ -85,7 +77,7 @@ const PendingSharesList = () => {
       return;
     }
 
-    let filtered = [...cuotas];
+    let filtered = [...activeShares];
     if (filters.school) {
       filtered = filtered.filter(share => share.student.school === filters.school);
     }
@@ -121,7 +113,7 @@ const PendingSharesList = () => {
     setMaxShares(maxSharesPerStudent);
 
     setStudentShares(studentArray);
-  }, [filters, cuotas]);
+  }, [filters, cuotas, activeShares]);
 
   const handleFilterChange = (name, selectedOption) => {
     setFilters(prev => ({

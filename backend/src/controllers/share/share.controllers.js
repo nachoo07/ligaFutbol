@@ -67,7 +67,7 @@ export const getAllShares = async (req, res) => {
 
     const shares = await Share.find(query).populate({
       path: 'student',
-      select: 'name lastName mail dni school category color isEnabled',
+      select: 'name lastName mail dni school category color status isEnabled',
     });
 
     return res.status(200).json(shares);
