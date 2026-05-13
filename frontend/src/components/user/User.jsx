@@ -5,12 +5,13 @@ import './user.css';
 import { UsersContext } from '../../context/user/UserContext';
 import { FaBars, FaUsers, FaBell, FaAddressCard, FaRegListAlt, FaListUl, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaHome, FaArrowLeft, FaSearch, FaTrash, FaEdit } from 'react-icons/fa';
 import { LuClipboardList } from 'react-icons/lu';
+import { LoginContext } from '../../context/login/LoginContext';
 
 const User = () => {
     const { usuarios, obtenerUsuarios, addUsuarioAdmin, updateUsuarioAdmin, deleteUsuarioAdmin } = useContext(UsersContext);
+    const { auth } = useContext(LoginContext);
     const navigate = useNavigate();
     const [show, setShow] = useState(false);
-    const [isMenuOpen, setIsMenuOpen] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [formData, setFormData] = useState({
@@ -21,19 +22,7 @@ const User = () => {
         state: 'Activo'
     });
 
-    const menuItems = [
-        { name: 'Inicio', route: '/', icon: <FaHome /> },
-        { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
-        { name: 'Cuotas', route: '/share', icon: <FaMoneyBill /> },
-        { name: 'Reportes', route: '/report', icon: <FaChartBar /> },
-        { name: 'Movimientos', route: '/motion', icon: <FaExchangeAlt /> },
-        { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
-        { name: 'Lista buena fe', route: '/list', icon: <FaRegListAlt /> },
-        { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
-        { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
-        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
-        { name: 'Volver Atrás', route: null, action: () => navigate(-1), icon: <FaArrowLeft /> },
-    ];
+
 
     const handleClose = () => setShow(false);
     const handleShow = () => setShow(true);
@@ -138,23 +127,7 @@ const User = () => {
 
     return (
         <div className="users-dashboard">
-            <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
-                <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                    <FaBars />
-                </div>
-                {menuItems.map((item, index) => (
-                    <div
-                        key={index}
-                        className="sidebar-item"
-                        onClick={() => item.action ? item.action() : navigate(item.route)}
-                    >
-                        <span className="icon">{item.icon}</span>
-                        <span className="text">{item.name}</span>
-                    </div>
-                ))}
-            </div>
             <div className="users-content">
-                <h1 className="users-title">Panel de Usuarios</h1>
                 <div className="users-controls">
                     <div className="search-bar">
                         <FormControl

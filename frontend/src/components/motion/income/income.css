@@ -9,13 +9,7 @@
   padding: 20px;
 }
 
-.income-title {
-  font-size: 36px;
-  font-weight: bold;
-  text-align: center;
-  color: #333;
-  margin-bottom: 20px;
-}
+
 
 .motion-form {
   background: #fff;
@@ -156,11 +150,6 @@
 @media (max-width: 576px) {
   .income-content {
     padding: 10px;
-  }
-
-  .income-title {
-    font-size: 28px;
-    text-align: center;
   }
 
   .motion-form {

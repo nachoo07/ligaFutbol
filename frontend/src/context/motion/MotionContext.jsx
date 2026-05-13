@@ -10,6 +10,14 @@ export const MotionProvider = ({ children }) => {
     const [motions, setMotions] = useState([]);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     const { auth, loading: authLoading } = useContext(LoginContext);
+
+    useEffect(() => {
+  if (!auth) {
+    setMotions([]);
+    setIsDataLoaded(false);
+  }
+}, [auth]);
+
     const location = useLocation();
 
     const fetchMotions = useCallback(async () => {

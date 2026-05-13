@@ -28,7 +28,6 @@ const ListStudent = () => {
     const [colors, setColors] = useState([]);
     const [sexes, setSexes] = useState([]);
     const [filters, setFilters] = useState({ school: '', category: '', color: '', sex: '' });
-    const [isMenuOpen, setIsMenuOpen] = useState(true);
     const [loading, setLoading] = useState(true);
 
     const menuItems = [
@@ -265,26 +264,9 @@ const ListStudent = () => {
     }
 
     return (
-        <div className="dashboard-container-student">
-            <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
-                <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                    <FaBars />
-                </div>
-                {menuItems.map((item, index) => (
-                    <div
-                        key={index}
-                        className="sidebar-item"
-                        onClick={() => item.action ? item.action() : navigate(item.route)}
-                    >
-                        <span className="icon">{item.icon}</span>
-                        <span className="text">{item.name}</span>
-                    </div>
-                ))}
-            </div>
-
+        <div className="dashboard-container">
             <div className="content-student">
                 <div className="student-list-exporter">
-                    <h2>Exportar Lista de Buena Fe</h2>
                     {loading ? (
                         <div className="loading-container">
                             <Spinner animation="border" variant="primary" />

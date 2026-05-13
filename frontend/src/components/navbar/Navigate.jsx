@@ -1,8 +1,8 @@
 import { Container, Nav, Navbar, Button } from 'react-bootstrap';
-import { FaHome, FaUsers, FaAddressCard,FaRegListAlt, FaBell, FaListUl, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaAngleDown, FaAngleUp } from 'react-icons/fa';
+import { FaHome, FaUsers, FaAddressCard, FaRegListAlt, FaBell, FaListUl, FaMoneyBill, FaChartBar, FaExchangeAlt, FaCalendarCheck, FaUserCog, FaCog, FaEnvelope, FaAngleDown, FaAngleUp } from 'react-icons/fa';
 import { LuClipboardList } from "react-icons/lu";
 import './navbar.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { LoginContext } from '../../context/login/LoginContext';
 import { useContext, useState } from 'react';
 import logo from '../../assets/logo.png';
@@ -10,6 +10,27 @@ import logo from '../../assets/logo.png';
 const Navigate = () => {
   const { auth, logout, userData } = useContext(LoginContext);
   const navigate = useNavigate();
+
+  const location = useLocation();
+
+  const pageTitles = {
+    '/': 'Dashboard',
+    '/student': 'Alumnos',
+    '/share': 'Cuotas',
+    '/report': 'Reportes',
+    '/carnet': 'Carnet',
+    '/list': 'Lista buena fe',
+    '/pendingshare': 'Deudores',
+    '/motion': 'Movimientos',
+    '/user': 'Usuarios',
+    '/email': 'Mail',
+    '/share/detail': 'Detalle Diario',
+    '/homeuser': 'Inicio',
+  };
+
+  const currentTitle = pageTitles[location.pathname] || 'Liga de Futbol';
+
+
   const [expanded, setExpanded] = useState(false);
   const [isReportsOpen, setIsReportsOpen] = useState(false); // Estado para el submenú de Reportes
 
@@ -34,6 +55,7 @@ const Navigate = () => {
     { path: '/pendingshare', label: 'Deudores', icon: <LuClipboardList /> },
     { path: '/motion', label: 'Movimientos', icon: <FaExchangeAlt /> },
     { path: '/user', label: 'Usuarios', icon: <FaUserCog /> },
+    { path: '/email', label: 'Mail', icon: <FaEnvelope /> },
   ];
 
   const userMenu = fullMenu.filter(item =>
@@ -44,23 +66,23 @@ const Navigate = () => {
 
   return (
     <Navbar
-      bg="dark"
-      variant="dark"
       expand="lg"
       className="navegador"
       expanded={expanded}
       onToggle={() => setExpanded(!expanded)}
     >
       <Container>
-        <Navbar.Brand onClick={() => handleNavClick('/')}>
+        <Navbar.Brand onClick={() => handleNavClick('/')} className="navbar-brand-with-title">
           <img
             src={logo}
-            width="90"
-            height="70"
+            width="54"
+            height="54"
             className="logo-navbar"
             alt="Logo"
           />
+          <span className="navbar-page-title">{currentTitle}</span>
         </Navbar.Brand>
+
         <Navbar.Toggle aria-controls="basic-navbar-nav" />
         <Navbar.Collapse id="basic-navbar-nav">
           <Nav className="ml-auto navbarr">

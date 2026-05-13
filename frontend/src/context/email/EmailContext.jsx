@@ -18,6 +18,14 @@ const initialProgressState = {
   isSending: false,
 };
 
+export const emailSignatureHtml = `
+  <div style="margin-top: 22px; padding-top: 10px; border-top: 1px solid #e5e7eb; font-family: Arial, sans-serif; color: #6b7280; font-size: 11px; line-height: 1.4;">
+    <strong style="color: #4b5563;">Soluciones digitales</strong><br>
+    Desarrollo web, automatizaciones y soluciones digitales<br>
+    WhatsApp: 3816573754 · Email: nanoskibski@gmail.com
+  </div>
+`;
+
 export const EmailProvider = ({ children }) => {
   const [progress, setProgress] = useState(initialProgressState);
 
@@ -73,7 +81,7 @@ export const EmailProvider = ({ children }) => {
 
   const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-  const sendEmail = async (recipients, subject, message, emailType, studentsData, onSuccess) => {
+  const sendEmail = async (recipients, subject, message, emailType, studentsData, onSuccess, attachments = []) => {
     if (!recipients.length || !subject) {
       Swal.fire('Error', 'Selecciona al menos un destinatario y un asunto.', 'error');
       return false;
@@ -152,6 +160,7 @@ export const EmailProvider = ({ children }) => {
             subject,
             messages: batchMessages,
             studentsData: allStudents,
+            attachments,
           }
         );
         setProgress(prev => {
@@ -309,6 +318,7 @@ export const EmailProvider = ({ children }) => {
         <p>Monto pagado: $${share.amount.toLocaleString('es-ES')}</p>
         <p>Gracias por tu pago. Para consultas, contáctenos a ligafutbolinfantil01@gmail.com</p>
         <p>Saludos cordiales,<br>Liga de Fútbol Infantil</p>
+        ${emailSignatureHtml}
       `;
 
       const response = await client.post(

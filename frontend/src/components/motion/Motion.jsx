@@ -7,7 +7,6 @@ import Icome from './income/Income'
 
 const Motion = () => {
     const navigate = useNavigate();
-    const [isMenuOpen, setIsMenuOpen] = useState(true);
     const menuItems = [
         { name: 'Inicio', route: '/', icon: <FaHome /> },
         { name: 'Alumnos', route: '/student', icon: <FaUsers /> },
@@ -25,22 +24,7 @@ const Motion = () => {
   return (
 
     <>
-     <div className="dashboard-container-motion">
-        <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
-          <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-            <FaBars />
-          </div>
-          {menuItems.map((item, index) => (
-            <div
-              key={index}
-              className="sidebar-item"
-              onClick={() => item.action ? item.action() : navigate(item.route)}
-            >
-              <span className="icon">{item.icon}</span>
-              <span className="text">{item.name}</span>
-            </div>
-          ))}
-        </div>
+     <div className="dashboard-container">
         <div className="content-motion">
           <Icome />
         </div>

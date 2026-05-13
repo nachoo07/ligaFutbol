@@ -11,12 +11,7 @@
   .main-content{
     margin-top: 0px;
   }
-  
-  .dashboard-container-motion {
-    display: flex;
-    height: 670px !important;
-  }
-  
+
   .content-motion {
     flex-grow: 1;
     padding: 20px;

@@ -40,24 +40,6 @@
   max-width: 500px;
 }
 
-.search-bar input {
-  width: 100%;
-  padding: 12px 40px 12px 15px;
-  border: 1px solid #ccc;
-  border-radius: 25px;
-  font-size: 16px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
-.search-icon {
-  position: absolute;
-  right: 15px;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #0163a9;
-  font-size: 18px;
-}
-
 /* Grupo de filtros */
 .filter-group {
   flex: 1;

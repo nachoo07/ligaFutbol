@@ -118,8 +118,6 @@
         page-break-inside: avoid;
     }
 
-    .sidebar,
-    .sidebar-toggle,
     .table-actions,
     .filters,
     .no-data-message {

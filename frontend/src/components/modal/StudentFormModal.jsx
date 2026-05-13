@@ -1,36 +1,45 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useRef } from 'react';
 import { Modal, Button, Form } from 'react-bootstrap';
 import { FaTimes } from 'react-icons/fa';
 import Swal from 'sweetalert2';
 import './studentModal.css';
 
+const validImageTypes = [
+    'image/jpeg',
+    'image/png',
+    'image/gif',
+    'image/heic',
+    'image/webp',
+    'image/bmp',
+    'image/tiff',
+];
+
+const acceptedImageTypes = validImageTypes.join(',');
+
+const showValidationError = (text) => {
+    Swal.fire({
+        icon: 'error',
+        title: '¡Error!',
+        text,
+        confirmButtonText: 'Aceptar',
+    });
+};
+
+
 const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formData, student }) => {
     const [uploading, setUploading] = useState(false);
     const fileInputRef = useRef(null);
-
     const defaultImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
 
-    useEffect(() => {
-        if (show) {
-            // Inicializar archived y archivedNames si no están definidos o no son arreglos
-            if (!Array.isArray(formData.archived)) {
-                handleChange({
-                    target: {
-                        name: 'archived',
-                        value: student?.archived || []
-                    }
-                });
-            }
-            if (!Array.isArray(formData.archivedNames)) {
-                handleChange({
-                    target: {
-                        name: 'archivedNames',
-                        value: student?.archivedNames || []
-                    }
-                });
-            }
-        }
-    }, [show, formData.archived, formData.archivedNames, student, handleChange]);
+    const archivedFiles = useMemo(
+    () => Array.isArray(formData.archived) ? formData.archived.filter(Boolean) : [],
+    [formData.archived]
+);
+
+const archivedFileNames = useMemo(
+    () => Array.isArray(formData.archivedNames) ? formData.archivedNames : [],
+    [formData.archivedNames]
+);
 
     const getTransformedImageUrl = (url) => {
         if (!url || url === defaultImage) return defaultImage;
@@ -67,42 +76,26 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
         if (name === 'profileImage') {
             const file = files[0];
             if (file && !validImageTypes.includes(file.type)) {
-                Swal.fire({
-                    icon: 'error',
-                    title: '¡Error!',
-                    text: `Formato no soportado para Imagen de Perfil: ${file.type}. Usa JPEG, PNG, GIF, HEIC, WEBP, BMP o TIFF.`,
-                    confirmButtonText: 'Aceptar',
-                });
+                showValidationError(`Formato no soportado...`);
                 return;
             }
             handleChange({ target: { name, value: file } });
         } else if (name === 'archived') {
             const selectedFiles = Array.from(files);
 
-            const currentFiles = Array.isArray(formData.archived) ? [...formData.archived] : [];
-            const currentFileNames = Array.isArray(formData.archivedNames) ? [...formData.archivedNames] : [];
-            const currentFileCount = currentFiles.filter(item => item !== null && (item instanceof File || (typeof item === 'string' && item.startsWith('http')))).length;
+            const currentFiles = [...archivedFiles];
+const currentFileNames = [...archivedFileNames];
+const currentFileCount = currentFiles.length;
 
             // Validar formatos de archivo
             const invalidFiles = selectedFiles.filter(file => !validImageTypes.includes(file.type));
             if (invalidFiles.length > 0) {
-                Swal.fire({
-                    icon: 'error',
-                    title: '¡Error!',
-                    text: `Formatos no soportados: ${invalidFiles.map(f => f.type).join(', ')}. Usa JPEG, PNG, GIF, HEIC, WEBP, BMP o TIFF.`,
-                    confirmButtonText: 'Aceptar',
-                });
+                showValidationError(`Formato no soportado...`);
                 return;
             }
 
-            // Validar límite de 2 archivos
             if (currentFileCount + selectedFiles.length > 2) {
-                Swal.fire({
-                    icon: 'error',
-                    title: '¡Error!',
-                    text: `Solo se permiten hasta 2 archivos adjuntos. Actualmente tienes ${currentFileCount} archivo(s).`,
-                    confirmButtonText: 'Aceptar',
-                });
+                showValidationError(`Formato no soportado...`);
                 return;
             }
 
@@ -119,12 +112,14 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                 }
             });
             handleChange({
-                target: {
-                    name: 'archived',
-                    value: updatedFiles.filter(item => item !== null), // Filtrar null para mantener el arreglo limpio
-                    archivedNames: updatedFileNames.filter(name => name !== null)
-                }
-            });
+    target: {
+        name: 'archivedBundle',
+        value: {
+            archived: updatedFiles.filter(Boolean),
+            archivedNames: updatedFileNames.filter(Boolean),
+        },
+    },
+});
 
             if (fileInputRef.current) {
                 fileInputRef.current.value = null;
@@ -210,12 +205,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
 
         const validationError = validateForm();
         if (validationError) {
-            Swal.fire({
-                icon: 'error',
-                title: '¡Error!',
-                text: validationError,
-                confirmButtonText: 'Aceptar',
-            });
+            showValidationError(`Formato no soportado...`);
             return;
         }
 
@@ -275,12 +265,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                 errorMessage += rawMessage;
             }
 
-            Swal.fire({
-                icon: 'error',
-                title: '¡Error!',
-                text: errorMessage,
-                confirmButtonText: 'Aceptar',
-            });
+            showValidationError(`Formato no soportado...`);
         } finally {
             setUploading(false);
         }
@@ -486,7 +471,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                                 name="profileImage"
                                 onChange={handleFileChange}
                                 disabled={uploading}
-                                accept="image/jpeg,image/png,image/gif,image/heic,image/webp,image/bmp,image/tiff"
+                                accept={acceptedImageTypes}
                             />
                             {uploading && <p className="uploading">Subiendo imagen...</p>}
                         </div>
@@ -523,7 +508,7 @@ const StudentFormModal = ({ show, handleClose, handleSubmit, handleChange, formD
                                 onChange={handleFileChange}
                                 disabled={uploading}
                                 multiple
-                                accept="image/jpeg,image/png,image/gif,image/heic,image/webp,image/bmp,image/tiff"
+                                accept={acceptedImageTypes}
                             />
                             {uploading && <p className="uploading">Subiendo archivos...</p>}
                         </div>

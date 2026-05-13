@@ -12,7 +12,7 @@ const transporter = nodemailer.createTransport({
 const buildPlainText = (htmlMessage = '') => String(htmlMessage).replace(/<[^>]+>/g, '');
 
 export const sendEmail = async (req, res) => {
-  const { recipients, subject, messages, studentsData = [], attachment } = req.body;
+  const { recipients, subject, messages, studentsData = [], attachment, attachments = [] } = req.body;
 
   if (
     !recipients ||
@@ -63,12 +63,19 @@ export const sendEmail = async (req, res) => {
         html: messageEntry.message,
       };
 
-      if (attachment) {
-        mailOptions.attachments = [{
-          filename: attachment.filename,
-          content: Buffer.from(attachment.content, 'base64'),
+      const normalizedAttachments = Array.isArray(attachments) && attachments.length > 0
+        ? attachments
+        : attachment
+          ? [attachment]
+          : [];
+
+      if (normalizedAttachments.length > 0) {
+        mailOptions.attachments = normalizedAttachments.map((item) => ({
+          filename: item.filename,
+          content: Buffer.from(item.content, 'base64'),
           encoding: 'base64',
-        }];
+          contentType: item.contentType,
+        }));
       }
 
       try {

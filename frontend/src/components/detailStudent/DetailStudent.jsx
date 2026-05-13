@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useContext, useRef } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FaDownload, FaUsers, FaAddressCard, FaMoneyBill, FaRegListAlt, FaChartBar, FaExchangeAlt, FaUserCog, FaEnvelope, FaHome, FaArrowLeft } from 'react-icons/fa';
-import { LuClipboardList } from "react-icons/lu";
+import { FaDownload } from 'react-icons/fa';
 import { StudentsContext } from "../../context/student/StudentContext";
 import { LoginContext } from "../../context/login/LoginContext";
 import StudentFormModal from '../modal/StudentFormModal';
@@ -14,6 +13,37 @@ const formatDate = (date) => {
     return new Date(date + 'T00:00:00Z').toLocaleDateString('es-ES', { day: '2-digit', month: '2-digit', year: 'numeric' }).split('/').reverse().join('/');
 };
 
+const initialStudentFormData = {
+    name: '',
+    lastName: '',
+    dni: '',
+    birthDate: '',
+    address: '',
+    mail: '',
+    category: '',
+    motherName: '',
+    motherPhone: '',
+    fatherName: '',
+    fatherPhone: '',
+    profileImage: null,
+    school: '',
+    color: '',
+    sex: '',
+    status: 'Activo',
+    archived: [],
+    archivedNames: [],
+};
+
+const buildStudentFormData = (student) => ({
+    ...student,
+    birthDate: formatDate(student.birthDate),
+    profileImage: student.profileImage || null,
+    archived: student.archived || [],
+    archivedNames: student.archivedNames || [],
+    sex: student.sex || '',
+    status: student.status || 'Activo',
+});
+
 const StudentDetail = () => {
     const { estudiante: student, obtenerEstudiante, updateEstudiante, deleteEstudiante } = useContext(StudentsContext);
     const { auth } = useContext(LoginContext);
@@ -22,15 +52,13 @@ const StudentDetail = () => {
     const location = useLocation();
     const [show, setShow] = useState(false);
     const [imageError, setImageError] = useState(false);
-    const [formData, setFormData] = useState({
-        name: '', lastName: '', dni: '', birthDate: '', address: '', mail: '', category: '',
-        motherName: '', motherPhone: '', fatherName: '', fatherPhone: '', profileImage: null,
-        school: '', color: '', sex: '', status: 'Activo', archived: [], archivedNames: []
-    });
-    const [initialFormData, setInitialFormData] = useState(formData);
+    const [formData, setFormData] = useState(initialStudentFormData);
+    const [initialFormData, setInitialFormData] = useState(initialStudentFormData);
     const [loading, setLoading] = useState(true);
     const hasFetched = useRef(false);
     const defaultImage = 'https://i.pinimg.com/736x/24/f2/25/24f22516ec47facdc2dc114f8c3de7db.jpg';
+    const archivedFiles = Array.isArray(student.archived) ? student.archived.slice(0, 2) : [];
+
 
     const getImageUrl = (url) => {
         if (!url || url === defaultImage) return defaultImage;
@@ -54,7 +82,7 @@ const StudentDetail = () => {
             try {
                 await obtenerEstudiante(id);
             } catch (error) {
-                console.error('[DEBUG] Error al obtener estudiante:', error);
+                console.error('Error al obtener estudiante:', error);
                 Swal.fire("¡Error!", "No se pudo cargar el estudiante.", "error");
                 navigate('/student', { state: { fromDetailStudent: false } });
             } finally {
@@ -66,29 +94,17 @@ const StudentDetail = () => {
 
     useEffect(() => {
         if (student && student._id === id) {
-            (async () => {
-                if (student.profileImage) {
-                    await preloadImage(student.profileImage);
-                }
-                const initialData = {
-                    ...student,
-                    birthDate: formatDate(student.birthDate),
-                    profileImage: student.profileImage || null,
-                    archived: student.archived || [],
-                    archivedNames: student.archivedNames || [],
-                    sex: student.sex || '',
-                    status: student.status || 'Activo'
-                };
-                setFormData(initialData);
-                setInitialFormData(initialData);
-            })();
+            const initialData = buildStudentFormData(student);
+            setFormData(initialData);
+            setInitialFormData(initialData);
+            setImageError(false);
         }
     }, [student, id]);
 
     if (loading) {
         return (
-            <div className="dashboard-container-detail">
-                <div className="content-detail">
+            <div className="dashboard-container">
+                <div className="content-student">
                     <div className="perfil-container">
                         <div className="perfil-header">
                             <div className="perfil-header-row">
@@ -162,22 +178,30 @@ const StudentDetail = () => {
 
     const handleChange = (e) => {
         const { name, value, type, files } = e.target;
-        if (type === 'file') {
-            if (name === 'profileImage') {
-                setFormData({ ...formData, [name]: files[0] });
-            } else if (name === 'archived') {
-                setFormData({
-                    ...formData,
-                    [name]: Array.from(files),
-                    archivedNames: Array.from(files).map(f => f.name)
-                });
+
+        setFormData((prev) => {
+            if (type === 'file') {
+                if (name === 'profileImage') {
+                    return { ...prev, [name]: files[0] };
+                }
+
+                if (name === 'archived') {
+                    const selectedFiles = Array.from(files);
+                    return {
+                        ...prev,
+                        archived: selectedFiles,
+                        archivedNames: selectedFiles.map((file) => file.name),
+                    };
+                }
             }
-        } else {
-            setFormData({
-                ...formData,
-                [name]: name === 'color' ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase() : value
-            });
-        }
+
+            return {
+                ...prev,
+                [name]: name === 'color'
+                    ? value.charAt(0).toUpperCase() + value.slice(1).toLowerCase()
+                    : value,
+            };
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -237,13 +261,10 @@ const StudentDetail = () => {
             const response = await updateEstudiante(student._id, formDataToSend);
             if (response && (response.data.success || response.status === 200)) {
                 const updatedStudent = response.data.student || response.data;
-                const updatedData = {
+                const updatedData = buildStudentFormData({
                     ...updatedStudent,
-                    birthDate: formatDate(updatedStudent.birthDate),
                     profileImage: updatedStudent.profileImage || formData.profileImage,
-                    archived: updatedStudent.archived || [],
-                    archivedNames: updatedStudent.archivedNames || []
-                };
+                });
                 setFormData(updatedData);
                 setInitialFormData(updatedData);
                 await obtenerEstudiante(student._id);
@@ -252,12 +273,24 @@ const StudentDetail = () => {
                 await Swal.fire("¡Error!", response?.data?.message || "No se pudo actualizar el perfil.", "error");
             }
         } catch (error) {
-            console.error("[DEBUG] Error al actualizar estudiante:", error);
+            console.error("Error al actualizar estudiante:", error);
             await Swal.fire("¡Error!", error.response?.data?.message || "Ha ocurrido un error al actualizar el perfil.", "error");
         }
     };
 
     const handleDelete = async () => {
+        const result = await Swal.fire({
+            title: '¿Eliminar perfil?',
+            text: 'Esta acción no se puede deshacer.',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#dc3545',
+        });
+
+        if (!result.isConfirmed) return;
+
         try {
             const success = await deleteEstudiante(student._id);
             if (success) {
@@ -299,8 +332,17 @@ const StudentDetail = () => {
         return text.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
     };
 
+    const handleBackToStudents = () => {
+        const queryParams = new URLSearchParams(location.search);
+        const page = queryParams.get('page') || 1;
+
+        navigate(`/student?page=${page}`, {
+            state: { fromDetailStudent: true },
+        });
+    };
+
     return (
-        <div className="dashboard-container-detail">
+        <div className="dashboard-container">
             <div className="content-detail">
                 <div className="perfil-container">
                     <div className="perfil-header">
@@ -323,16 +365,10 @@ const StudentDetail = () => {
                                 )}
                             </div>
                             <div className="perfil-actions-header">
-                                <button
-                                    className="btn-volver-atras"
-                                    onClick={() => {
-                                        const queryParams = new URLSearchParams(location.search);
-                                        const page = queryParams.get('page') || 1;
-                                        navigate(`/student?page=${page}`, { state: { fromDetailStudent: true } });
-                                    }}
-                                >
+                                <button className="btn-volver-atras" onClick={handleBackToStudents}>
                                     Volver atrás
                                 </button>
+
                             </div>
                         </div>
                         <div className="perfil-actions-mobile">
@@ -341,16 +377,10 @@ const StudentDetail = () => {
                                     Ver Cuotas
                                 </button>
                             )}
-                            <button
-                                className="btn-volver-atras"
-                                onClick={() => {
-                                    const queryParams = new URLSearchParams(location.search);
-                                    const page = queryParams.get('page') || 1;
-                                    navigate(`/student?page=${page}`, { state: { fromDetailStudent: true } });
-                                }}
-                            >
+                            <button className="btn-volver-atras" onClick={handleBackToStudents}>
                                 Volver atrás
                             </button>
+
                         </div>
                     </div>
                     <form className="perfil-formulario">
@@ -431,16 +461,18 @@ const StudentDetail = () => {
                             {auth === 'admin' && (
                                 <div className="perfil-row archived-section">
                                     <h3>📎 Archivos Adjuntos</h3>
-                                    {student.archived && student.archived.length > 0 ? (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
-                                            {student.archived.slice(0, 2).map((url, index) => (
+                                    {archivedFiles.length > 0 ? (
+                                        <div className="archived-list">
+
+                                            {archivedFiles.map((url, index) => (
+
                                                 <div key={index} className="archived-item">
                                                     <a
                                                         href={url || '#'}
                                                         target="_blank"
                                                         rel="noopener noreferrer"
                                                         onClick={(e) => !url && e.preventDefault()}
-                                                        style={{ flex: 1, fontSize: '14px' }}
+                                                        className="archived-link"
                                                     >
                                                         {student.archivedNames && student.archivedNames[index]
                                                             ? student.archivedNames[index]

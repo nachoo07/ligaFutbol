@@ -8,7 +8,6 @@ import "./home.css";
 
 const Home = () => {
     const navigate = useNavigate();
-    const [isMenuOpen, setIsMenuOpen] = useState(true);
     const { loading } = useContext(LoginContext);
 
     const menuItems = [
@@ -20,7 +19,8 @@ const Home = () => {
         { name: 'Carnet', route: '/carnet', icon: <FaAddressCard /> },
         { name: 'Usuarios', route: '/user', icon: <FaUserCog /> },
         { name: 'Deudores', route: '/pendingshare', icon: <LuClipboardList /> },
-        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> }
+        { name: 'Detalle Diario', route: '/share/detail', icon: <FaListUl /> },
+        { name: 'Mail', route: '/email', icon: <FaEnvelope /> },
     ];
 
     if (loading) {
@@ -29,21 +29,6 @@ const Home = () => {
 
     return (
         <div className="dashboard-container">
-            <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
-                <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                    <FaBars />
-                </div>
-                {menuItems.map((item, index) => (
-                    <div
-                        key={index}
-                        className="sidebar-item"
-                        onClick={() => navigate(item.route)}
-                    >
-                        <span className="icon">{item.icon}</span>
-                        <span className="text">{item.name}</span>
-                    </div>
-                ))}
-            </div>
             <div className='content-home'>
                 <div className="cards-container">
                     {menuItems.map((item, index) => (

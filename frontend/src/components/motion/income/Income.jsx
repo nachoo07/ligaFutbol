@@ -114,8 +114,6 @@ const Income = () => {
   return (
     <div className="income-dashboard">
       <div className="income-content">
-        <h1 className="income-title">Movimientos</h1>
-
         <div className="motion-form">
           <form onSubmit={handleSubmit}>
             <div className="motion-form-row">

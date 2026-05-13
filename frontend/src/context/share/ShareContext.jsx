@@ -14,6 +14,19 @@ const SharesProvider = ({ children }) => {
   const hasFetchedStats = useRef(false);
   const sharesByStudentCache = useRef(new Map());
 
+  useEffect(() => {
+  if (!auth) {
+    setCuotas([]);
+    setSemesterStats(null);
+    setSelectedSemester("");
+    hasFetchedCuotas.current = false;
+    hasFetchedStats.current = false;
+    sharesByStudentCache.current = new Map();
+    setLoading(false);
+  }
+}, [auth]);
+
+
   const buildSharesByStudentCache = useCallback((shares) => {
     const nextCache = new Map();
 
@@ -102,10 +115,14 @@ const obtenerCuotas = useCallback(
   );
 
   const getAvailableShareNames = useCallback(
-    async (year, studentId = null) => {
+    async (year, studentId = null, school = "") => {
       try {
         const response = await client.get(`/shares/available-names`, {
-          params: studentId ? { year, studentId } : { year },
+          params: {
+            year,
+            ...(studentId ? { studentId } : {}),
+            ...(school ? { school } : {}),
+          },
         });
         const data = Array.isArray(response.data) ? response.data : [];
         return data;
@@ -152,17 +169,7 @@ const addCuota = useCallback(
         return nextCuotas;
       });
 
-      const studentId =
-        typeof createdShare.student === "string"
-          ? createdShare.student
-          : createdShare.student?._id || cuota.student;
-
-      if (studentId) {
-        const cachedShares = sharesByStudentCache.current.get(studentId) || [];
-        sharesByStudentCache.current.set(studentId, [...cachedShares, createdShare]);
-      }
-
-      return response.data.share;
+      return createdShare;
     } catch (error) {
       console.error("Error al crear la cuota:", error);
       throw error;
@@ -172,12 +179,20 @@ const addCuota = useCallback(
 );
 
   const createMassiveShares = useCallback(
-    async (paymentName, year) => {
+    async (paymentName, year, school = "") => {
       if (!auth || auth !== "admin") return Promise.reject("No autorizado");
       try {
-        const response = await client.post("/shares/create-massive", { paymentName, year });
+        const payload = { paymentName, year };
+        if (school) {
+          payload.school = school;
+        }
+
+        const response = await client.post("/shares/create-massive", payload);
         await obtenerCuotas(true);
-        return response.data.shares.length;
+        return {
+          created: Array.isArray(response.data?.shares) ? response.data.shares.length : 0,
+          message: response.data?.message || "",
+        };
       } catch (error) {
         console.error("Error al crear cuotas masivas:", error);
         throw error;

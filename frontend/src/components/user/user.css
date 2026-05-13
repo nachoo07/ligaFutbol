@@ -11,14 +11,6 @@
     background: #f9f9f9;
   }
   
-  .users-title {
-    font-size: 36px;
-    font-weight: bold;
-    text-align: center;
-    color: #333;
-    margin-bottom: 20px;
-  }
-  
   .users-controls {
     display: flex;
     justify-content: space-between;
@@ -42,15 +34,6 @@
     border-radius: 25px;
     font-size: 16px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-  }
-  
-  .search-icon {
-    position: absolute;
-    right: 15px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: #0163a9;
-    font-size: 18px;
   }
   
   .users-add-btn {
@@ -189,10 +172,6 @@
   @media (max-width: 576px) {
     .users-content {
       padding: 10px;
-    }
-  
-    .users-title {
-      font-size: 36px;
     }
   
     .users-controls {

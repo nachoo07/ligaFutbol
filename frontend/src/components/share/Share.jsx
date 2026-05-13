@@ -1,29 +1,68 @@
-import React, { useState, useEffect, useContext, useRef } from "react";
+import React, { useState, useEffect, useContext, useRef, useMemo } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice, FaSpinner } from 'react-icons/fa';
+import { FaEdit, FaMoneyBillWave, FaSearch, FaFileInvoice, FaSpinner, FaPlus } from 'react-icons/fa';
 import { SharesContext } from "../../context/share/ShareContext";
 import { StudentsContext } from "../../context/student/StudentContext";
-import { LoginContext } from "../../context/login/LoginContext";
 import { useEmail } from '../../context/email/EmailContext';
 import { Button, Table, Form, Modal } from 'react-bootstrap';
 import { MdDelete } from 'react-icons/md';
 import { MdOutlineReadMore } from "react-icons/md";
 import MassiveShareForm from "../shareMassive/MassiveShareForm";
-import Sidebar from '../sidebar/Sidebar';
 import Swal from 'sweetalert2';
 import "./share.css";
+
+const YEARS = [2025, 2026, 2027];
+const STUDENTS_PER_PAGE = 15;
+
+const getDefaultYearFilter = () => {
+    const currentYear = new Date().getFullYear();
+    return YEARS.includes(currentYear) ? String(currentYear) : String(YEARS[0]);
+};
+
+const getShareStatusFromStudentShares = (studentShares) => {
+    if (studentShares.length === 0) return 'Sin cuotas';
+    if (studentShares.some((cuota) => cuota.status === 'Pendiente')) return 'Pendiente';
+    return 'Pagada';
+};
+
+const getSharesByStudentId = (shares, studentId) => (
+    Array.isArray(shares)
+        ? shares.filter((cuota) => cuota.student?._id === studentId || cuota.student === studentId)
+        : []
+);
+
+const sortCuotas = (shares) => {
+    const cuotaOrder = {
+        'primera cuota': 1,
+        'segunda cuota': 2,
+        'tercera cuota': 3,
+    };
+
+    return [...shares].sort((a, b) => {
+        const [aCuota, aSemestre, aYear] = a.paymentName?.split(' - ') || ['', '', '0'];
+        const [bCuota, bSemestre, bYear] = b.paymentName?.split(' - ') || ['', '', '0'];
+
+        const yearDiff = parseInt(aYear) - parseInt(bYear);
+        if (yearDiff !== 0) return yearDiff;
+
+        const semestreA = parseInt(aSemestre.replace('Semestre ', '')) || 0;
+        const semestreB = parseInt(bSemestre.replace('Semestre ', '')) || 0;
+        if (semestreA !== semestreB) return semestreA - semestreB;
+
+        return (cuotaOrder[aCuota.toLowerCase()] || 999) - (cuotaOrder[bCuota.toLowerCase()] || 999);
+    });
+};
 
 const Share = () => {
     const { cuotas, obtenerCuotas, obtenerCuotasPorEstudiante, addCuota, updateCuota, deleteCuota, getAvailableShareNames, loading: loadingCuotas } = useContext(SharesContext);
     const { estudiantes, obtenerEstudiantes, loading: loadingStudents } = useContext(StudentsContext);
-    const { auth } = useContext(LoginContext);
     const { sendReceiptEmail } = useEmail();
     const { studentId } = useParams();
     const navigate = useNavigate();
     const location = useLocation();
+    const defaultYearFilter = getDefaultYearFilter();
 
     const [selectedStudent, setSelectedStudent] = useState(null);
-    const [filteredStudentCuotas, setFilteredStudentCuotas] = useState([]);
     const [allStudentCuotas, setAllStudentCuotas] = useState([]);
     const [paymentName, setPaymentName] = useState("");
     const [amount, setAmount] = useState("");
@@ -32,10 +71,9 @@ const Share = () => {
     const [paymentType, setPaymentType] = useState("");
     const [selectedCuota, setSelectedCuota] = useState(null);
     const [isEditing, setIsEditing] = useState(false);
-    const [isMenuOpen, setIsMenuOpen] = useState(true);
     const [searchTerm, setSearchTerm] = useState("");
-    const [statusFilter, setStatusFilter] = useState("");
-    const [yearFilter, setYearFilter] = useState("");
+    const [statusFilter, setStatusFilter] = useState("Pendiente");
+    const [yearFilter, setYearFilter] = useState(defaultYearFilter);
     const [currentPage, setCurrentPage] = useState(1);
     const [sendingReceipt, setSendingReceipt] = useState(null);
     const [showMassiveModal, setShowMassiveModal] = useState(false);
@@ -43,38 +81,20 @@ const Share = () => {
     const [modalTitle, setModalTitle] = useState("Crear Cuota");
     const [year, setYear] = useState("");
     const [availableNames, setAvailableNames] = useState([]);
-    const studentsPerPage = 15;
+    const studentsPerPage = STUDENTS_PER_PAGE;
     const [maxVisiblePages, setMaxVisiblePages] = useState(10);
 
     const today = new Date().toISOString().split("T")[0];
-    const years = Array.from({ length: 5 }, (_, i) => 2025 + i);
     const initialDataLoaded = useRef(false);
-    const hasFetchedStudentCuotas = useRef(false);
-
-    const sortCuotas = (cuotas) => {
-        const cuotaOrder = {
-            'Primera Cuota': 1,
-            'Segunda Cuota': 2,
-            'Tercera Cuota': 3,
-        };
-
-        return cuotas.sort((a, b) => {
-            const [aCuota, aSemestre, aYear] = a.paymentName?.split(' - ') || ['', '', '0'];
-            const [bCuota, bSemestre, bYear] = b.paymentName?.split(' - ') || ['', '', '0'];
-
-            const yearDiff = parseInt(aYear) - parseInt(bYear);
-            if (yearDiff !== 0) return yearDiff;
-
-            const semestreA = parseInt(aSemestre.replace('Semestre ', '')) || 0;
-            const semestreB = parseInt(bSemestre.replace('Semestre ', '')) || 0;
-            const semestreDiff = semestreA - semestreB;
-            if (semestreDiff !== 0) return semestreDiff;
-
-            const cuotaA = cuotaOrder[aCuota] || 999;
-            const cuotaB = cuotaOrder[bCuota] || 999;
-            return cuotaA - cuotaB;
-        });
-    };
+    const fetchedStudentCuotasId = useRef(null);
+    const students = useMemo(
+        () => Array.isArray(estudiantes) ? estudiantes : [],
+        [estudiantes]
+    );
+    const shares = useMemo(
+        () => Array.isArray(cuotas) ? cuotas : [],
+        [cuotas]
+    );
 
     useEffect(() => {
         const handleResize = () => {
@@ -95,11 +115,11 @@ const Share = () => {
                 try {
                     const requests = [];
 
-                    if (!Array.isArray(estudiantes) || estudiantes.length === 0) {
+                    if (students.length === 0) {
                         requests.push(obtenerEstudiantes(true));
                     }
 
-                    if (!Array.isArray(cuotas) || cuotas.length === 0) {
+                    if (shares.length === 0) {
                         requests.push(obtenerCuotas(true));
                     }
 
@@ -115,20 +135,15 @@ const Share = () => {
             };
             loadInitialData();
         }
-    }, [cuotas, estudiantes, obtenerEstudiantes, obtenerCuotas, loadingStudents]);
+    }, [students.length, shares.length, obtenerEstudiantes, obtenerCuotas, loadingStudents]);
 
     useEffect(() => {
-        if (studentId && !hasFetchedStudentCuotas.current) {
+        if (studentId && fetchedStudentCuotasId.current !== studentId) {
             const loadStudentCuotas = async () => {
                 try {
                     const studentCuotas = await obtenerCuotasPorEstudiante(studentId);
                     setAllStudentCuotas(studentCuotas);
-                    setFilteredStudentCuotas(sortCuotas([...studentCuotas]));
-                    const student = estudiantes.find((est) => est._id === studentId);
-                    if (student) {
-                        setSelectedStudent(student);
-                    }
-                    hasFetchedStudentCuotas.current = true;
+                    fetchedStudentCuotasId.current = studentId;
                 } catch (error) {
                     console.error('Error cargando cuotas del estudiante:', error);
                     Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron obtener las cuotas del estudiante.", "error");
@@ -136,19 +151,25 @@ const Share = () => {
             };
             loadStudentCuotas();
         }
-    }, [studentId, obtenerCuotasPorEstudiante, estudiantes]);
+    }, [studentId, obtenerCuotasPorEstudiante]);
 
     useEffect(() => {
-        if (!yearFilter) {
-            setFilteredStudentCuotas(sortCuotas([...allStudentCuotas]));
-        } else {
-            const filtered = allStudentCuotas.filter((cuota) => {
-                const cuotaYear = parseInt(cuota.paymentName?.split(' - ')[2] || 0);
-                return cuotaYear === parseInt(yearFilter);
-            });
-            setFilteredStudentCuotas(sortCuotas([...filtered]));
+        if (!studentId) return;
+
+        const student = students.find((est) => est._id === studentId);
+        if (student) {
+            setSelectedStudent(student);
         }
-    }, [yearFilter, allStudentCuotas]);
+    }, [studentId, students]);
+
+    const filteredStudentCuotas = useMemo(() => {
+        const filteredByYear = allStudentCuotas.filter((cuota) => {
+            const cuotaYear = Number(cuota.year || cuota.paymentName?.split(' - ')[2] || 0);
+            return Number(yearFilter) === cuotaYear;
+        });
+
+        return sortCuotas(filteredByYear);
+    }, [allStudentCuotas, yearFilter]);
 
     useEffect(() => {
         if (year && showCuotaModal && !isEditing) {
@@ -172,40 +193,59 @@ const Share = () => {
         }
     }, [year, showCuotaModal, isEditing, getAvailableShareNames, selectedStudent]);
 
-    useEffect(() => {
-        return () => {
-            setPaymentName("");
-            setAmount("");
-            setPaymentDate("");
-            setPaymentMethod("");
-            setPaymentType("");
-            setSelectedCuota(null);
-            setIsEditing(false);
+    const resetPaymentForm = ({ closeModal = true } = {}) => {
+        setPaymentName("");
+        setAmount("");
+        setPaymentDate("");
+        setPaymentMethod("");
+        setPaymentType("");
+        setYear("");
+        setSelectedCuota(null);
+        setIsEditing(false);
+
+        if (closeModal) {
             setShowCuotaModal(false);
-            setYear("");
-        };
-    }, [studentId]);
+        }
+    };
 
     const handleSelectStudent = (student) => {
         setSelectedStudent(student);
+        setYearFilter(defaultYearFilter);
         navigate(`/share/${student._id}`);
-        hasFetchedStudentCuotas.current = false; // Resetear para permitir recarga de cuotas
+        fetchedStudentCuotasId.current = null;
     };
 
     const getStudentShareStatus = (studentId) => {
-        const studentCuotas = Array.isArray(cuotas) ? cuotas.filter((cuota) => cuota.student?._id === studentId || cuota.student === studentId) : [];
-        if (studentCuotas.length === 0) return "Sin cuotas";
-        if (studentCuotas.some((cuota) => cuota.status === "Pendiente")) return "Pendiente";
-        return "Pagada";
+        return getShareStatusFromStudentShares(getSharesByStudentId(shares, studentId));
     };
 
-    const filteredStudents = estudiantes ? estudiantes.filter((estudiante) => {
+    const filteredStudents = useMemo(() => students.filter((estudiante) => {
         const fullName = `${estudiante.name || ''} ${estudiante.lastName || ''}`.toLowerCase();
         const matchesSearch = fullName.includes(searchTerm.toLowerCase()) || (estudiante.dni?.includes(searchTerm) || '');
-        const status = getStudentShareStatus(estudiante._id);
+        const status = getShareStatusFromStudentShares(getSharesByStudentId(shares, estudiante._id));
         const matchesStatus = statusFilter === "" || status === statusFilter;
         return matchesSearch && matchesStatus;
-    }) : [];
+    }), [searchTerm, shares, statusFilter, students]);
+
+    const shareStatusCounts = useMemo(() => {
+        const initialCounts = {
+            total: 0,
+            pending: 0,
+            paid: 0,
+            withoutShares: 0,
+        };
+
+        return students.reduce((counts, estudiante) => {
+            const status = getShareStatusFromStudentShares(getSharesByStudentId(shares, estudiante._id));
+
+            counts.total += 1;
+            if (status === "Pendiente") counts.pending += 1;
+            if (status === "Pagada") counts.paid += 1;
+            if (status === "Sin cuotas") counts.withoutShares += 1;
+
+            return counts;
+        }, initialCounts);
+    }, [students, shares]);
 
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
     const indexOfLastStudent = currentPage * studentsPerPage;
@@ -214,21 +254,23 @@ const Share = () => {
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
+    const handleSearchChange = (e) => {
+        setSearchTerm(e.target.value);
+        setCurrentPage(1);
+    };
+
+    const handleStatusFilterChange = (status) => {
+        setStatusFilter(status);
+        setCurrentPage(1);
+    };
+
     const handleBackToStudents = () => {
+        resetPaymentForm();
         setSelectedStudent(null);
-        setYearFilter("");
+        setYearFilter(defaultYearFilter);
         setAllStudentCuotas([]);
-        setFilteredStudentCuotas([]);
-        setPaymentName("");
-        setAmount("");
-        setPaymentDate("");
-        setPaymentMethod("");
-        setPaymentType("");
-        setSelectedCuota(null);
-        setIsEditing(false);
-        setShowCuotaModal(false);
-        setYear("");
-        hasFetchedStudentCuotas.current = false; // Resetear para nueva selección
+        fetchedStudentCuotasId.current = null;
+
         if (location.state?.fromStudentDetail) {
             navigate(`/detailstudent/${studentId}`);
         } else {
@@ -289,7 +331,6 @@ const Share = () => {
 
             const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id);
             setAllStudentCuotas(studentCuotas);
-            setFilteredStudentCuotas(sortCuotas([...studentCuotas]));
 
             Swal.fire(
                 "¡Éxito!",
@@ -301,15 +342,7 @@ const Share = () => {
                 "success"
             );
 
-            setPaymentName("");
-            setAmount("");
-            setPaymentDate("");
-            setPaymentMethod("");
-            setPaymentType("");
-            setSelectedCuota(null);
-            setIsEditing(false);
-            setShowCuotaModal(false);
-            setYear("");
+            resetPaymentForm();
         } catch (error) {
             console.error('Error en handleSave:', error);
             Swal.fire(
@@ -336,29 +369,15 @@ const Share = () => {
 
 
     const handleCancelEdit = () => {
-        setSelectedCuota(null);
-        setPaymentName("");
-        setAmount("");
-        setPaymentDate("");
-        setPaymentMethod("");
-        setPaymentType("");
-        setIsEditing(false);
-        setShowCuotaModal(false);
-        setYear("");
+        resetPaymentForm();
     };
 
-const handleCreateCuota = () => {
-  setSelectedCuota(null);
-  setPaymentName("");
-  setAmount("");
-  setPaymentDate("");
-  setPaymentMethod("");
-  setPaymentType("");
-  setIsEditing(false);
-  setModalTitle("Crear Cuota");
-  setYear("");
-  setShowCuotaModal(true);
-};
+    const handleCreateCuota = () => {
+        resetPaymentForm({ closeModal: false });
+        setModalTitle("Crear Cuota");
+        setShowCuotaModal(true);
+    };
+
 
 
     const handleDelete = async (id) => {
@@ -378,7 +397,6 @@ const handleCreateCuota = () => {
                 await deleteCuota(id);
                 const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id);
                 setAllStudentCuotas(studentCuotas);
-                setFilteredStudentCuotas(sortCuotas([...studentCuotas]));
                 Swal.fire("¡Éxito!", "Cuota eliminada exitosamente.", "success");
             } catch (error) {
                 console.error('Error en handleDelete:', error);
@@ -415,36 +433,58 @@ const handleCreateCuota = () => {
     };
 
     return (
-        <div className="dashboard-container-share">
-            <Sidebar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} auth={auth} />
+        <div className="dashboard-container">
             <div className="content-share">
                 {!selectedStudent ? (
                     <div className="students-view">
-                        <h1 className="title">Panel de Cuotas</h1>
-                        <div className="students-header">
-                            <div className="search-bar">
-                                <input
-                                    type="text"
-                                    placeholder="Buscar por nombre, apellido o DNI..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                />
-                                <FaSearch className="search-icon" />
-                            </div>
-                            <div className="filter-actions-share">
-                                <div className="state-filter-share">
-                                    <label className="estado">Estado de Cuota:</label>
-                                    <select
-                                        value={statusFilter}
-                                        onChange={(e) => setStatusFilter(e.target.value)}
-                                    >
-                                        <option value="">Todos</option>
-                                        <option value="Pendiente">Pendiente</option>
-                                        <option value="Pagada">Pagada</option>
-                                        <option value="Sin cuotas">Sin cuotas</option>
-                                    </select>
+                        <div className="share-toolbar">
+                            <div className="share-toolbar-left">
+                                <div className="search-bar">
+                                    <FaSearch className="search-icon" />
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar por nombre, apellido o DNI..."
+                                        value={searchTerm}
+                                        onChange={handleSearchChange}
+                                    />
                                 </div>
-                                <Button className="btn-share-masive" onClick={() => setShowMassiveModal(true)}>Crear Cuota Masiva</Button>
+
+                                <div className="status-tabs" aria-label="Filtrar por estado de cuota">
+                                    <button
+                                        type="button"
+                                        className={`status-tab ${statusFilter === "Pendiente" ? "active" : ""}`}
+                                        onClick={() => handleStatusFilterChange("Pendiente")}
+                                    >
+                                        Pendiente <span>{shareStatusCounts.pending}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`status-tab ${statusFilter === "Pagada" ? "active" : ""}`}
+                                        onClick={() => handleStatusFilterChange("Pagada")}
+                                    >
+                                        Pagada <span>{shareStatusCounts.paid}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`status-tab ${statusFilter === "Sin cuotas" ? "active" : ""}`}
+                                        onClick={() => handleStatusFilterChange("Sin cuotas")}
+                                    >
+                                        Sin cuotas <span>{shareStatusCounts.withoutShares}</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={`status-tab ${statusFilter === "" ? "active" : ""}`}
+                                        onClick={() => handleStatusFilterChange("")}
+                                    >
+                                        Todos <span>{shareStatusCounts.total}</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="share-toolbar-actions">
+                                <Button className="btn-share-masive" onClick={() => setShowMassiveModal(true)}>
+                                    <FaPlus /> Crear Cuota Masiva
+                                </Button>
                             </div>
                         </div>
                         {loadingStudents || loadingCuotas ? (
@@ -496,7 +536,7 @@ const handleCreateCuota = () => {
                             </Table>
                         )}
                         {filteredStudents.length > 0 && (
-                            <div className="pagination-share">
+                            <div className="pagination">
                                 <Button
                                     disabled={currentPage === 1}
                                     onClick={() => paginate(currentPage - 1)}
@@ -534,8 +574,7 @@ const handleCreateCuota = () => {
                                     value={yearFilter}
                                     onChange={(e) => setYearFilter(e.target.value)}
                                 >
-                                    <option value="">Todos</option>
-                                    {years.map((y) => (
+                                    {YEARS.map((y) => (
                                         <option key={y} value={y}>{y}</option>
                                     ))}
                                 </select>
@@ -609,7 +648,7 @@ const handleCreateCuota = () => {
                                 )}
                             </tbody>
                         </Table>
-                        <Modal show={showCuotaModal} onHide={handleCancelEdit}>
+                        <Modal show={showCuotaModal} onHide={handleCancelEdit} className="cuota-modal">
                             <Modal.Header closeButton>
                                 <Modal.Title>{modalTitle}</Modal.Title>
                             </Modal.Header>
@@ -623,7 +662,7 @@ const handleCreateCuota = () => {
                                                 onChange={(e) => setYear(e.target.value)}
                                             >
                                                 <option value="">Selecciona un año</option>
-                                                {years.map((y) => (
+                                                {YEARS.map((y) => (
                                                     <option key={y} value={y}>{y}</option>
                                                 ))}
                                             </Form.Select>

@@ -10,7 +10,7 @@ dotenv.config();
 const app = express();
 
 // Middleware base
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '25mb' }));
 app.use(morgan('dev'));
 app.use(cookieParser());
 app.use(cors({

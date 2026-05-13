@@ -1,8 +1,7 @@
 import React, { useState, useEffect, useContext, useRef } from 'react';
 import { StudentsContext } from '../../context/student/StudentContext';
-import { useEmail } from '../../context/email/EmailContext';
-import { FaSearch, FaCheck, FaTimes, FaTrash, FaBold, FaItalic, FaUnderline } from 'react-icons/fa';
-import Sidebar from '../sidebar/Sidebar';
+import { emailSignatureHtml, useEmail } from '../../context/email/EmailContext';
+import { FaSearch, FaCheck, FaTimes, FaTrash, FaBold, FaItalic, FaUnderline, FaPaperclip, FaEye } from 'react-icons/fa';
 import './email.css';
 import Swal from 'sweetalert2';
 
@@ -20,8 +19,42 @@ const Email = () => {
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [manualSelection, setManualSelection] = useState(false);
   const [recipientCount, setRecipientCount] = useState(0);
-  const [isMenuOpen, setIsMenuOpen] = useState(true);
+  const [attachments, setAttachments] = useState([]);
+  const [showPreview, setShowPreview] = useState(false);
   const isMounted = useRef(false);
+
+  const maxAttachmentTotalBytes = 18 * 1024 * 1024;
+  const buildMessageWithSignature = () => `${message || ''}${emailSignatureHtml}`;
+
+  const getStudentRecipients = (students) => {
+    const emails = students.flatMap((student) => {
+      // Preparado para sumar un segundo mail del alumno más adelante.
+      return [student.mail].filter(Boolean);
+    });
+
+    return [...new Set(emails)];
+  };
+
+  const formatFileSize = (bytes) => {
+    if (bytes >= 1024 * 1024) return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    if (bytes >= 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${bytes} B`;
+  };
+
+  const fileToAttachment = (file) => new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const content = String(reader.result).split(',')[1];
+      resolve({
+        filename: file.name,
+        content,
+        encoding: 'base64',
+        contentType: file.type || 'application/octet-stream',
+      });
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 
   const applyFormat = (command, value = null) => {
     document.execCommand(command, false, value);
@@ -103,6 +136,8 @@ const Email = () => {
     setSearchTerm('');
     setManualSelection(false);
     setRecipientCount(0);
+    setAttachments([]);
+    setShowPreview(false);
     Swal.fire('Cancelado', 'Todos los datos han sido borrados.', 'info');
   };
 
@@ -114,23 +149,8 @@ const Email = () => {
     const students = await fetchActiveStudents();
     setSelectedStudents(students);
     setRecipientCount(students.length);
-    setSubject('Bienvenida Liga Infantil de Fútbol Yerba Buena 2025');
-    setMessage(`
-      <div style="font-family: Arial, sans-serif; color: #333; line-height: 1.6;">
-        <p><strong>Estimado/a padre, madre o tutor/a:</strong></p>
-        <p>Nos alegra mucho darles la bienvenida a la segunda edición de la <strong>Liga Infantil de Fútbol Yerba Buena 2025</strong>. Estamos muy contentos de contar nuevamente con <strong>[Nombre del niño o niña]</strong> como parte de esta experiencia deportiva.</p>
-        <p><strong>📅 Fecha de inicio del torneo:</strong> 23 de agosto</p>
-        <p><strong>💰 Costo de inscripción:</strong> $50.000 (puede abonarse en dos cuotas o en un solo pago).</p>
-        <p><strong>⚠️ Importante:</strong> Para pagos realizados después del 1 de septiembre, el valor de inscripción será de $55.000.</p>
-        <p>Pronto recibirán más información por este medio, así que les pedimos estar atentos en estos días.</p>
-        <p>Ante cualquier duda o consulta, pueden escribirnos a <strong>[TU CORREO]</strong> o comunicarse al <strong>[TU NÚMERO DE WHATSAPP]</strong>.</p>
-        <p>¡Gracias por ser parte de esta nueva edición! Estamos seguros de que será una experiencia inolvidable para todos los chicos.</p>
-        <p style="margin-top: 30px;">
-          <strong>Saludos cordiales,</strong><br>
-          Organización Liga Infantil de Fútbol Yerba Buena 2025
-        </p>
-      </div>
-    `);
+    setSubject('');
+    setMessage('');
   };
 
   const handleSchoolEmail = async () => {
@@ -164,24 +184,37 @@ const Email = () => {
   };
 
   const handleSendToAll = async () => {
-    const recipients = selectedStudents.filter(s => s.mail).map(s => s.mail);
+    const recipients = getStudentRecipients(selectedStudents);
 
     if (recipients.length === 0 && selectedStudents.length > 0) {
       Swal.fire('Error', 'No hay estudiantes seleccionados con correo registrado.', 'error');
       return;
     }
 
+    if (!subject.trim() || !message.trim()) {
+      Swal.fire('Error', 'Completá el asunto y el mensaje antes de enviar.', 'error');
+      return;
+    }
+
     setLoading(true);
-    await sendEmail(recipients, subject, message, emailType, selectedStudents, () => {
-      setSelectedStudents([]);
-      setSubject('');
-      setMessage('');
-      setSearchTerm('');
-      setEmailType('');
-      setManualSelection(false);
-      setRecipientCount(0);
-    });
-    setLoading(false);
+    try {
+      const preparedAttachments = await Promise.all(attachments.map(({ file }) => fileToAttachment(file)));
+      await sendEmail(recipients, subject, buildMessageWithSignature(), emailType, selectedStudents, () => {
+        setSelectedStudents([]);
+        setSubject('');
+        setMessage('');
+        setSearchTerm('');
+        setEmailType('');
+        setManualSelection(false);
+        setRecipientCount(0);
+        setAttachments([]);
+        setShowPreview(false);
+      }, preparedAttachments);
+    } catch (error) {
+      Swal.fire('Error', error.message || 'No se pudieron preparar los adjuntos.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleClearEmail = () => {
@@ -189,9 +222,40 @@ const Email = () => {
     setMessage('');
   };
 
+  const handleAttachmentChange = (e) => {
+    const files = Array.from(e.target.files || []);
+    const nextAttachments = [
+      ...attachments,
+      ...files.map((file) => ({
+        id: `${file.name}-${file.size}-${file.lastModified}-${crypto.randomUUID()}`,
+        file,
+        previewUrl: file.type.startsWith('image/') ? URL.createObjectURL(file) : null,
+      })),
+    ];
+    const totalBytes = nextAttachments.reduce((sum, item) => sum + item.file.size, 0);
+
+    if (totalBytes > maxAttachmentTotalBytes) {
+      Swal.fire('Error', 'Los adjuntos no pueden superar 18 MB en total.', 'error');
+      e.target.value = '';
+      return;
+    }
+
+    setAttachments(nextAttachments);
+    e.target.value = '';
+  };
+
+  const handleRemoveAttachment = (attachmentId) => {
+    setAttachments((current) => {
+      const attachment = current.find(item => item.id === attachmentId);
+      if (attachment?.previewUrl) URL.revokeObjectURL(attachment.previewUrl);
+      return current.filter(item => item.id !== attachmentId);
+    });
+  };
+
+  const totalAttachmentBytes = attachments.reduce((sum, item) => sum + item.file.size, 0);
+
   return (
       <div className="email-notification-container">
-      <Sidebar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} auth="admin" />
       <div className="email-notification-content">
         <h1 className="email-notification-title">Enviar Correos</h1>
 
@@ -201,17 +265,6 @@ const Email = () => {
           <button onClick={handleIndividualEmail} disabled={loading} className="type-btn">Individual</button>
           <button onClick={handleCancel} disabled={!emailType} className="type-btn cancel-btn">Cancelar</button>
         </div>
-
-        {emailType && (
-          <div className="recipient-stats">
-            {recipientCount > 0 && (
-              <p>
-                {recipientCount} destinatario(s)
-                {emailType === 'school' && selectedSchool ? ` de ${selectedSchool}` : ''}
-              </p>
-            )}
-          </div>
-        )}
 
         {emailType === 'school' && (
           <div className="school-selection">
@@ -268,24 +321,6 @@ const Email = () => {
         </div>
         )}
 
-        {emailType === 'school' && selectedSchool && (
-          <div className="student-selection-card compact-card">
-            <h3>Destino por escuela</h3>
-            <p className="selection-summary">
-              Se enviará el correo a todos los alumnos activos de <strong>{selectedSchool}</strong> con mail válido.
-            </p>
-          </div>
-        )}
-
-        {emailType === 'general' && (
-          <div className="student-selection-card compact-card">
-            <h3>Destino general</h3>
-            <p className="selection-summary">
-              Se enviará el correo a todos los alumnos activos con mail válido.
-            </p>
-          </div>
-        )}
-
         <div className="email-composer-card">
           <h3>
             Componer Correo
@@ -338,14 +373,56 @@ const Email = () => {
             onInput={handleEditorChange}
             className="email-message-editor"
           />
+
+          <div className="email-attachments-panel">
+            <label className="attachment-upload-btn">
+              <FaPaperclip /> Adjuntar archivos
+              <input
+                type="file"
+                multiple
+                onChange={handleAttachmentChange}
+                disabled={loading}
+              />
+            </label>
+            <span className="attachment-limit">
+              {attachments.length} archivo(s) · {formatFileSize(totalAttachmentBytes)} / 18 MB
+            </span>
+            {attachments.length > 0 && (
+              <div className="attachment-list">
+                {attachments.map((attachment) => (
+                  <div className="attachment-item" key={attachment.id}>
+                    {attachment.previewUrl ? (
+                      <img src={attachment.previewUrl} alt={attachment.file.name} className="attachment-thumb" />
+                    ) : (
+                      <FaPaperclip className="attachment-file-icon" />
+                    )}
+                    <div className="attachment-info">
+                      <strong>{attachment.file.name}</strong>
+                      <span>{formatFileSize(attachment.file.size)}</span>
+                    </div>
+                    <button type="button" onClick={() => handleRemoveAttachment(attachment.id)} disabled={loading}>
+                      <FaTimes />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           
           <div className="email-actions">
             <button onClick={handleClearEmail} disabled={loading} className="clear-btn">
               <FaTrash /> Borrar
             </button>
             <button
+              onClick={() => setShowPreview(true)}
+              disabled={!subject.trim() || !message.trim()}
+              className="preview-btn"
+            >
+              <FaEye /> Vista previa
+            </button>
+            <button
               onClick={handleSendToAll}
-              disabled={loading || recipientCount === 0 || !subject.trim()}
+              disabled={loading || recipientCount === 0 || !subject.trim() || !message.trim()}
               className="send-btn"
             >
               {loading ? 'Enviando...' : `Enviar a ${recipientCount} Destinatario(s)`}
@@ -353,7 +430,7 @@ const Email = () => {
           </div>
         </div>
 
-        {(progress.isSending || progress.sent > 0) && (
+        {progress.isSending && (
           <div className="progress-card">
             <div className="progress-header">
               <strong>Progreso del envío</strong>
@@ -369,6 +446,59 @@ const Email = () => {
             <div className="progress-meta">
               <span>{progress.success} exitosos</span>
               <span>{progress.failed} fallidos</span>
+            </div>
+          </div>
+        )}
+
+        {showPreview && (
+          <div className="email-preview-backdrop" role="dialog" aria-modal="true">
+            <div className="email-preview-modal">
+              <div className="preview-header">
+                <div>
+                  <span>Vista previa</span>
+                  <h3>{subject}</h3>
+                </div>
+                <button type="button" onClick={() => setShowPreview(false)} disabled={loading}>
+                  <FaTimes />
+                </button>
+              </div>
+              <div className="preview-meta">
+                <span>{recipientCount} destinatario(s)</span>
+                <span>{attachments.length} adjunto(s)</span>
+              </div>
+              <div className="preview-body" dangerouslySetInnerHTML={{ __html: buildMessageWithSignature() }} />
+              {attachments.length > 0 && (
+                <div className="preview-attachments">
+                  <strong>Adjuntos</strong>
+                  {attachments.map((attachment) => (
+                    <div className="preview-attachment" key={attachment.id}>
+                      {attachment.previewUrl && <img src={attachment.previewUrl} alt={attachment.file.name} />}
+                      <span>{attachment.file.name}</span>
+                      <small>{formatFileSize(attachment.file.size)}</small>
+                    </div>
+                  ))}
+                </div>
+              )}
+              <div className="preview-actions">
+                <button type="button" onClick={() => setShowPreview(false)} disabled={loading}>Cerrar</button>
+                <button type="button" onClick={handleSendToAll} disabled={loading || recipientCount === 0 || !subject.trim() || !message.trim()}>
+                  {loading ? 'Enviando...' : 'Enviar ahora'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {loading && (
+          <div className="email-sending-overlay" role="status" aria-live="polite">
+            <div className="sending-box">
+              <strong>Enviando correos</strong>
+              <span>{progress.percentage || 0}%</span>
+              <div className="progress-track">
+                <div className="progress-fill" style={{ width: `${progress.percentage || 0}%` }} />
+              </div>
+              <p>{progress.sent} procesados de {progress.total || recipientCount}</p>
+              <small>No cierres esta pantalla hasta que finalice el envío.</small>
             </div>
           </div>
         )}

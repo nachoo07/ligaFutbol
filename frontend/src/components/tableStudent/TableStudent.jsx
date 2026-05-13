@@ -1,12 +1,10 @@
 import React, { useState, useContext, useEffect, useMemo, useRef } from 'react';
 import { Table, Button, Alert, Spinner } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { FaSearch, FaFileExcel } from 'react-icons/fa';
-import { MdOutlineReadMore } from "react-icons/md";
+import { FaSearch, FaFileExcel, FaPlus } from 'react-icons/fa';
 import { StudentsContext } from '../../context/student/StudentContext';
 import { LoginContext } from '../../context/login/LoginContext';
 import StudentFormModal from '../modal/StudentFormModal';
-import Sidebar from '../sidebar/Sidebar';
 import Swal from 'sweetalert2';
 import './tableStudent.css';
 
@@ -22,6 +20,27 @@ function useDebounce(value, delay) {
     return debouncedValue;
 }
 
+const initialStudentFormData = {
+    name: '',
+    lastName: '',
+    dni: '',
+    birthDate: '',
+    address: '',
+    mail: '',
+    category: '',
+    motherName: '',
+    motherPhone: '',
+    fatherName: '',
+    fatherPhone: '',
+    profileImage: null,
+    archived: [],
+    archivedNames: [],
+    school: '',
+    color: '',
+    sex: '',
+    status: 'Activo',
+};
+
 const TableStudent = () => {
     const navigate = useNavigate();
     const location = useLocation();
@@ -30,36 +49,20 @@ const TableStudent = () => {
 
     const [show, setShow] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterStatus, setFilterStatus] = useState('');
+    const [filterStatus, setFilterStatus] = useState('Activo');
     const [currentPage, setCurrentPage] = useState(1);
-    const [formData, setFormData] = useState({
-        name: '',
-        lastName: '',
-        dni: '',
-        birthDate: '',
-        address: '',
-        mail: '',
-        category: '',
-        motherName: '',
-        motherPhone: '',
-        fatherName: '',
-        fatherPhone: '',
-        profileImage: null,
-        archived: [],
-        archivedNames: [],
-        school: '',
-        color: '',
-        sex: '',
-        status: 'Activo'
-    });
+    const [formData, setFormData] = useState(initialStudentFormData);
     const [showAlert, setShowAlert] = useState(false);
     const [alertMessage, setAlertMessage] = useState('');
     const [alertVariant, setAlertVariant] = useState('warning');
     const [isImporting, setIsImporting] = useState(false);
     const studentsPerPage = 15;
     const [maxVisiblePages, setMaxVisiblePages] = useState(10);
-    const [isMenuOpen, setIsMenuOpen] = useState(true);
     const isMounted = useRef(false);
+    const students = useMemo(
+        () => Array.isArray(estudiantes) ? estudiantes : [],
+        [estudiantes]
+    );
 
     // Carga inicial de estudiantes y restauración de página
     useEffect(() => {
@@ -70,7 +73,7 @@ const TableStudent = () => {
         if (location.pathname === '/student' && location.state?.fromDetailStudent) {
             page = location.state.currentPage || page;
             setSearchTerm(location.state.searchTerm || '');
-            setFilterStatus(location.state.filterStatus || '');
+            setFilterStatus(location.state.filterStatus || 'Activo');
         }
         setCurrentPage(page);
         obtenerEstudiantes().catch((error) => {
@@ -105,7 +108,18 @@ const TableStudent = () => {
             const matchesStatus = filterStatus === '' || estudiante.status === filterStatus;
             return matchesSearch && matchesStatus;
         });
-    }, [estudiantes, debouncedSearchTerm, filterStatus]);
+    }, [students, debouncedSearchTerm, filterStatus]);
+
+    const statusCounts = useMemo(() => {
+        const active = estudiantes.filter((student) => student.status === 'Activo').length;
+        const inactive = estudiantes.filter((student) => student.status === 'Inactivo').length;
+
+        return {
+            total: estudiantes.length,
+            active,
+            inactive,
+        };
+    }, [students]);
 
     const totalPages = Math.ceil(filteredStudents.length / studentsPerPage) || 1;
 
@@ -128,26 +142,7 @@ const TableStudent = () => {
     };
 
     const handleShow = () => {
-        setFormData({
-            name: '',
-            lastName: '',
-            dni: '',
-            birthDate: '',
-            address: '',
-            mail: '',
-            category: '',
-            motherName: '',
-            motherPhone: '',
-            fatherName: '',
-            fatherPhone: '',
-            profileImage: null,
-            archived: [],
-            archivedNames: [],
-            school: '',
-            color: '',
-            sex: '',
-            status: 'Activo'
-        });
+        setFormData(initialStudentFormData);
         setShow(true);
     };
 
@@ -166,6 +161,12 @@ const TableStudent = () => {
         }
     };
 
+    const showImportAlert = (message, variant = 'warning') => {
+        setAlertMessage(message);
+        setAlertVariant(variant);
+        setShowAlert(true);
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         try {
@@ -181,16 +182,12 @@ const TableStudent = () => {
     const handleImportExcel = async (e) => {
         const file = e.target.files[0];
         if (!file) {
-            setAlertMessage('Por favor selecciona un archivo Excel.');
-            setAlertVariant('warning');
-            setShowAlert(true);
+            showImportAlert('Por favor selecciona un archivo Excel.');
             return;
         }
         const validTypes = ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'];
         if (!validTypes.includes(file.type)) {
-            setAlertMessage('El archivo debe ser un Excel (.xlsx o .xls).');
-            setAlertVariant('warning');
-            setShowAlert(true);
+            showImportAlert(error.response?.data?.message || 'Error al importar el archivo Excel.', 'danger');
             return;
         }
         if (file.size > 5 * 1024 * 1024) {
@@ -214,6 +211,11 @@ const TableStudent = () => {
         }
     };
 
+    const handleStatusFilterChange = (status) => {
+        setFilterStatus(status);
+        setCurrentPage(1);
+    };
+
     const capitalizeInitials = (text) => {
         if (!text) return '';
         return text.split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase()).join(' ');
@@ -226,8 +228,7 @@ const TableStudent = () => {
     };
 
     return (
-        <div className="dashboard-container-student">
-            <Sidebar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} auth={auth} />
+        <div className="dashboard-container">
             <div className="content-student">
                 {showAlert && (
                     <Alert variant={alertVariant} onClose={() => setShowAlert(false)} dismissible className="custom-alert">
@@ -236,53 +237,67 @@ const TableStudent = () => {
                     </Alert>
                 )}
                 <div className="students-view">
-                    <h1 className="title">Panel de Alumnos</h1>
-                    <div className="students-header">
-                        <div className="search-bar">
-                            <input
-                                type="text"
-                                placeholder="Buscar por nombre, apellido o DNI..."
-                                value={searchTerm}
-                                onChange={handleSearchChange}
-                                aria-label="Buscar estudiantes"
-                            />
-                            <FaSearch className="search-icon" />
+                    <div className="students-toolbar">
+                        <div className="students-toolbar-left">
+                            <div className="search-bar">
+                                <FaSearch className="search-icon" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar por nombre, apellido o DNI..."
+                                    value={searchTerm}
+                                    onChange={handleSearchChange}
+                                    aria-label="Buscar estudiantes"
+                                />
+                            </div>
+                            <div className="status-tabs" aria-label="Filtrar por estado">
+                                <button
+                                    type="button"
+                                    className={`status-tab ${filterStatus === 'Activo' ? 'active' : ''}`}
+                                    onClick={() => handleStatusFilterChange('Activo')}
+                                >
+                                    Activos <span>{statusCounts.active}</span>
+                                </button>
+
+                                <button
+                                    type="button"
+                                    className={`status-tab ${filterStatus === 'Inactivo' ? 'active' : ''}`}
+                                    onClick={() => handleStatusFilterChange('Inactivo')}
+                                >
+                                    Inactivos <span>{statusCounts.inactive}</span>
+                                </button>
+                                <button
+                                    type="button"
+                                    className={`status-tab ${filterStatus === '' ? 'active' : ''}`}
+                                    onClick={() => handleStatusFilterChange('')}
+                                >
+                                    Todos <span>{statusCounts.total}</span>
+                                </button>
+                            </div>
                         </div>
-                        <div className="state-filter">
-                            <label htmlFor="filter-status">Estado:</label>
-                            <select
-                                id="filter-status"
-                                value={filterStatus}
-                                onChange={(e) => setFilterStatus(e.target.value)}
-                                aria-label="Filtrar por estado"
-                            >
-                                <option value="">Todos</option>
-                                <option value="Activo">Activo</option>
-                                <option value="Inactivo">Inactivo</option>
-                            </select>
-                        </div>
+
                         {auth === 'admin' && (
-                            <div className="filter-actions">
-                                <div className="actions">
-                                    <Button className="add-btn-student" onClick={handleShow} aria-label="Agregar nuevo estudiante">
-                                        Agregar Alumno
-                                    </Button>
-                                    <label htmlFor="import-excel" className="import-btn">
-                                        <FaFileExcel style={{ marginRight: '5px' }} /> Importar Excel
-                                    </label>
-                                    <input
-                                        type="file"
-                                        id="import-excel"
-                                        accept=".xlsx, .xls"
-                                        style={{ display: 'none' }}
-                                        onChange={handleImportExcel}
-                                        disabled={isImporting}
-                                        aria-label="Importar archivo Excel"
-                                    />
-                                </div>
+                            <div className="students-toolbar-actions">
+                                <Button className="add-btn-student" onClick={handleShow} aria-label="Agregar nuevo estudiante">
+                                    <FaPlus /> Agregar Alumno
+                                </Button>
+
+                                <label htmlFor="import-excel" className="import-btn">
+                                    <FaFileExcel /> Importar Excel
+                                </label>
+
+                                <input
+                                    type="file"
+                                    id="import-excel"
+                                    accept=".xlsx, .xls"
+                                    style={{ display: 'none' }}
+                                    onChange={handleImportExcel}
+                                    disabled={isImporting}
+                                    aria-label="Importar archivo Excel"
+                                />
                             </div>
                         )}
                     </div>
+
                     {loading ? (
                         <div className="loading-overlay">
                             <Spinner animation="border" variant="primary" />
@@ -316,7 +331,7 @@ const TableStudent = () => {
                                                 <td>{estudiante.status}</td>
                                                 <td>
                                                     <Button
-                                                        className="action-btn ver-mas-btn"
+                                                        className="action-btn"
                                                         onClick={() => {
                                                             navigate(`/detailstudent/${estudiante._id}?page=${currentPage}`, {
                                                                 state: {
@@ -330,9 +345,6 @@ const TableStudent = () => {
                                                         aria-label={`Ver detalles de ${estudiante.name} ${estudiante.lastName}`}
                                                     >
                                                         <span className="ver-mas-text">Ver Más</span>
-                                                        <span className="ver-mas-icon">
-                                                            <MdOutlineReadMore />
-                                                        </span>
                                                     </Button>
                                                 </td>
                                             </tr>

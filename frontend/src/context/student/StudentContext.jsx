@@ -12,7 +12,19 @@ const StudentsProvider = ({ children }) => {
     const [isDataLoaded, setIsDataLoaded] = useState(false);
     const [loading, setLoading] = useState(false);
     const { auth, loading: authLoading } = useContext(LoginContext);
+
+    useEffect(() => {
+  if (!auth) {
+    setEstudiantes([]);
+    setEstudiante(null);
+    setIsDataLoaded(false);
+    setLoading(false);
+  }
+}, [auth]);
+
+
     const location = useLocation();
+
 
     const fieldTranslations = {
         name: "Nombre",

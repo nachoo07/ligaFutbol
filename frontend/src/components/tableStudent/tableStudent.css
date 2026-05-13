@@ -1,8 +1,3 @@
-.dashboard-container-student {
-  display: flex;
-  height: 100vh; /* Cambia a 100vh para ocupar todo el alto de la ventana */
-}
-
 .content-student {
   flex-grow: 1;
   padding: 20px;
@@ -21,58 +16,17 @@
   min-height: 0; /* Permite que los hijos se ajusten correctamente */
 }
 
-.title {
-  font-size: 36px !important;
-  font-weight: bold;
-  text-align: center;
-  color: #333;
-  margin-bottom: 0px !important;
-}
-
-.search-bar {
-  position: relative;
-  max-width: 500px;
-  margin: 0 auto;
-}
-
-.search-bar input {
-  width: 100%;
-  padding: 12px 40px 12px 15px;
-  border: 1px solid #ccc;
-  border-radius: 25px;
-  font-size: 16px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-}
-
 .search-icon {
+  left: 18px;
+  color: #6b7280 !important;
+  font-size: 0.9rem;
   position: absolute;
   right: 15px;
   top: 50%;
   transform: translateY(-50%);
-  color: #0163a9 !important;
-  font-size: 18px;
 }
 
-.actions {
-  display: flex;
-  justify-content: flex-end;
-  margin-bottom: 15px;
-}
 
-.add-btn-student {
-  background: #0163a9 !important;
-  color: white;
-  border: none !important;
-  padding: 10px 20px;
-  border-radius: 5px;
-  font-size: 20px !important;
-  margin-left: 20px;
-  margin-right: 20px;
-}
-
-.add-btn-student:hover {
-  background: #013d61 !important;
-}
 
 .students-table {
   border-radius: 10px;
@@ -92,18 +46,6 @@
   background: #0163a9 !important;
   color: white;
   font-weight: bold;
-}
-
-.students-table tr.state-activo {
-  background: #d4edda;
-}
-
-.students-table tr.state-inactivo {
-  background: #f8d7da;
-}
-
-.students-table tr:hover {
-  background: #e8e8e8;
 }
 
 .pagination {
@@ -159,49 +101,6 @@
   background: #013d61 !important;
 }
 
-.students-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.filter-actions {
-  display: flex;
-  justify-content: space-between;
-  text-align: center;
-  align-items: center;
-}
-
-.actions {
-  margin-bottom: 0px;
-}
-
-.estado {
-  margin-bottom: 0px;
-}
-
-.import-btn {
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  font-weight: 400;
-  line-height: 1.5;
-  border-radius: 0.25rem;
-  transition: all 0.2s;
-  border: none;
-  padding: 10px 20px !important;
-  border-radius: 5px;
-  font-size: 20px !important;
-  margin: 0px;
-  background-color: #ff9500 !important;
-  color: white;
-}
-
-.import-btn:hover {
-  background-color: #cc7a00 !important;
-  border-color: #ff9500 !important;
-}
-
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -231,86 +130,136 @@
   color: #333;
 }
 
-.state-filter {
+.students-toolbar {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 300px;
-  margin-left: 10px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
 }
 
-.state-filter  {
-  font-size: 16px ;
-  color: #333;
-
+.students-toolbar-left {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(620px, 100%);
 }
 
-.state-filter select {
-  padding: 8px;
-  border: 1px solid #ccc;
-  border-radius: 5px;
+.search-bar {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0;
+}
+
+.search-bar input {
+  width: 100%;
+  min-height: 50px;
+  padding: 12px 40px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
   background: #fff;
-  font-size: 16px;
-  flex: 1;
+  color: #2c3e50;
+  font-size: 0.9rem;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.08);
 }
 
-.ver-mas-btn {
+.status-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+}
+
+.status-tab {
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #fff;
+  color: #2c3e50;
+  padding: 8px 14px;
+  font-size: 14px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.04);
+}
+
+.status-tab span {
+  min-width: 34px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #52606d;
+  font-size: 15px;
+}
+
+.status-tab.active {
+  background: #0163a9;
+  border-color: #0163a9;
+  color: #fff;
+}
+
+.status-tab.active span {
+  background: rgba(255, 255, 255, 0.22);
+  color: #fff;
+}
+
+.students-toolbar-actions {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.add-btn-student,
+.import-btn {
+  min-height: 58px;
+  display: inline-flex;
+  align-items: center;
   gap: 5px;
-  background: #0163a9 !important;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 5px;
-  font-size: 16px !important;
+  border: none !important;
+  border-radius: 8px;
+  padding: 8px 16px !important;
+  font-size: 20px !important;
+  font-weight: 600;
   cursor: pointer;
+  margin: 0;
 }
 
-.ver-mas-btn:hover {
-  background: #013d61 !important;
+.add-btn-student {
+  background: #0163a9 !important;
+  color: #fff !important;
 }
 
-.ver-mas-icon {
-  display: none;
+.import-btn {
+  background: #f59e0b !important;
+  color: #fff !important;
 }
 
-.ver-mas-text {
-  display: inline;
-}
+@media (max-width: 900px) {
+  .students-toolbar {
+    flex-direction: column;
+  }
 
-
-@media (max-width: 768px) {
-  .table-container {
+  .students-toolbar-actions {
     width: 100%;
     margin-left: 0;
+    flex-wrap: wrap;
   }
 
-  .search-bar,
-  .state-filter {
-    max-width: 100%;
-  }
-
-  .actions {
+  .add-btn-student,
+  .import-btn {
+    flex: 1;
     justify-content: center;
-  }
-
-  .students-table th,
-  .students-table td {
-    padding: 8px;
   }
 }
 
 @media (max-width: 576px) {
-  .sidebar {
-    display: none;
-  }
-
   .content-student {
     padding: 10px; /* Reduce padding en pantallas pequeñas */
     width: 100%;
   }
+
   .students-view {
     gap: 10px; /* Reduce el gap en pantallas pequeñas */
   }
@@ -327,56 +276,9 @@
     font-size: 10px !important;
   }
 
-  .students-header {
-    flex-direction: column;
-    gap: 10px;
-  }
-
-  .search-bar {
-    width: 100%;
-  }
-
-  .filter-actions {
-    display: flex;
-    justify-content: space-around;
-    gap: 10px;
-    width: 100%;
-  }
-
-  .state-filter {
-    flex: 1;
-  }
-
-  .add-btn {
-    margin-left: 0px;
-    margin-right: 50px;
-    font-size: 15px !important;
-    height: 40px;
-  }
-
-  .import-btn {
-    font-size: 15px !important;
-    height: 40px;
-    padding: 6px 12px !important;
-  }
-
-  .actions {
-    margin-bottom: 0px;
-  }
-
   .students-table th.categoria,
   .students-table td.categoria {
     display: none;
-  }
-  .ver-mas-icon {
-    display: inline;
-  }
-
-  .ver-mas-text {
-    display: none;
-  }
-  .ver-mas-btn {
-   padding: 3px !important;
   }
 
   .students-table {

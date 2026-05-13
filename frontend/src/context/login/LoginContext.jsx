@@ -67,9 +67,10 @@ export const LoginProvider = ({ children }) => {
         console.error('Error al verificar autenticación:', error.response?.data || error.message);
         clearSession();
 
-        if (window.location.pathname !== '/login') {
-          navigate('/login', { replace: true });
-        }
+        if (window.location.pathname === '/login') {
+  setLoading(false);
+  return;
+}
       } finally {
         setLoading(false);
       }

@@ -1,17 +1,84 @@
-import { useState, useEffect, useContext } from "react";
+import { useState, useEffect, useContext, useMemo } from "react";
 import { SharesContext } from "../../context/share/ShareContext";
+import { StudentsContext } from "../../context/student/StudentContext";
 import { Modal, Button, Form, Spinner } from 'react-bootstrap';
 import Swal from 'sweetalert2';
 import "../share/share.css";
 
+const YEARS = [2025, 2026, 2027];
+
+const getStudentId = (student) => {
+    if (!student) return "";
+    return typeof student === "string" ? student : student._id;
+};
+
+const normalizeText = (value) => String(value || "").trim().toLowerCase();
+
 const MassiveShareForm = ({ show, onHide }) => {
-    const { createMassiveShares, getAvailableShareNames, obtenerCuotas } = useContext(SharesContext);
+    const { cuotas, createMassiveShares, getAvailableShareNames, obtenerCuotas } = useContext(SharesContext);
+    const { estudiantes, obtenerEstudiantes } = useContext(StudentsContext);
     const [year, setYear] = useState("");
     const [paymentName, setPaymentName] = useState("");
+    const [school, setSchool] = useState("");
     const [availableNames, setAvailableNames] = useState([]);
-    const [loading, setLoading] = useState(false); // Estado para controlar la carga
+    const [loading, setLoading] = useState(false);
 
-    const years = Array.from({ length: 5 }, (_, i) => 2025 + i);
+    const students = useMemo(
+        () => Array.isArray(estudiantes) ? estudiantes : [],
+        [estudiantes]
+    );
+    const shares = useMemo(
+        () => Array.isArray(cuotas) ? cuotas : [],
+        [cuotas]
+    );
+    const normalizedPaymentName = normalizeText(paymentName);
+    const isThirdShare = normalizedPaymentName.includes("tercera cuota");
+    const activeStudentsById = useMemo(() => new Map(
+        students
+            .filter((student) => student.status === "Activo")
+            .map((student) => [student._id, student])
+    ), [students]);
+    const previousPaymentName = isThirdShare
+        ? normalizedPaymentName.replace("tercera cuota", "segunda cuota")
+        : "";
+    const eligibleSchools = useMemo(() => [...new Set(
+        shares
+            .filter((share) => {
+                const studentId = getStudentId(share.student);
+                const student = activeStudentsById.get(studentId);
+                const alreadyHasThirdShare = shares.some((candidate) => (
+                    getStudentId(candidate.student) === studentId &&
+                    normalizeText(candidate.paymentName) === normalizedPaymentName &&
+                    Number(candidate.year) === Number(year)
+                ));
+
+                return (
+                    isThirdShare &&
+                    student &&
+                    !alreadyHasThirdShare &&
+                    normalizeText(share.paymentName) === previousPaymentName &&
+                    Number(share.year) === Number(year) &&
+                    share.paymentType === "Pago Parcial" &&
+                    share.status === "Pagado"
+                );
+            })
+            .map((share) => activeStudentsById.get(getStudentId(share.student))?.school)
+            .filter(Boolean)
+    )].sort((a, b) => a.localeCompare(b)), [activeStudentsById, isThirdShare, normalizedPaymentName, previousPaymentName, shares, year]);
+
+    useEffect(() => {
+        if (show && students.length === 0) {
+            obtenerEstudiantes().catch((error) => {
+                console.error("Error al obtener estudiantes:", error);
+            });
+        }
+
+        if (show && shares.length === 0) {
+            obtenerCuotas().catch((error) => {
+                console.error("Error al obtener cuotas:", error);
+            });
+        }
+    }, [show, students.length, shares.length, obtenerEstudiantes, obtenerCuotas]);
 
     useEffect(() => {
         if (year) {
@@ -29,11 +96,20 @@ const MassiveShareForm = ({ show, onHide }) => {
     }, [year, getAvailableShareNames]);
 
     useEffect(() => {
+        if (!isThirdShare) {
+            setSchool("");
+        } else if (school && !eligibleSchools.includes(school)) {
+            setSchool("");
+        }
+    }, [isThirdShare, school, eligibleSchools]);
+
+    useEffect(() => {
         if (!show) {
             setYear("");
             setPaymentName("");
+            setSchool("");
             setAvailableNames([]);
-            setLoading(false); // Resetear el estado de carga al cerrar el modal
+            setLoading(false);
         }
     }, [show]);
 
@@ -43,17 +119,28 @@ const MassiveShareForm = ({ show, onHide }) => {
             return;
         }
 
-        setLoading(true); // Activar el estado de carga
+        if (isThirdShare && !school) {
+            Swal.fire("¡Advertencia!", "Para crear una tercera cuota masiva tenés que seleccionar una escuela.", "warning");
+            return;
+        }
+
+        setLoading(true);
         try {
-            const createdSharesCount = await createMassiveShares(paymentName, parseInt(year));
-            await obtenerCuotas(true); // Refrescar las cuotas
-            Swal.fire("¡Éxito!", `Se crearon ${createdSharesCount} cuotas masivas correctamente`, "success");
+            const result = await createMassiveShares(paymentName, parseInt(year), isThirdShare ? school : "");
+            await obtenerCuotas(true);
+            const createdSharesCount = typeof result === "number" ? result : result.created;
+            const message = result?.message || `Se crearon ${createdSharesCount} cuotas masivas correctamente`;
+            Swal.fire(
+                createdSharesCount > 0 ? "¡Éxito!" : "Sin cuotas nuevas",
+                message,
+                createdSharesCount > 0 ? "success" : "info"
+            );
             onHide(); // Cerrar el modal después de mostrar la alerta
         } catch (error) {
             console.error("Error al crear cuotas masivas:", error);
             Swal.fire("¡Error!", error.response?.data?.message || "No se pudieron crear las cuotas masivas.", "error");
         } finally {
-            setLoading(false); // Desactivar el estado de carga, ya sea éxito o error
+            setLoading(false);
         }
     };
 
@@ -72,7 +159,7 @@ const MassiveShareForm = ({ show, onHide }) => {
                             disabled={loading}
                         >
                             <option value="">Selecciona un año</option>
-                            {years.map((y) => (
+                            {YEARS.map((y) => (
                                 <option key={y} value={y}>{y}</option>
                             ))}
                         </Form.Select>
@@ -92,6 +179,28 @@ const MassiveShareForm = ({ show, onHide }) => {
                             ))}
                         </Form.Select>
                     </Form.Group>
+                    {isThirdShare && (
+                        <Form.Group className="mb-3">
+                            <Form.Label>Escuela</Form.Label>
+                            <Form.Select
+                                value={school}
+                                onChange={(e) => setSchool(e.target.value)}
+                                disabled={loading}
+                            >
+                                <option value="">
+                                    {eligibleSchools.length > 0
+                                        ? "Selecciona una escuela"
+                                        : "No hay escuelas habilitadas"}
+                                </option>
+                                {eligibleSchools.map((schoolName) => (
+                                    <option key={schoolName} value={schoolName}>{schoolName}</option>
+                                ))}
+                            </Form.Select>
+                            <Form.Text className="text-muted">
+                                Solo aparecen escuelas con alumnos activos que tienen la segunda cuota pagada como Pago Parcial y todavía no tienen esta tercera cuota.
+                            </Form.Text>
+                        </Form.Group>
+                    )}
                 </Form>
                 {loading && (
                     <div className="text-center my-3">

@@ -12,7 +12,6 @@ import { FaSearch } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import Swal from 'sweetalert2';
-import Sidebar from '../sidebar/Sidebar'; // Ajusta la ruta si es diferente
 import './shareDetail.css';
 
 // Registrar idioma español para DatePicker
@@ -160,7 +159,6 @@ const ShareDetail = () => {
     selectedDate: null,
     searchTerm: '',
   });
-  const [isMenuOpen, setIsMenuOpen] = useState(true);
 
   const filteredCuotas = useFilteredCuotas(cuotas, filters);
 
@@ -243,8 +241,7 @@ const ShareDetail = () => {
   };
 
   return (
-    <div className="dashboard-container-share">
-      <Sidebar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} auth={auth} />
+    <div className="dashboard-container">
       <div className="content-share">
         <div className="payment-view">
           <h1 className="title">Registro de Pagos</h1>

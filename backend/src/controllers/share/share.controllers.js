@@ -177,7 +177,7 @@ export const createShare = async (req, res) => {
 
 // Crear cuotas masivas
 export const createMassiveShares = async (req, res) => {
-    const { paymentName, year } = req.body;
+    const { paymentName, year, school } = req.body;
 
     if (!paymentName || !year) {
         logger.warn('Faltan campos obligatorios en createMassiveShares', { paymentName, year });
@@ -196,31 +196,51 @@ export const createMassiveShares = async (req, res) => {
         const validNames = [
             `Primera cuota - Semestre 1 - ${parsedYear}`,
             `Segunda cuota - Semestre 1 - ${parsedYear}`,
+            `Tercera cuota - Semestre 1 - ${parsedYear}`,
             `Primera cuota - Semestre 2 - ${parsedYear}`,
             `Segunda cuota - Semestre 2 - ${parsedYear}`,
+            `Tercera cuota - Semestre 2 - ${parsedYear}`,
         ];
         if (!validNames.includes(paymentName)) {
             logger.warn('Nombre de cuota inválido', { paymentName, validNames });
             return res.status(400).json({ message: `El nombre de la cuota "${paymentName}" no es válido para el año ${parsedYear}.` });
         }
 
-        // Obtener estudiantes activos
-        const students = await Student.find({ status: "Activo" }, '_id dni');
+        const isSecondShare = paymentName.includes('Segunda cuota');
+        const isThirdShare = paymentName.includes('Tercera cuota');
+        const isSemestre1 = paymentName.includes('Semestre 1');
+        const firstShareName = isSemestre1
+            ? `Primera cuota - Semestre 1 - ${parsedYear}`
+            : `Primera cuota - Semestre 2 - ${parsedYear}`;
+        const secondShareName = isSemestre1
+            ? `Segunda cuota - Semestre 1 - ${parsedYear}`
+            : `Segunda cuota - Semestre 2 - ${parsedYear}`;
+
+        if (isThirdShare && !school?.trim()) {
+            return res.status(400).json({
+                message: 'Para crear una tercera cuota masiva tenés que seleccionar una escuela.',
+            });
+        }
+
+        const studentQuery = { status: "Activo" };
+        if (isThirdShare) {
+            studentQuery.school = school.trim();
+        }
+
+        // Obtener estudiantes activos. Para tercera cuota, solo de la escuela seleccionada.
+        const students = await Student.find(studentQuery, '_id dni school');
         if (students.length === 0) {
-            logger.info('No hay estudiantes activos', { year: parsedYear });
-            return res.status(404).json({ message: 'No hay estudiantes activos registrados en el sistema.' });
+            logger.info('No hay estudiantes activos', { year: parsedYear, school });
+            return res.status(404).json({
+                message: isThirdShare
+                    ? `No hay estudiantes activos registrados para la escuela "${school}".`
+                    : 'No hay estudiantes activos registrados en el sistema.',
+            });
         }
 
         const sharesToCreate = [];
         const skippedStudents = [];
         const errors = [];
-
-        // Determinar si es una segunda cuota
-        const isSecondShare = paymentName.includes('Segunda cuota');
-        const isSemestre1 = paymentName.includes('Semestre 1');
-        const firstShareName = isSemestre1
-            ? `Primera cuota - Semestre 1 - ${parsedYear}`
-            : `Primera cuota - Semestre 2 - ${parsedYear}`;
 
         for (const student of students) {
             try {
@@ -238,7 +258,7 @@ export const createMassiveShares = async (req, res) => {
                 }
 
                 // Para primeras cuotas, crear para todos los estudiantes activos
-                if (!isSecondShare) {
+                if (!isSecondShare && !isThirdShare) {
                     sharesToCreate.push({
                         student: student._id,
                         paymentName,
@@ -306,6 +326,63 @@ export const createMassiveShares = async (req, res) => {
                         skippedStudents.push(student._id);
                     }
                 }
+
+                // Para terceras cuotas, verificar la segunda cuota del mismo semestre.
+                if (isThirdShare) {
+                    const secondShare = await Share.findOne({
+                        student: student._id,
+                        paymentName: secondShareName,
+                        year: parsedYear,
+                    });
+
+                    if (!secondShare) {
+                        logger.info('Segunda cuota no encontrada para estudiante', { student: student._id, secondShareName });
+                        skippedStudents.push(student._id);
+                        continue;
+                    }
+
+                    if (
+                        secondShare.status === 'Pendiente' &&
+                        !secondShare.amount &&
+                        !secondShare.paymentMethod &&
+                        !secondShare.paymentDate &&
+                        !secondShare.paymentType
+                    ) {
+                        logger.info('Segunda cuota pendiente sin datos de pago, omitiendo', { student: student._id, secondShareName });
+                        skippedStudents.push(student._id);
+                        continue;
+                    }
+
+                    if (secondShare.paymentType === 'Pago Total') {
+                        logger.info('Segunda cuota con Pago Total, omitiendo', { student: student._id, secondShareName });
+                        skippedStudents.push(student._id);
+                        continue;
+                    }
+
+                    if (secondShare.paymentType === 'Pago Parcial' && secondShare.status === 'Pagado') {
+                        sharesToCreate.push({
+                            student: student._id,
+                            paymentName,
+                            year: parsedYear,
+                            amount: null,
+                            paymentDate: null,
+                            paymentMethod: null,
+                            paymentType: null,
+                            status: 'Pendiente',
+                        });
+                        logger.info('Creando tercera cuota para estudiante con segunda cuota parcial', {
+                            student: student._id,
+                            paymentName,
+                            school: student.school,
+                        });
+                    } else {
+                        logger.info('Segunda cuota no cumple criterios (no Pagada o sin Pago Parcial), omitiendo', {
+                            student: student._id,
+                            secondShareName,
+                        });
+                        skippedStudents.push(student._id);
+                    }
+                }
             } catch (error) {
                 logger.error(`Error al procesar estudiante con DNI ${student.dni || 'desconocido'}`, { error: error.message });
                 errors.push(`Error al procesar el estudiante con DNI ${student.dni || 'desconocido'}: ${error.message}`);
@@ -325,13 +402,19 @@ export const createMassiveShares = async (req, res) => {
         if (sharesToCreate.length === 0) {
             logger.info('No se crearon cuotas', { skipped: skippedStudents.length });
             return res.status(200).json({
-                message: 'No se crearon cuotas porque todos los estudiantes activos ya tienen esta cuota o no cumplen los criterios.',
+                message: isThirdShare
+                    ? 'No se crearon cuotas porque los estudiantes de esa escuela ya tienen esta cuota o no cumplen el criterio de segunda cuota parcial pagada.'
+                    : 'No se crearon cuotas porque todos los estudiantes activos ya tienen esta cuota o no cumplen los criterios.',
                 skipped: skippedStudents.length,
             });
         }
 
         const newShares = await Share.insertMany(sharesToCreate);
-        logger.info('Cuotas masivas creadas exitosamente', { created: newShares.length, skipped: skippedStudents.length });
+        logger.info('Cuotas masivas creadas exitosamente', {
+            created: newShares.length,
+            skipped: skippedStudents.length,
+            school: isThirdShare ? school : undefined,
+        });
 
         for (const student of students) {
             await updateStudentEnabledStatus(student._id);
@@ -489,7 +572,7 @@ export const getSharesByStudent = async (req, res) => {
 // Obtener nombres de cuotas disponibles para un año
 export const getAvailableShareNames = async (req, res) => {
     try {
-        const { year, studentId } = req.query;
+        const { year, studentId, school } = req.query;
         if (!year) {
             logger.warn('Falta el campo year', { year });
             return res.status(400).json({ message: 'El campo year es obligatorio.' });
@@ -499,8 +582,10 @@ export const getAvailableShareNames = async (req, res) => {
         const possibleNames = [
             `Primera cuota - Semestre 1 - ${parsedYear}`,
             `Segunda cuota - Semestre 1 - ${parsedYear}`,
+            `Tercera cuota - Semestre 1 - ${parsedYear}`,
             `Primera cuota - Semestre 2 - ${parsedYear}`,
             `Segunda cuota - Semestre 2 - ${parsedYear}`,
+            `Tercera cuota - Semestre 2 - ${parsedYear}`,
         ];
 
         if (studentId) {
@@ -522,23 +607,27 @@ export const getAvailableShareNames = async (req, res) => {
                     return { name, isBlocked: true };
                 }
 
-                if (name.includes('Segunda cuota')) {
-                    const firstShareName = name.includes('Semestre 1')
+                if (name.includes('Segunda cuota') || name.includes('Tercera cuota')) {
+                    const previousShareName = name.includes('Tercera cuota')
+                        ? name.includes('Semestre 1')
+                            ? `Segunda cuota - Semestre 1 - ${parsedYear}`
+                            : `Segunda cuota - Semestre 2 - ${parsedYear}`
+                        : name.includes('Semestre 1')
                         ? `Primera cuota - Semestre 1 - ${parsedYear}`
                         : `Primera cuota - Semestre 2 - ${parsedYear}`;
 
-                    const firstShare = studentShares.find((share) => share.paymentName === firstShareName);
+                    const previousShare = studentShares.find((share) => share.paymentName === previousShareName);
 
-                    const canCreateSecondShare = Boolean(
-                        firstShare &&
-                        firstShare.paymentType === 'Pago Parcial' &&
-                        firstShare.status === 'Pagado' &&
-                        firstShare.amount &&
-                        firstShare.paymentMethod &&
-                        firstShare.paymentDate
+                    const canCreateNextShare = Boolean(
+                        previousShare &&
+                        previousShare.paymentType === 'Pago Parcial' &&
+                        previousShare.status === 'Pagado' &&
+                        previousShare.amount &&
+                        previousShare.paymentMethod &&
+                        previousShare.paymentDate
                     );
 
-                    return { name, isBlocked: !canCreateSecondShare };
+                    return { name, isBlocked: !canCreateNextShare };
                 }
 
                 return { name, isBlocked: false };
@@ -547,27 +636,39 @@ export const getAvailableShareNames = async (req, res) => {
             return res.status(200).json(availableNames);
         }
 
-        // Obtener estudiantes activos
+        // Obtener estudiantes activos. El filtro por escuela solo aplica a terceras cuotas.
         const activeStudents = await Student.find({ status: "Activo" }, '_id');
+        const schoolActiveStudents = school?.trim()
+            ? await Student.find({ status: "Activo", school: school.trim() }, '_id')
+            : [];
         const activeStudentIds = activeStudents.map(student => student._id);
         const totalActiveStudents = activeStudents.length;
 
         const availableNames = await Promise.all(possibleNames.map(async (name) => {
-            let studentsNeedingShare = [...activeStudentIds];
+            const isThirdShare = name.includes('Tercera cuota');
+            const scopedActiveStudentIds = isThirdShare && school?.trim()
+                ? schoolActiveStudents.map(student => student._id)
+                : activeStudentIds;
 
-            // Para segundas cuotas, filtrar estudiantes con Pago Parcial en la primera cuota del mismo semestre
-            if (name.includes('Segunda cuota')) {
-                const firstShareName = name.includes('Semestre 1')
-                    ? `Primera cuota - Semestre 1 - ${parsedYear}`
-                    : `Primera cuota - Semestre 2 - ${parsedYear}`;
+            let studentsNeedingShare = [...scopedActiveStudentIds];
 
-                const firstShares = await Share.find({
-                    paymentName: firstShareName,
+            // Para segundas/terceras cuotas, filtrar estudiantes con Pago Parcial en la cuota previa del mismo semestre
+            if (name.includes('Segunda cuota') || name.includes('Tercera cuota')) {
+                const previousShareName = name.includes('Tercera cuota')
+                    ? name.includes('Semestre 1')
+                        ? `Segunda cuota - Semestre 1 - ${parsedYear}`
+                        : `Segunda cuota - Semestre 2 - ${parsedYear}`
+                    : name.includes('Semestre 1')
+                        ? `Primera cuota - Semestre 1 - ${parsedYear}`
+                        : `Primera cuota - Semestre 2 - ${parsedYear}`;
+
+                const previousShares = await Share.find({
+                    paymentName: previousShareName,
                     year: parsedYear,
-                    student: { $in: activeStudentIds },
+                    student: { $in: scopedActiveStudentIds },
                 });
 
-                studentsNeedingShare = firstShares
+                studentsNeedingShare = previousShares
                     .filter(
                         (share) =>
                             share.paymentType === 'Pago Parcial' &&

@@ -12,7 +12,6 @@ import { MotionContext } from "../../context/motion/MotionContext";
 import { LoginContext } from "../../context/login/LoginContext";
 import * as XLSX from "xlsx";
 import Swal from "sweetalert2";
-import Sidebar from "../sidebar/Sidebar"; // Ajusta la ruta si es diferente
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, Title, Tooltip, Legend);
 registerLocale("es", es);
@@ -135,7 +134,6 @@ const Report = () => {
   const { cuotas, obtenerCuotasPorSemestre, selectedSemester, setSelectedSemester } = useContext(SharesContext);
   const { motions } = useContext(MotionContext);
   const { auth, authLoading } = useContext(LoginContext);
-  const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [isDataLoaded, setIsDataLoaded] = useState(false);
   const [dates, dispatch] = useReducer(datesReducer, {
     cuotasDate: new Date(),
@@ -178,9 +176,7 @@ const Report = () => {
     [selectedSemester, setSelectedSemester]
   );
 
-  // Depuración del toggle del sidebar
   const toggleMenu = () => {
-    console.log("Toggling sidebar, current isMenuOpen:", isMenuOpen);
     setIsMenuOpen((prev) => !prev);
   };
 
@@ -298,11 +294,8 @@ const Report = () => {
   const cardData4 = calculateCardData(dates.egresosDate, "egresos");
 
   return (
-    <div className="dashboard-container-report">
-      <Sidebar isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} auth={auth} toggleMenu={toggleMenu} />
+    <div className="dashboard-container">
       <div className="content-report enhanced">
-        <h1 className="report-title">Reporte General</h1>
-
         <div className="semester-selector">
           <label htmlFor="semester-select">Seleccionar Semestre:</label>
           <select

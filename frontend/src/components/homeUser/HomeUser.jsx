@@ -8,7 +8,6 @@ import "./homeUser.css";
 
 const HomeUser = () => {
     const navigate = useNavigate();
-    const [isMenuOpen, setIsMenuOpen] = useState(true);
     const { loading } = useContext(LoginContext);
 
     const menuItems = [
@@ -21,21 +20,6 @@ const HomeUser = () => {
 
     return (
         <div className="dashboard-container">
-            <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
-                <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-                    <FaBars />
-                </div>
-                {menuItems.map((item, index) => (
-                    <div
-                        key={index}
-                        className="sidebar-item"
-                        onClick={() => navigate(item.route)}
-                    >
-                        <span className="icon">{item.icon}</span>
-                        <span className="text">{item.name}</span>
-                    </div>
-                ))}
-            </div>
             <div className='content-home'>
                 <div className="cards-container">
                     {menuItems.map((item, index) => (

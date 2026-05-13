@@ -103,7 +103,7 @@ const ReportSchool = () => {
   };
 
   return (
-    <div className="dashboard-container-report">
+    <div className="dashboard-container">
       <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
         <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
           <FaBars />

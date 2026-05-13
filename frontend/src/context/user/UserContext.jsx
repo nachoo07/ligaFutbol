@@ -10,6 +10,15 @@ const UsersProvider = ({ children }) => {
     const { auth, loading: authLoading } = useContext(LoginContext);
     const [usuarios, setUsuarios] = useState([]);
     const [isDataLoaded, setIsDataLoaded] = useState(false);
+
+    useEffect(() => {
+  if (!auth) {
+    setUsuarios([]);
+    setIsDataLoaded(false);
+  }
+}, [auth]);
+
+
     const location = useLocation();
 
     const obtenerUsuarios = useCallback(async (force = false) => {

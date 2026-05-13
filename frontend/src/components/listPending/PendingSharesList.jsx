@@ -18,7 +18,6 @@ const PendingSharesList = () => {
   const [semesters, setSemesters] = useState([]);
   const [years, setYears] = useState([]);
   const [filters, setFilters] = useState({ school: '', semester: '', year: '', status: 'all' });
-  const [isMenuOpen, setIsMenuOpen] = useState(true);
   const [maxShares, setMaxShares] = useState(1);
 
   const menuItems = [
@@ -179,25 +178,9 @@ const PendingSharesList = () => {
   };
 
   return (
-    <div className="dashboard-container-pending">
-      <div className={`sidebar ${isMenuOpen ? 'open' : 'closed'}`}>
-        <div className="sidebar-toggle" onClick={() => setIsMenuOpen(!isMenuOpen)}>
-          <FaBars />
-        </div>
-        {menuItems.map((item, index) => (
-          <div
-            key={index}
-            className="sidebar-item"
-            onClick={() => item.action ? item.action() : navigate(item.route)}
-          >
-            <span className="icon">{item.icon}</span>
-            <span className="text">{item.name}</span>
-          </div>
-        ))}
-      </div>
-
-      <div className="content-student-pending">
-        <div className="students-view-pending">
+    <div className="dashboard-container">
+      <div className="content-student">
+        <div className="students-view">
           <h1 className="title">Cuotas Pendientes</h1>
           <div className="filters">
             <div className="filter-group">
