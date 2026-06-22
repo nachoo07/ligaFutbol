@@ -16,6 +16,7 @@ app.use(cookieParser());
 app.use(cors({
   origin: [
     'http://localhost:5173',
+    'http://localhost:5174',
     'http://69.62.96.81:4002',
     'https://ligainfantilyb.com',
     'http://localhost:4002'

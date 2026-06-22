@@ -151,7 +151,12 @@ export const createShare = async (req, res) => {
       registeredBy: userName,
     });
 
-    await updateStudentEnabledStatus(student);
+     await updateStudentEnabledStatus(student);
+
+    await newShare.populate({
+      path: 'student',
+      select: 'name lastName dni mail isEnabled',
+    });
 
     return res.status(201).json({
       message: paymentValidation.isPayment
@@ -159,6 +164,7 @@ export const createShare = async (req, res) => {
         : 'La cuota pendiente se creó correctamente',
       share: newShare,
     });
+
   } catch (error) {
     logger.error('Error al crear la cuota', { error: error.message, stack: error.stack });
 
@@ -502,8 +508,13 @@ export const updateShare = async (req, res) => {
       share.registeredBy = userName;
     }
 
-    await share.save();
+     await share.save();
     await updateStudentEnabledStatus(share.student);
+
+    await share.populate({
+      path: 'student',
+      select: 'name lastName dni mail isEnabled',
+    });
 
     return res.status(200).json({
       message: paymentValidation.isPayment
@@ -545,6 +556,7 @@ export const deleteShare = async (req, res) => {
         return res.status(500).json({ message: 'Error al eliminar la cuota', error: error.message });
     }
 };
+
 // Obtener cuotas por estudiante
 export const getSharesByStudent = async (req, res) => {
   try {

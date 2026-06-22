@@ -333,7 +333,7 @@ const Share = () => {
                 await addCuota(cuotaData);
             }
 
-            const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id);
+            const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id, { force: true });
             setAllStudentCuotas(studentCuotas);
 
             Swal.fire(
@@ -399,7 +399,7 @@ const Share = () => {
         if (confirmacion.isConfirmed) {
             try {
                 await deleteCuota(id);
-                const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id);
+                const studentCuotas = await obtenerCuotasPorEstudiante(selectedStudent._id, { force: true });
                 setAllStudentCuotas(studentCuotas);
                 Swal.fire("¡Éxito!", "Cuota eliminada exitosamente.", "success");
             } catch (error) {
