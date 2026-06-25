@@ -73,19 +73,20 @@ const CarnetTableGenerator = () => {
 
     useEffect(() => {
         if (estudiantes && Array.isArray(estudiantes)) {
-            const uniqueSchools = [...new Set(estudiantes.map(student => student.school))]
+            const activos = estudiantes.filter(student => student.status === 'Activo');
+            const uniqueSchools = [...new Set(activos.map(student => student.school))]
                 .filter(school => school)
                 .map(school => ({
                     value: school,
                     label: school,
                 }));
-            const uniqueCategories = [...new Set(estudiantes.map(student => student.category))]
+            const uniqueCategories = [...new Set(activos.map(student => student.category))]
                 .filter(category => category)
                 .map(category => ({
                     value: category,
                     label: category,
                 }));
-            const uniqueColors = [...new Set(estudiantes.map(student => student.color))]
+            const uniqueColors = [...new Set(activos.map(student => student.color))]
                 .filter(color => color)
                 .map(color => ({
                     value: color,
@@ -103,7 +104,7 @@ const CarnetTableGenerator = () => {
             return;
         }
 
-        let filtered = estudiantes || [];
+        let filtered = (estudiantes || []).filter(student => student.status === 'Activo');
         if (filters.school) {
             filtered = filtered.filter(student => student.school === filters.school);
         }

@@ -228,6 +228,13 @@ const StudentDetail = () => {
             }
         });
 
+        // Señal explícita de borrado: había foto y el usuario la quitó sin subir una nueva
+        const seBorroLaFoto =
+            !(formData.profileImage instanceof File) && !formData.profileImage;
+        if (seBorroLaFoto) {
+            formDataToSend.append('deleteProfileImage', 'true');
+        }
+
         const archivedNames = Array.isArray(formData.archivedNames) ? formData.archivedNames : [];
         const existingNames = Array.isArray(student.archivedNames) ? student.archivedNames : [];
         const combinedNames = (Array.isArray(formData.archived) ? formData.archived : [])

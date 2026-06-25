@@ -601,6 +601,9 @@ export const updateStudent = async (req, res) => {
       delete studentData.isEnabled;
     }
 
+    // deleteProfileImage es una señal de control, no un campo del documento
+    delete studentData.deleteProfileImage;
+
     const updateErrors = [];
 
     // Depuración: inspeccionar datos recibidos
@@ -640,6 +643,25 @@ export const updateStudent = async (req, res) => {
           updateErrors.push(`Error al subir la imagen de perfil: ${uploadError.message}`);
         }
       }
+    } else if (req.body.deleteProfileImage === 'true') {
+      // El usuario eliminó la imagen sin subir una nueva
+      if (student.profileImage && student.profileImage !== DEFAULT_PROFILE_IMAGE) {
+        const oldProfileImagePublicId = getPublicIdFromUrl(student.profileImage);
+
+        if (oldProfileImagePublicId) {
+          try {
+            const result = await destroyCloudinaryFile(oldProfileImagePublicId, 'image');
+
+            if (result.result !== 'ok' && result.result !== 'not found') {
+              updateErrors.push(`No se pudo eliminar la imagen de perfil (${oldProfileImagePublicId}): ${result.result}`);
+            }
+          } catch (deleteError) {
+            updateErrors.push(`Error al eliminar profileImage (${oldProfileImagePublicId}): ${deleteError.message}`);
+          }
+        }
+      }
+
+      studentData.profileImage = DEFAULT_PROFILE_IMAGE;
     }
 
     // Manejar archived
